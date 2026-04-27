@@ -1,0 +1,2 @@
+-- Optional dev seed (run manually after migrations if desired)
+-- insert into public.organizations (name, tier, plan_code) values ('Demo Pool', 'municipal', 'essential');

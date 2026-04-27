@@ -6,22 +6,38 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write ."
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@hookform/resolvers": "^5.0.1",
+    "@mui/icons-material": "^7.0.2",
+    "@mui/material": "^7.0.2",
+    "@mui/material-nextjs": "^7.0.2",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^1.0.4",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "next": "15.5.15",
+    "posthog-js": "^1.236.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.15"
+    "react-hook-form": "^7.56.1",
+    "resend": "^4.5.1",
+    "zod": "^3.24.3"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.15",
-    "@eslint/eslintrc": "^3"
+    "eslint-config-prettier": "^10.1.2",
+    "prettier": "^3.5.3",
+    "typescript": "^5"
   }
 }
