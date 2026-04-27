@@ -30,6 +30,28 @@ export const appTheme = createTheme({
     MuiTextField: {
       defaultProps: { variant: "outlined", margin: "normal" },
     },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: { borderRadius: 10 },
+        input: { fontFamily: "inherit" },
+        inputMultiline: { fontFamily: "inherit" },
+      },
+    },
+    MuiInputLabel: {
+      styleOverrides: {
+        outlined: ({ theme }) => ({
+          "&.MuiInputLabel-shrink": {
+            backgroundColor: theme.palette.background.paper,
+            paddingInline: theme.spacing(0.75),
+          },
+        }),
+      },
+    },
+    MuiSelect: {
+      styleOverrides: {
+        select: { fontFamily: "inherit" },
+      },
+    },
     MuiCard: {
       styleOverrides: {
         root: { borderRadius: 14, boxShadow: "0 1px 3px rgba(15,23,42,0.08)" },

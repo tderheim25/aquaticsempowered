@@ -25,7 +25,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.variable}>
-        <AppRouterCacheProvider options={{ enableCssLayer: true }}>
+        {/* enableCssLayer breaks MUI OutlinedInput legend/notch + label alignment (CSS @layer order) */}
+        <AppRouterCacheProvider options={{ enableCssLayer: false }}>
           <ThemeRegistry>{children}</ThemeRegistry>
         </AppRouterCacheProvider>
       </body>
