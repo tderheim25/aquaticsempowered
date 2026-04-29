@@ -35,7 +35,7 @@ export function AuthLayout({
           Aquatics Empowered
         </Typography>
         <Typography variant="h6" sx={{ opacity: 0.95, maxWidth: 420 }}>
-          Peace of mind for rural pools, municipal aquatics, hotels, schools, therapy water, and every facility in
+          Peace of mind for rural pools, city and county aquatics, hotels, schools, therapy water, and every facility in
           between.
         </Typography>
       </Box>

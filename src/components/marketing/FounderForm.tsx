@@ -22,7 +22,7 @@ import type { OrgTier } from "@/types/database";
 
 const tierLabels: Record<OrgTier, string> = {
   rural: "Rural community pool",
-  municipal: "Municipal / city pool",
+  municipal: "City or county public pool",
   hotel: "Hotel / resort",
   school: "School / university",
   hospital: "Hospital / healthcare",
