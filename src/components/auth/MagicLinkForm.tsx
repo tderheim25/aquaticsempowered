@@ -39,7 +39,7 @@ export function MagicLinkForm({ mode, nextPath = "/app" }: { mode: Mode; nextPat
         return;
       }
       setStatus("sent");
-      setMessage("Check your email for the magic link.");
+      setMessage("Check your email for the secure access link.");
       router.push(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong";
@@ -75,7 +75,7 @@ export function MagicLinkForm({ mode, nextPath = "/app" }: { mode: Mode; nextPat
         autoComplete="email"
       />
       <Button type="submit" variant="contained" color="primary" fullWidth size="large" disabled={status === "loading"} sx={{ mt: 2 }}>
-        {status === "loading" ? "Sending…" : mode === "forgot" ? "Send reset link" : "Send magic link"}
+        {status === "loading" ? "Sending..." : mode === "forgot" ? "Send reset link" : "Send sign-in link"}
       </Button>
       {status === "sent" && (
         <Typography variant="body2" color="success.main" sx={{ mt: 2 }}>

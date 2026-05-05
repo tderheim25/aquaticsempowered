@@ -74,6 +74,7 @@ export type Database = {
           id: string;
           org_id: string | null;
           role: UserRole;
+          app_role_id: string | null;
           email: string;
           full_name: string | null;
           created_at: string;
@@ -82,6 +83,7 @@ export type Database = {
           id: string;
           org_id?: string | null;
           role?: UserRole;
+          app_role_id?: string | null;
           email: string;
           full_name?: string | null;
           created_at?: string;
@@ -90,9 +92,61 @@ export type Database = {
           id?: string;
           org_id?: string | null;
           role?: UserRole;
+          app_role_id?: string | null;
           email?: string;
           full_name?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      app_roles: {
+        Row: {
+          id: string;
+          slug: string;
+          label: string;
+          permissions_base: UserRole;
+          is_builtin: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          label: string;
+          permissions_base?: UserRole;
+          is_builtin?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          label?: string;
+          permissions_base?: UserRole;
+          is_builtin?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      app_role_view_permissions: {
+        Row: {
+          role_id: string;
+          view_key: string;
+          can_view: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          role_id: string;
+          view_key: string;
+          can_view?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          role_id?: string;
+          view_key?: string;
+          can_view?: boolean;
+          updated_at?: string;
         };
         Relationships: [];
       };

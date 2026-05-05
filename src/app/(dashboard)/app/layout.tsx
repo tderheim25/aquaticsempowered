@@ -1,6 +1,7 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
+import { getUsersRowForAuthUser, requireAuth } from "@/lib/auth/rbac";
 import { createClient } from "@/lib/supabase/server";
-import { requireAuth } from "@/lib/auth/rbac";
 import type { PlanCode } from "@/types/database";
 
 function planLabel(code: PlanCode) {
@@ -25,11 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("full_name, org_id")
-    .eq("id", user!.id)
-    .maybeSingle();
+  const profile = await getUsersRowForAuthUser(user!.id);
 
   let orgName: string | null = null;
   let planCode: PlanCode = "free";
@@ -45,9 +42,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const displayName = profile?.full_name?.trim() || user?.email || "Operator";
+  const allowedViews = await getAllowedViewsForProfile(
+    profile ? { role: profile.role, app_role_id: profile.app_role_id } : null
+  );
 
   return (
-    <DashboardShell displayName={displayName} orgName={orgName} planLabel={planLabel(planCode)}>
+    <DashboardShell
+      displayName={displayName}
+      orgName={orgName}
+      planLabel={planLabel(planCode)}
+      userRole={profile?.role ?? null}
+      allowedViews={allowedViews}
+    >
       {children}
     </DashboardShell>
   );

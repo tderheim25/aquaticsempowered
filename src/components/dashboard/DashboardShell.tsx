@@ -1,6 +1,8 @@
 "use client";
 
 import MenuIcon from "@mui/icons-material/Menu";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   AppBar,
   Avatar,
@@ -20,35 +22,61 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
+import type { AppViewKey } from "@/lib/auth/viewPermissions";
+import type { UserRole } from "@/types/database";
+
+import { DashboardBreadcrumbs } from "./DashboardBreadcrumbs";
 
 const drawerWidth = 260;
 
-const navItems: { label: string; href: string; soon: boolean }[] = [
-  { label: "Dashboard", href: "/app", soon: false },
-  { label: "Chemical Logs", href: "#", soon: true },
-  { label: "Maintenance", href: "#", soon: true },
-  { label: "Support Center", href: "#", soon: true },
-  { label: "Vendor Directory", href: "#", soon: true },
-  { label: "Community", href: "#", soon: true },
-  { label: "Procurement", href: "#", soon: true },
-  { label: "Training / CPO", href: "#", soon: true },
-  { label: "Monitoring", href: "#", soon: true },
-  { label: "Admin", href: "#", soon: true },
+function normalizePath(path: string) {
+  const p = path.replace(/\/$/, "") || "/";
+  return p === "" ? "/" : p;
+}
+
+/** Dashboard home must match exactly `/app`, otherwise `/app/admin` incorrectly highlights Dashboard. */
+function isNavItemActive(pathname: string, href: string) {
+  const p = normalizePath(pathname);
+  const h = normalizePath(href);
+  if (h === "/app") {
+    return p === "/app";
+  }
+  /** Admin hub is only highlighted on the portal index, not on deeper admin routes (those use Admin tools). */
+  if (h === "/app/admin") {
+    return p === "/app/admin";
+  }
+  return p === h || p.startsWith(`${h}/`);
+}
+
+const navItems: { label: string; href: string; soon: boolean; viewKey: AppViewKey; roles?: UserRole[] }[] = [
+  { label: "Dashboard", href: "/app", soon: false, viewKey: "dashboard_home" },
+  { label: "Chemical Logs", href: "#", soon: true, viewKey: "chemical_logs" },
+  { label: "Maintenance", href: "#", soon: true, viewKey: "maintenance" },
+  { label: "Support Center", href: "#", soon: true, viewKey: "support_center" },
+  { label: "Vendor Directory", href: "#", soon: true, viewKey: "vendor_directory" },
+  { label: "Community", href: "#", soon: true, viewKey: "community" },
+  { label: "Procurement", href: "#", soon: true, viewKey: "procurement" },
+  { label: "Training / CPO", href: "#", soon: true, viewKey: "training_cpo" },
+  { label: "Monitoring", href: "#", soon: true, viewKey: "monitoring" },
 ];
 
 export function DashboardShell({
   displayName,
   orgName,
   planLabel,
+  userRole,
+  allowedViews,
   children,
 }: {
   displayName: string;
   orgName: string | null;
   planLabel: string;
+  userRole: UserRole | null;
+  allowedViews: AppViewKey[];
   children: React.ReactNode;
 }) {
   const theme = useTheme();
@@ -56,6 +84,11 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const section = searchParams.get("section");
+  const [adminExpanded, setAdminExpanded] = useState(pathname.startsWith("/app/admin"));
+
+  const allowedViewSet = new Set(allowedViews);
 
   const drawer = (
     <Box sx={{ pt: 2 }}>
@@ -64,23 +97,58 @@ export function DashboardShell({
       </Typography>
       <Divider />
       <List>
-        {navItems.map((item) => {
-          const active = !item.soon && pathname === item.href;
-          return (
-            <ListItemButton
-              key={item.label}
-              component={item.soon ? "div" : Link}
-              href={item.soon ? undefined : item.href}
-              selected={active}
-              disabled={item.soon}
-              onClick={() => setMobileOpen(false)}
-            >
-              <ListItemText primary={item.label} />
-              {item.soon && <Chip label="Soon" size="small" sx={{ ml: 1 }} />}
-            </ListItemButton>
-          );
-        })}
+        {navItems
+          .filter((item) => allowedViewSet.has(item.viewKey))
+          .filter((item) => !item.roles || (userRole ? item.roles.includes(userRole) : false))
+          .map((item) => {
+            const active = !item.soon && isNavItemActive(pathname, item.href);
+            return (
+              <ListItemButton
+                key={item.label}
+                component={item.soon ? "div" : Link}
+                href={item.soon ? undefined : item.href}
+                selected={active}
+                disabled={item.soon}
+                onClick={() => setMobileOpen(false)}
+              >
+                <ListItemText primary={item.label} />
+                {item.soon && <Chip label="Soon" size="small" sx={{ ml: 1 }} />}
+              </ListItemButton>
+            );
+          })}
       </List>
+
+      {userRole === "super_admin" && allowedViewSet.has("admin_portal") ? (
+        <List dense disablePadding sx={{ px: 1, pt: 1 }}>
+          <ListItemButton
+            selected={pathname.startsWith("/app/admin")}
+            onClick={() => {
+              setAdminExpanded((v) => !v);
+              setMobileOpen(false);
+            }}
+            sx={{ borderRadius: 1 }}
+          >
+            <ListItemText primary="Admin" primaryTypographyProps={{ variant: "body2", fontWeight: 600 }} />
+            {adminExpanded ? <RemoveIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+          </ListItemButton>
+          {adminExpanded ? (
+            <List dense disablePadding sx={{ mt: 0.25 }}>
+              <ListItemButton component={Link} href="/app/admin?section=users" selected={pathname === "/app/admin" && (section === "users" || !section)} sx={{ borderRadius: 1, pl: 3 }}>
+                <ListItemText primary="Users" primaryTypographyProps={{ variant: "body2" }} />
+              </ListItemButton>
+              <ListItemButton component={Link} href="/app/admin?section=organizations" selected={pathname === "/app/admin" && section === "organizations"} sx={{ borderRadius: 1, pl: 3 }}>
+                <ListItemText primary="Organizations" primaryTypographyProps={{ variant: "body2" }} />
+              </ListItemButton>
+              <ListItemButton component={Link} href="/app/admin?section=permissions" selected={pathname === "/app/admin" && section === "permissions"} sx={{ borderRadius: 1, pl: 3 }}>
+                <ListItemText primary="Permissions" primaryTypographyProps={{ variant: "body2" }} />
+              </ListItemButton>
+              <ListItemButton component={Link} href="/app/admin?section=billing" selected={pathname === "/app/admin" && section === "billing"} sx={{ borderRadius: 1, pl: 3 }}>
+                <ListItemText primary="Billing" primaryTypographyProps={{ variant: "body2" }} />
+              </ListItemButton>
+            </List>
+          ) : null}
+        </List>
+      ) : null}
     </Box>
   );
 
@@ -164,6 +232,7 @@ export function DashboardShell({
           mt: 8,
         }}
       >
+        <DashboardBreadcrumbs />
         {children}
       </Box>
     </Box>

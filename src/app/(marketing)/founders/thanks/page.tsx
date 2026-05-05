@@ -20,7 +20,7 @@ export default function FoundersThanksPage() {
           Back to home
         </Button>
         <Button component={Link} href="/login" variant="contained" color="primary">
-          Sign in (magic link)
+          Sign in
         </Button>
       </Stack>
     </Container>

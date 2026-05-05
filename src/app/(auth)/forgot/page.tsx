@@ -19,7 +19,7 @@ export default async function ForgotPage({
   return (
     <AuthLayout
       title="Forgot access"
-      subtitle="If you already have an account, we’ll email you a fresh magic link."
+      subtitle="If you already have an account, we’ll email you a secure access link."
     >
       <MagicLinkForm mode="forgot" nextPath={nextPath} />
       <Typography variant="body2" sx={{ mt: 2, textAlign: "center" }}>

@@ -15,7 +15,7 @@ export default async function CheckEmailPage({
   const { email } = await searchParams;
 
   return (
-    <AuthLayout title="Check your email" subtitle="We sent a secure sign-in link. It may take a minute to arrive.">
+    <AuthLayout title="Check your email" subtitle="We sent a secure email link. It may take a minute to arrive.">
       {email ? (
         <Typography variant="body2" color="text.secondary">
           Sent to <strong>{decodeURIComponent(email)}</strong>
