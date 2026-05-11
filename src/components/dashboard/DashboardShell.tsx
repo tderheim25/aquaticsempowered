@@ -52,11 +52,14 @@ function isNavItemActive(pathname: string, href: string) {
   return p === h || p.startsWith(`${h}/`);
 }
 
+/** Routes that read/write org-scoped data; without org_id the server redirects to `/app/no-organization`. */
+const ORG_SCOPED_VIEWS = new Set<AppViewKey>(["maintenance", "support_center"]);
+
 const navItems: { label: string; href: string; soon: boolean; viewKey: AppViewKey; roles?: UserRole[] }[] = [
   { label: "Dashboard", href: "/app", soon: false, viewKey: "dashboard_home" },
-  { label: "Chemical Logs", href: "#", soon: true, viewKey: "chemical_logs" },
-  { label: "Maintenance", href: "#", soon: true, viewKey: "maintenance" },
-  { label: "Support Center", href: "#", soon: true, viewKey: "support_center" },
+  { label: "Chemical Logs", href: "/app/chemical-logs", soon: false, viewKey: "chemical_logs" },
+  { label: "Maintenance", href: "/app/maintenance", soon: false, viewKey: "maintenance" },
+  { label: "Support Center", href: "/app/support", soon: false, viewKey: "support_center" },
   { label: "Vendor Directory", href: "#", soon: true, viewKey: "vendor_directory" },
   { label: "Community", href: "#", soon: true, viewKey: "community" },
   { label: "Procurement", href: "#", soon: true, viewKey: "procurement" },
@@ -70,6 +73,7 @@ export function DashboardShell({
   planLabel,
   userRole,
   allowedViews,
+  hasOrg,
   children,
 }: {
   displayName: string;
@@ -77,6 +81,8 @@ export function DashboardShell({
   planLabel: string;
   userRole: UserRole | null;
   allowedViews: AppViewKey[];
+  /** Set from `public.users.org_id`; facility tools need an org or the server redirects away. */
+  hasOrg: boolean;
   children: React.ReactNode;
 }) {
   const theme = useTheme();
@@ -101,12 +107,20 @@ export function DashboardShell({
           .filter((item) => allowedViewSet.has(item.viewKey))
           .filter((item) => !item.roles || (userRole ? item.roles.includes(userRole) : false))
           .map((item) => {
-            const active = !item.soon && isNavItemActive(pathname, item.href);
+            const href =
+              item.soon || !ORG_SCOPED_VIEWS.has(item.viewKey)
+                ? item.href
+                : hasOrg
+                  ? item.href
+                  : "/app/no-organization";
+            const onNoOrgGate = normalizePath(pathname) === "/app/no-organization";
+            const active =
+              !item.soon && isNavItemActive(pathname, href) && !(onNoOrgGate && href === "/app/no-organization");
             return (
               <ListItemButton
                 key={item.label}
                 component={item.soon ? "div" : Link}
-                href={item.soon ? undefined : item.href}
+                href={item.soon ? undefined : href}
                 selected={active}
                 disabled={item.soon}
                 onClick={() => setMobileOpen(false)}

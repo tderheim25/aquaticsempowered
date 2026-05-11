@@ -53,6 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       planLabel={planLabel(planCode)}
       userRole={profile?.role ?? null}
       allowedViews={allowedViews}
+      hasOrg={Boolean(profile?.org_id)}
     >
       {children}
     </DashboardShell>

@@ -42,7 +42,7 @@ export default async function AdminUsersPage({
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
-  let usersQuery = await admin
+  const usersQuery = await admin
     .from("users")
     .select("id, email, full_name, org_id, role, app_role_id, created_at")
     .order("created_at", { ascending: false });

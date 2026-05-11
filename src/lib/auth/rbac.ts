@@ -97,7 +97,7 @@ export async function requireRole(allowed: UserRole | UserRole[]) {
 export async function requireOrg() {
   const profile = await getCurrentProfile();
   if (!profile?.org_id) {
-    redirect("/app");
+    redirect("/app/no-organization");
   }
   return profile;
 }

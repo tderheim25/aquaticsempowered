@@ -8,11 +8,14 @@ import { usePathname } from "next/navigation";
 /** Maps path segments under `/app` to human-readable labels (last segment wins). */
 const SEGMENT_LABELS: Record<string, string> = {
   app: "Dashboard",
+  maintenance: "Maintenance",
   admin: "Admin",
   users: "User management",
   permissions: "Permissions",
   forbidden: "Access denied",
   "needs-profile": "Account setup",
+  support: "Support Center",
+  "no-organization": "Organization required",
 };
 
 function normalizePath(path: string) {

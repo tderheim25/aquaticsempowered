@@ -28,10 +28,31 @@ export default async function DashboardHomePage() {
   const canOpenAdmin = allowedViews.includes("admin_portal");
   const firstName = toFirstName(profile?.full_name, user?.email);
 
+  const workspaceTools = [
+    {
+      title: "Maintenance",
+      href: "/app/maintenance",
+      description: "Schedule and track facility maintenance tasks.",
+      viewKey: "maintenance" as const,
+    },
+    {
+      title: "Support Center",
+      href: "/app/support",
+      description: "Get help, browse resources, and manage support tickets.",
+      viewKey: "support_center" as const,
+    },
+  ];
+
+  const hasOrg = Boolean(profile?.org_id);
+  const visibleWorkspaceTools = workspaceTools
+    .filter((t) => allowedViews.includes(t.viewKey))
+    .map((t) => ({
+      ...t,
+      href: hasOrg ? t.href : "/app/no-organization",
+    }));
+
   const comingSoonAreas = [
     "Chemical Logs",
-    "Maintenance",
-    "Support Center",
     "Vendor Directory",
     "Community",
     "Procurement",
@@ -71,6 +92,34 @@ export default async function DashboardHomePage() {
                 {adminAreas.map((area) => (
                   <Grid key={area.title} size={{ xs: 12, sm: 6, lg: 3 }}>
                     <Card variant="outlined" sx={{ height: 140 }}>
+                      <CardActionArea component={Link} href={area.href} sx={{ height: "100%" }}>
+                        <CardContent>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+                            {area.title}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {area.description}
+                          </Typography>
+                        </CardContent>
+                      </CardActionArea>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {visibleWorkspaceTools.length > 0 ? (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                Workspace
+              </Typography>
+              <Grid container spacing={1.5}>
+                {visibleWorkspaceTools.map((area) => (
+                  <Grid key={area.title} size={{ xs: 12, sm: 6, lg: 4 }}>
+                    <Card variant="outlined" sx={{ height: 120 }}>
                       <CardActionArea component={Link} href={area.href} sx={{ height: "100%" }}>
                         <CardContent>
                           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>

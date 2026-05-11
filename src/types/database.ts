@@ -27,6 +27,21 @@ export type UserRole = "super_admin" | "org_admin" | "manager" | "staff" | "vend
 
 export type PlanCode = "free" | "essential" | "pro" | "enterprise";
 
+export type TaskStatus = "open" | "in_progress" | "done" | "cancelled";
+
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export type TaskCategory =
+  | "chemical"
+  | "equipment"
+  | "facility"
+  | "safety"
+  | "cleaning"
+  | "inspection"
+  | "other";
+
+export type TicketStatus = "open" | "pending" | "resolved" | "closed";
+
 export type Database = {
   public: {
     Tables: {
@@ -66,6 +81,45 @@ export type Database = {
           current_pain?: string | null;
           source?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      chemical_logs: {
+        Row: {
+          id: string;
+          org_id: string;
+          pool_label: string | null;
+          ph: number | null;
+          free_chlorine: number | null;
+          total_chlorine: number | null;
+          alkalinity: number | null;
+          temp_f: number | null;
+          logged_by: string | null;
+          logged_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          pool_label?: string | null;
+          ph?: number | null;
+          free_chlorine?: number | null;
+          total_chlorine?: number | null;
+          alkalinity?: number | null;
+          temp_f?: number | null;
+          logged_by?: string | null;
+          logged_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          pool_label?: string | null;
+          ph?: number | null;
+          free_chlorine?: number | null;
+          total_chlorine?: number | null;
+          alkalinity?: number | null;
+          temp_f?: number | null;
+          logged_by?: string | null;
+          logged_at?: string;
         };
         Relationships: [];
       };
@@ -180,6 +234,93 @@ export type Database = {
         };
         Relationships: [];
       };
+      maintenance_tasks: {
+        Row: {
+          id: string;
+          org_id: string;
+          title: string;
+          description: string | null;
+          status: TaskStatus;
+          priority: TaskPriority;
+          category: TaskCategory;
+          pool_label: string | null;
+          assigned_to: string | null;
+          created_by: string | null;
+          due_date: string | null;
+          created_at: string;
+          updated_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          title: string;
+          description?: string | null;
+          status?: TaskStatus;
+          priority?: TaskPriority;
+          category?: TaskCategory;
+          pool_label?: string | null;
+          assigned_to?: string | null;
+          created_by?: string | null;
+          due_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          title?: string;
+          description?: string | null;
+          status?: TaskStatus;
+          priority?: TaskPriority;
+          category?: TaskCategory;
+          pool_label?: string | null;
+          assigned_to?: string | null;
+          created_by?: string | null;
+          due_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Relationships: [];
+      };
+      support_tickets: {
+        Row: {
+          id: string;
+          org_id: string;
+          subject: string;
+          body: string | null;
+          status: TicketStatus;
+          priority: TaskPriority;
+          assigned_to: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          subject: string;
+          body?: string | null;
+          status?: TicketStatus;
+          priority?: TaskPriority;
+          assigned_to?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          subject?: string;
+          body?: string | null;
+          status?: TicketStatus;
+          priority?: TaskPriority;
+          assigned_to?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       plans: {
         Row: {
           code: PlanCode;
@@ -225,6 +366,10 @@ export type Database = {
       org_tier: OrgTier;
       user_role: UserRole;
       plan_code: PlanCode;
+      task_status: TaskStatus;
+      task_priority: TaskPriority;
+      task_category: TaskCategory;
+      ticket_status: TicketStatus;
     };
     CompositeTypes: {
       [_ in never]: never;
