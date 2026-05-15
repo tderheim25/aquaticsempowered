@@ -41,8 +41,17 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
     "training_cpo",
     "monitoring",
   ],
-  manager: ["dashboard_home", "chemical_logs", "maintenance", "support_center", "vendor_directory", "community"],
-  staff: ["dashboard_home", "chemical_logs", "maintenance", "support_center"],
+  manager: [
+    "dashboard_home",
+    "chemical_logs",
+    "maintenance",
+    "support_center",
+    "vendor_directory",
+    "procurement",
+    "community",
+    "training_cpo",
+  ],
+  staff: ["dashboard_home", "chemical_logs", "maintenance", "support_center", "vendor_directory", "procurement", "training_cpo"],
   vendor: ["dashboard_home", "vendor_directory", "support_center"],
 };
 

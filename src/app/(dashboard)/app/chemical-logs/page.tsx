@@ -37,6 +37,9 @@ type ChemicalLogRow = {
   total_chlorine: number | null;
   alkalinity: number | null;
   temp_f: number | null;
+  calcium_hardness: number | null;
+  tds_ppm: number | null;
+  langelier_saturation_index: number | null;
   logged_by: string | null;
   logged_at: string;
 };
@@ -97,7 +100,9 @@ export default async function ChemicalLogsPage({
 
   let logsQuery = supabase
     .from("chemical_logs")
-    .select("id, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f, logged_by, logged_at")
+    .select(
+      "id, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f, calcium_hardness, tds_ppm, langelier_saturation_index, logged_by, logged_at"
+    )
     .eq("org_id", activeOrgId);
   if (pool?.trim()) {
     logsQuery = logsQuery.eq("pool_label", pool.trim());
@@ -144,7 +149,8 @@ export default async function ChemicalLogsPage({
             Chemical Logs
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Track water chemistry readings per pool and keep a timestamped history.
+            Track water chemistry readings per pool, including Langelier Saturation Index when hardness and core readings
+            are provided.
           </Typography>
         </div>
 
@@ -201,6 +207,26 @@ export default async function ChemicalLogsPage({
                 <TextField name="alkalinity" label="Alkalinity" type="number" size="small" inputProps={{ step: "0.01" }} fullWidth />
                 <TextField name="tempF" label="Temperature (F)" type="number" size="small" inputProps={{ step: "0.1" }} fullWidth />
               </Stack>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                <TextField
+                  name="calciumHardness"
+                  label="Calcium hardness (ppm CaCO₃)"
+                  type="number"
+                  size="small"
+                  inputProps={{ step: "0.01" }}
+                  fullWidth
+                  helperText="Used with pH, alkalinity, and temperature to compute LSI."
+                />
+                <TextField
+                  name="tdsPpm"
+                  label="TDS (ppm)"
+                  type="number"
+                  size="small"
+                  inputProps={{ step: "1" }}
+                  fullWidth
+                  helperText="Optional; defaults to 800 ppm for LSI if blank."
+                />
+              </Stack>
               <Button type="submit" variant="contained" sx={{ alignSelf: "flex-start" }}>
                 Save log
               </Button>
@@ -227,6 +253,18 @@ export default async function ChemicalLogsPage({
                   <TextField name="alkalinity" label="Alkalinity" type="number" size="small" defaultValue={selectedLog.alkalinity ?? ""} inputProps={{ step: "0.01" }} fullWidth />
                   <TextField name="tempF" label="Temperature (F)" type="number" size="small" defaultValue={selectedLog.temp_f ?? ""} inputProps={{ step: "0.1" }} fullWidth />
                 </Stack>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+                  <TextField
+                    name="calciumHardness"
+                    label="Calcium hardness (ppm CaCO₃)"
+                    type="number"
+                    size="small"
+                    defaultValue={selectedLog.calcium_hardness ?? ""}
+                    inputProps={{ step: "0.01" }}
+                    fullWidth
+                  />
+                  <TextField name="tdsPpm" label="TDS (ppm)" type="number" size="small" defaultValue={selectedLog.tds_ppm ?? ""} inputProps={{ step: "1" }} fullWidth />
+                </Stack>
                 <Stack direction="row" spacing={1}>
                   <Button type="submit" variant="contained">
                     Update log
@@ -251,6 +289,9 @@ export default async function ChemicalLogsPage({
                 <TableCell>Total Cl</TableCell>
                 <TableCell>Alkalinity</TableCell>
                 <TableCell>Temp (F)</TableCell>
+                <TableCell>Ca hardness</TableCell>
+                <TableCell>TDS</TableCell>
+                <TableCell>LSI</TableCell>
                 <TableCell>Logged by</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -265,6 +306,9 @@ export default async function ChemicalLogsPage({
                   <TableCell sx={outOfRangeStyle(log.total_chlorine, 1, 5)}>{log.total_chlorine ?? "-"}</TableCell>
                   <TableCell sx={outOfRangeStyle(log.alkalinity, 80, 120)}>{log.alkalinity ?? "-"}</TableCell>
                   <TableCell sx={outOfRangeStyle(log.temp_f, 78, 84)}>{log.temp_f ?? "-"}</TableCell>
+                  <TableCell>{log.calcium_hardness ?? "-"}</TableCell>
+                  <TableCell>{log.tds_ppm ?? "-"}</TableCell>
+                  <TableCell>{log.langelier_saturation_index ?? "-"}</TableCell>
                   <TableCell>{(log.logged_by && loggerNameById.get(log.logged_by)) || "Unknown user"}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -284,7 +328,7 @@ export default async function ChemicalLogsPage({
               ))}
               {(!logs || logs.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={12}>
                     <Typography variant="body2" color="text.secondary">
                       No logs yet. Add your first reading above.
                     </Typography>

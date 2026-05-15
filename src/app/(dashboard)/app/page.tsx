@@ -28,37 +28,99 @@ export default async function DashboardHomePage() {
   const canOpenAdmin = allowedViews.includes("admin_portal");
   const firstName = toFirstName(profile?.full_name, user?.email);
 
-  const workspaceTools = [
+  const workspaceTools: {
+    title: string;
+    href: string;
+    description: string;
+    viewKey:
+      | "maintenance"
+      | "chemical_logs"
+      | "support_center"
+      | "community"
+      | "vendor_directory"
+      | "procurement"
+      | "training_cpo"
+      | "monitoring";
+    /** When true (default), users without an organization are sent to the org setup gate. */
+    requiresOrg?: boolean;
+  }[] = [
     {
       title: "Maintenance",
       href: "/app/maintenance",
       description: "Schedule and track facility maintenance tasks.",
-      viewKey: "maintenance" as const,
+      viewKey: "maintenance",
+      requiresOrg: true,
+    },
+    {
+      title: "Chemical Logs",
+      href: "/app/chemical-logs",
+      description: "Record water chemistry, history, and Langelier Saturation Index.",
+      viewKey: "chemical_logs",
+      requiresOrg: false,
+    },
+    {
+      title: "Vendor Directory",
+      href: "/app/vendors",
+      description: "Browse certified partners, suppliers, and service providers.",
+      viewKey: "vendor_directory",
+      requiresOrg: false,
+    },
+    {
+      title: "Procurement",
+      href: "/app/procurement",
+      description: "Log supply needs, preferred vendors, and requisition status for your facility.",
+      viewKey: "procurement",
+      requiresOrg: true,
+    },
+    {
+      title: "Training / CPO",
+      href: "/app/training-cpo",
+      description: "Study outline, trusted references, and context for operator certification.",
+      viewKey: "training_cpo",
+      requiresOrg: false,
+    },
+    {
+      title: "Monitoring",
+      href: "/app/monitoring",
+      description: "Water-quality attention summary from chemical logs (Enterprise).",
+      viewKey: "monitoring",
+      requiresOrg: false,
     },
     {
       title: "Support Center",
       href: "/app/support",
       description: "Get help, browse resources, and manage support tickets.",
-      viewKey: "support_center" as const,
+      viewKey: "support_center",
+      requiresOrg: true,
+    },
+    {
+      title: "Trouble ticket",
+      href: "/app/support?new=1",
+      description: "Open the ticket form directly for a facility or water-quality issue.",
+      viewKey: "support_center",
+      requiresOrg: true,
+    },
+    {
+      title: "Community",
+      href: "/app/community",
+      description: "Connect with teammates: posts, likes, photos, and profiles.",
+      viewKey: "community",
+      requiresOrg: false,
     },
   ];
 
   const hasOrg = Boolean(profile?.org_id);
   const visibleWorkspaceTools = workspaceTools
     .filter((t) => allowedViews.includes(t.viewKey))
-    .map((t) => ({
-      ...t,
-      href: hasOrg ? t.href : "/app/no-organization",
-    }));
+    .map((t) => {
+      const needsOrg = t.requiresOrg !== false;
+      return {
+        ...t,
+        href: needsOrg && !hasOrg ? "/app/no-organization" : t.href,
+      };
+    });
 
-  const comingSoonAreas = [
-    "Chemical Logs",
-    "Vendor Directory",
-    "Community",
-    "Procurement",
-    "Training / CPO",
-    "Monitoring",
-  ];
+  const comingSoonAreas: string[] = [];
 
   const adminAreas = [
     { title: "Users", href: "/app/admin?section=users", description: "Manage user accounts and assign system roles." },

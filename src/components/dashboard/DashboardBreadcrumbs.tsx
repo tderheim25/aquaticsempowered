@@ -5,6 +5,8 @@ import { Breadcrumbs, Link as MuiLink, Typography } from "@mui/material";
 import NextLink from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useBreadcrumbLastLabel } from "./BreadcrumbLabelContext";
+
 /** Maps path segments under `/app` to human-readable labels (last segment wins). */
 const SEGMENT_LABELS: Record<string, string> = {
   app: "Dashboard",
@@ -12,9 +14,16 @@ const SEGMENT_LABELS: Record<string, string> = {
   admin: "Admin",
   users: "User management",
   permissions: "Permissions",
+  "chemical-logs": "Chemical Logs",
   forbidden: "Access denied",
   "needs-profile": "Account setup",
   support: "Support Center",
+  community: "Community",
+  profile: "Profile",
+  vendors: "Vendor Directory",
+  procurement: "Procurement",
+  "training-cpo": "Training / CPO",
+  monitoring: "Monitoring",
   "no-organization": "Organization required",
 };
 
@@ -23,7 +32,11 @@ function normalizePath(path: string) {
   return p === "" ? "/" : p;
 }
 
-function buildCrumbs(pathname: string): { label: string; href: string }[] {
+function isUuidSegment(seg: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg);
+}
+
+function buildCrumbs(pathname: string, lastLabelOverride: string | null): { label: string; href: string }[] {
   const path = normalizePath(pathname);
   const segments = path.split("/").filter(Boolean);
   if (segments.length === 0 || segments[0] !== "app") {
@@ -35,9 +48,11 @@ function buildCrumbs(pathname: string): { label: string; href: string }[] {
   for (let i = 0; i < segments.length; i++) {
     acc += `/${segments[i]}`;
     const seg = segments[i];
-    const label =
-      SEGMENT_LABELS[seg] ??
-      seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const prev = segments[i - 1];
+    const isProfileUserId = isUuidSegment(seg) && prev === "profile";
+    const label = isProfileUserId
+      ? lastLabelOverride?.trim() || "Profile"
+      : SEGMENT_LABELS[seg] ?? seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     crumbs.push({ label, href: acc });
   }
 
@@ -46,7 +61,8 @@ function buildCrumbs(pathname: string): { label: string; href: string }[] {
 
 export function DashboardBreadcrumbs() {
   const pathname = usePathname();
-  const crumbs = buildCrumbs(pathname ?? "");
+  const lastLabelOverride = useBreadcrumbLastLabel();
+  const crumbs = buildCrumbs(pathname ?? "", lastLabelOverride);
 
   if (crumbs.length <= 1) {
     return null;

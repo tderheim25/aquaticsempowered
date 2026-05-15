@@ -29,6 +29,7 @@ import { signOut } from "@/app/actions/auth";
 import type { AppViewKey } from "@/lib/auth/viewPermissions";
 import type { UserRole } from "@/types/database";
 
+import { BreadcrumbLabelProvider } from "./BreadcrumbLabelContext";
 import { DashboardBreadcrumbs } from "./DashboardBreadcrumbs";
 
 const drawerWidth = 260;
@@ -52,23 +53,25 @@ function isNavItemActive(pathname: string, href: string) {
   return p === h || p.startsWith(`${h}/`);
 }
 
-/** Routes that read/write org-scoped data; without org_id the server redirects to `/app/no-organization`. */
-const ORG_SCOPED_VIEWS = new Set<AppViewKey>(["maintenance", "support_center"]);
+/** Facility tools that require `public.users.org_id`; Community stays available without an org. */
+const ORG_SCOPED_VIEWS = new Set<AppViewKey>(["maintenance", "support_center", "procurement"]);
 
 const navItems: { label: string; href: string; soon: boolean; viewKey: AppViewKey; roles?: UserRole[] }[] = [
   { label: "Dashboard", href: "/app", soon: false, viewKey: "dashboard_home" },
   { label: "Chemical Logs", href: "/app/chemical-logs", soon: false, viewKey: "chemical_logs" },
   { label: "Maintenance", href: "/app/maintenance", soon: false, viewKey: "maintenance" },
   { label: "Support Center", href: "/app/support", soon: false, viewKey: "support_center" },
-  { label: "Vendor Directory", href: "#", soon: true, viewKey: "vendor_directory" },
-  { label: "Community", href: "#", soon: true, viewKey: "community" },
-  { label: "Procurement", href: "#", soon: true, viewKey: "procurement" },
-  { label: "Training / CPO", href: "#", soon: true, viewKey: "training_cpo" },
-  { label: "Monitoring", href: "#", soon: true, viewKey: "monitoring" },
+  { label: "Vendor Directory", href: "/app/vendors", soon: false, viewKey: "vendor_directory" },
+  { label: "Community", href: "/app/community", soon: false, viewKey: "community" },
+  { label: "Procurement", href: "/app/procurement", soon: false, viewKey: "procurement" },
+  { label: "Training / CPO", href: "/app/training-cpo", soon: false, viewKey: "training_cpo" },
+  { label: "Monitoring", href: "/app/monitoring", soon: false, viewKey: "monitoring" },
 ];
 
 export function DashboardShell({
   displayName,
+  avatarUrl,
+  profileHref,
   orgName,
   planLabel,
   userRole,
@@ -77,6 +80,9 @@ export function DashboardShell({
   children,
 }: {
   displayName: string;
+  avatarUrl?: string | null;
+  /** Own profile URL (community profile page). */
+  profileHref?: string | null;
   orgName: string | null;
   planLabel: string;
   userRole: UserRole | null;
@@ -190,7 +196,7 @@ export function DashboardShell({
           </Typography>
           <Chip label={planLabel} size="small" sx={{ mr: 1, display: { xs: "none", sm: "flex" } }} />
           <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" aria-label="account menu">
-            <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
+            <Avatar src={avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
               {displayName?.charAt(0)?.toUpperCase() ?? "U"}
             </Avatar>
           </IconButton>
@@ -201,6 +207,11 @@ export function DashboardShell({
                 {orgName ?? "No organization linked"}
               </Typography>
             </MenuItem>
+            {profileHref ? (
+              <MenuItem component={Link} href={profileHref} onClick={() => setAnchorEl(null)}>
+                View profile
+              </MenuItem>
+            ) : null}
             <Divider />
             <MenuItem
               onClick={async () => {
@@ -246,8 +257,10 @@ export function DashboardShell({
           mt: 8,
         }}
       >
-        <DashboardBreadcrumbs />
-        {children}
+        <BreadcrumbLabelProvider>
+          <DashboardBreadcrumbs />
+          {children}
+        </BreadcrumbLabelProvider>
       </Box>
     </Box>
   );

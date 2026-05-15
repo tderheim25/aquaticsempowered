@@ -1,10 +1,11 @@
 "use client";
 
 import { Add as AddIcon } from "@mui/icons-material";
-import { Alert, Box, Button, Container, Snackbar, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Container, Snackbar, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { createDailyChemistryTestTasksAction } from "@/app/(dashboard)/app/maintenance/actions";
 import type { Database } from "@/types/database";
 
 import { MaintenanceFilters, type MaintenanceFilterState } from "./MaintenanceFilters";
@@ -16,11 +17,16 @@ type MaintenanceTaskRow = Database["public"]["Tables"]["maintenance_tasks"]["Row
 
 type OrgMember = { id: string; full_name: string | null; email: string };
 
-const FLASH: Record<string, { severity: "success" | "error"; text: string }> = {
+const FLASH: Record<string, { severity: "success" | "error" | "info"; text: string }> = {
   created: { severity: "success", text: "Task created." },
   updated: { severity: "success", text: "Task updated." },
   deleted: { severity: "success", text: "Task deleted." },
   error: { severity: "error", text: "Something went wrong. Please try again." },
+  chemistry_bundle: { severity: "success", text: "Added three chemistry test tasks for today." },
+  chemistry_exists: {
+    severity: "info",
+    text: "Chemistry test tasks for today are already on the board. Mark them done or remove extras before adding again.",
+  },
 };
 
 export function MaintenanceView({
@@ -44,7 +50,7 @@ export function MaintenanceView({
   const [editingTask, setEditingTask] = useState<MaintenanceTaskRow | null>(null);
 
   const [snackOpen, setSnackOpen] = useState(false);
-  const [snack, setSnack] = useState<{ severity: "success" | "error"; text: string } | null>(null);
+  const [snack, setSnack] = useState<{ severity: "success" | "error" | "info"; text: string } | null>(null);
 
   useEffect(() => {
     setTab(initialView);
@@ -100,6 +106,23 @@ export function MaintenanceView({
             Add task
           </Button>
         </Stack>
+
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Daily water chemistry checks
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              Create three maintenance reminders (1st, 2nd, and 3rd check) due today so operators can log readings three
+              times per day in Chemical Logs.
+            </Typography>
+            <Box component="form" action={createDailyChemistryTestTasksAction}>
+              <Button type="submit" variant="outlined" size="small">
+                Add today&apos;s 3 chemistry test tasks
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
 
         <MaintenanceFilters orgMembers={orgMembers} initial={initialFilters} />
 

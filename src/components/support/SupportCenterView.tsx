@@ -30,7 +30,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { Database, TaskPriority, TicketStatus } from "@/types/database";
 
@@ -102,6 +102,7 @@ export function SupportCenterView({
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<SupportTicketRow | null>(null);
+  const openedNewTicketFromQuery = useRef(false);
 
   const [snackOpen, setSnackOpen] = useState(false);
   const [snack, setSnack] = useState<{ severity: "success" | "error" | "info"; text: string } | null>(null);
@@ -111,6 +112,28 @@ export function SupportCenterView({
   useEffect(() => {
     setQInput(initialFilters.q);
   }, [initialFilters.q]);
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") {
+      openedNewTicketFromQuery.current = false;
+      return;
+    }
+    if (openedNewTicketFromQuery.current) return;
+    openedNewTicketFromQuery.current = true;
+
+    const p = new URLSearchParams(searchParams.toString());
+    p.delete("new");
+    const qs = p.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname);
+
+    if (supportEnabled) {
+      setEditingTicket(null);
+      setDialogOpen(true);
+    } else {
+      setSnack(FLASH.plan);
+      setSnackOpen(true);
+    }
+  }, [pathname, router, searchParams, supportEnabled]);
 
   const stripFlash = useCallback(() => {
     const p = new URLSearchParams(searchParams.toString());

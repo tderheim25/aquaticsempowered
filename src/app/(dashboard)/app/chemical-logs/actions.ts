@@ -7,6 +7,7 @@ import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { calculateLangelierSaturationIndex } from "@/lib/water/calculateLsi";
 
 function parseOptionalNumber(value: FormDataEntryValue | null) {
   const raw = String(value ?? "").trim();
@@ -16,17 +17,42 @@ function parseOptionalNumber(value: FormDataEntryValue | null) {
 }
 
 function readChemicalPayload(formData: FormData, orgId: string, loggedBy: string) {
-  const payload = {
+  const ph = parseOptionalNumber(formData.get("ph"));
+  const temp_f = parseOptionalNumber(formData.get("tempF"));
+  const alkalinity = parseOptionalNumber(formData.get("alkalinity"));
+  const calcium_hardness = parseOptionalNumber(formData.get("calciumHardness"));
+  const tds_ppm = parseOptionalNumber(formData.get("tdsPpm"));
+
+  const tdsForLsi = tds_ppm !== null && tds_ppm > 0 ? tds_ppm : 800;
+  const langelier_saturation_index =
+    ph !== null &&
+    temp_f !== null &&
+    alkalinity !== null &&
+    calcium_hardness !== null &&
+    calcium_hardness > 0 &&
+    alkalinity > 0
+      ? calculateLangelierSaturationIndex({
+          tempF: temp_f,
+          ph,
+          alkalinityPpm: alkalinity,
+          calciumHardnessPpm: calcium_hardness,
+          tdsPpm: tdsForLsi,
+        })
+      : null;
+
+  return {
     org_id: orgId,
     pool_label: String(formData.get("poolLabel") ?? "").trim() || null,
-    ph: parseOptionalNumber(formData.get("ph")),
+    ph,
     free_chlorine: parseOptionalNumber(formData.get("freeChlorine")),
     total_chlorine: parseOptionalNumber(formData.get("totalChlorine")),
-    alkalinity: parseOptionalNumber(formData.get("alkalinity")),
-    temp_f: parseOptionalNumber(formData.get("tempF")),
+    alkalinity,
+    temp_f,
+    calcium_hardness,
+    tds_ppm,
+    langelier_saturation_index,
     logged_by: loggedBy,
   };
-  return payload;
 }
 
 function hasAnyReading(payload: ReturnType<typeof readChemicalPayload>) {
@@ -35,7 +61,9 @@ function hasAnyReading(payload: ReturnType<typeof readChemicalPayload>) {
     payload.free_chlorine === null &&
     payload.total_chlorine === null &&
     payload.alkalinity === null &&
-    payload.temp_f === null
+    payload.temp_f === null &&
+    payload.calcium_hardness === null &&
+    payload.tds_ppm === null
   );
 }
 
@@ -102,6 +130,9 @@ export async function updateChemicalLogAction(formData: FormData) {
       total_chlorine: payload.total_chlorine,
       alkalinity: payload.alkalinity,
       temp_f: payload.temp_f,
+      calcium_hardness: payload.calcium_hardness,
+      tds_ppm: payload.tds_ppm,
+      langelier_saturation_index: payload.langelier_saturation_index,
     })
     .eq("id", id)
     .eq("org_id", targetOrgId);

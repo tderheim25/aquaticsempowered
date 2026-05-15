@@ -34,7 +34,7 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     vendor_directory: true,
     community: false,
     procurement: false,
-    training: false,
+    training: true,
     monitoring: false,
     admin: false,
   },

@@ -22,6 +22,7 @@ import { TrackedButton } from "@/components/marketing/TrackedButton";
 const nav = [
   { href: "/", label: "Home" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/partners", label: "Partners" },
   { href: "/vendors", label: "Vendors" },
   { href: "/community", label: "Community" },
   { href: "/founders", label: "Founder Program" },

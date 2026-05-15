@@ -1,10 +1,16 @@
 import { Box, Container, Link as MuiLink, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 
+import { AdBanner } from "@/components/marketing/AdBanner";
+
 export function SiteFooter() {
   return (
-    <Box component="footer" sx={{ mt: 8, py: 6, bgcolor: "primary.main", color: "primary.contrastText" }}>
-      <Container maxWidth="lg">
+    <Box component="footer" sx={{ mt: 8 }}>
+      <Container maxWidth="lg" sx={{ pb: 2 }}>
+        <AdBanner variant="inline" />
+      </Container>
+      <Box sx={{ py: 6, bgcolor: "primary.main", color: "primary.contrastText" }}>
+        <Container maxWidth="lg">
         <Stack spacing={2} direction={{ xs: "column", sm: "row" }} justifyContent="space-between">
           <Typography variant="body2" sx={{ opacity: 0.9 }}>
             © {new Date().getFullYear()} Aquatics Empowered™. All rights reserved.
@@ -12,6 +18,9 @@ export function SiteFooter() {
           <Stack direction="row" spacing={2}>
             <MuiLink component={Link} href="/pricing" color="inherit" underline="hover">
               Pricing
+            </MuiLink>
+            <MuiLink component={Link} href="/partners" color="inherit" underline="hover">
+              Partners
             </MuiLink>
             <MuiLink component={Link} href="/founders" color="inherit" underline="hover">
               Founders
@@ -21,7 +30,8 @@ export function SiteFooter() {
             </MuiLink>
           </Stack>
         </Stack>
-      </Container>
+        </Container>
+      </Box>
     </Box>
   );
 }

@@ -1,6 +1,8 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { getUsersRowForAuthUser, requireAuth } from "@/lib/auth/rbac";
+import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
+import { communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanCode } from "@/types/database";
 
@@ -41,7 +43,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     planCode = (org?.plan_code as PlanCode) ?? "free";
   }
 
-  const displayName = profile?.full_name?.trim() || user?.email || "Operator";
+  const displayName = profile
+    ? buildDisplayName({
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        full_name: profile.full_name,
+        email: profile.email,
+      })
+    : user?.email || "Operator";
+  const avatarUrl = profile ? await signAvatarPath(supabase, profile.avatar_path) : null;
   const allowedViews = await getAllowedViewsForProfile(
     profile ? { role: profile.role, app_role_id: profile.app_role_id } : null
   );
@@ -49,6 +59,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <DashboardShell
       displayName={displayName}
+      avatarUrl={avatarUrl}
+      profileHref={profile ? communityProfilePath(profile.id) : null}
       orgName={orgName}
       planLabel={planLabel(planCode)}
       userRole={profile?.role ?? null}

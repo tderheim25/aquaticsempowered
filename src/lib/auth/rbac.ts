@@ -23,6 +23,22 @@ export function isMissingAppRoleIdColumnError(message: string | undefined) {
   return m.includes("app_role_id") || (m.includes("schema cache") && m.includes("users"));
 }
 
+function isMissingProfileColumnError(message: string | undefined) {
+  const m = (message ?? "").toLowerCase();
+  return (
+    m.includes("first_name") ||
+    m.includes("last_name") ||
+    m.includes("avatar_path") ||
+    (m.includes("schema cache") && m.includes("users"))
+  );
+}
+
+const USERS_SELECT_FULL =
+  "id, org_id, role, app_role_id, email, full_name, first_name, last_name, avatar_path, created_at";
+const USERS_SELECT_NO_PROFILE =
+  "id, org_id, role, app_role_id, email, full_name, created_at";
+const USERS_SELECT_LEGACY = "id, org_id, role, email, full_name, created_at";
+
 /**
  * Loads `public.users` for RLS-authenticated requests.
  * If migration `0005_app_roles.sql` is not applied yet, selecting `app_role_id` fails and PostgREST returns
@@ -31,24 +47,47 @@ export function isMissingAppRoleIdColumnError(message: string | undefined) {
 export async function getUsersRowForAuthUser(userId: string): Promise<UsersRow | null> {
   const supabase = await createClient();
 
-  const primary = await supabase
-    .from("users")
-    .select("id, org_id, role, app_role_id, email, full_name, created_at")
-    .eq("id", userId)
-    .maybeSingle();
+  const primary = await supabase.from("users").select(USERS_SELECT_FULL).eq("id", userId).maybeSingle();
 
   if (!primary.error && primary.data) {
     return primary.data as UsersRow;
   }
 
+  if (primary.error?.message && isMissingProfileColumnError(primary.error.message)) {
+    const noProfile = await supabase.from("users").select(USERS_SELECT_NO_PROFILE).eq("id", userId).maybeSingle();
+    if (!noProfile.error && noProfile.data) {
+      return {
+        ...noProfile.data,
+        first_name: null,
+        last_name: null,
+        avatar_path: null,
+      } as UsersRow;
+    }
+    if (noProfile.error && isMissingAppRoleIdColumnError(noProfile.error.message)) {
+      const legacy = await supabase.from("users").select(USERS_SELECT_LEGACY).eq("id", userId).maybeSingle();
+      if (legacy.data) {
+        return {
+          ...legacy.data,
+          app_role_id: null,
+          first_name: null,
+          last_name: null,
+          avatar_path: null,
+        } as UsersRow;
+      }
+    }
+    return noProfile.data ? (noProfile.data as UsersRow) : null;
+  }
+
   if (primary.error && isMissingAppRoleIdColumnError(primary.error.message)) {
-    const fallback = await supabase
-      .from("users")
-      .select("id, org_id, role, email, full_name, created_at")
-      .eq("id", userId)
-      .maybeSingle();
+    const fallback = await supabase.from("users").select(USERS_SELECT_LEGACY).eq("id", userId).maybeSingle();
     if (fallback.data) {
-      return { ...fallback.data, app_role_id: null } as UsersRow;
+      return {
+        ...fallback.data,
+        app_role_id: null,
+        first_name: null,
+        last_name: null,
+        avatar_path: null,
+      } as UsersRow;
     }
     return null;
   }

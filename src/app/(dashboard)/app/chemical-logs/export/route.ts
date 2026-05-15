@@ -40,7 +40,9 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from("chemical_logs")
-    .select("logged_at, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f")
+    .select(
+      "logged_at, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f, calcium_hardness, tds_ppm, langelier_saturation_index"
+    )
     .eq("org_id", targetOrgId);
 
   if (pool) query = query.eq("pool_label", pool);
@@ -52,9 +54,33 @@ export async function GET(request: Request) {
     return new NextResponse("Could not export logs", { status: 500 });
   }
 
-  const header = ["logged_at", "pool_label", "ph", "free_chlorine", "total_chlorine", "alkalinity", "temp_f"];
+  const header = [
+    "logged_at",
+    "pool_label",
+    "ph",
+    "free_chlorine",
+    "total_chlorine",
+    "alkalinity",
+    "temp_f",
+    "calcium_hardness",
+    "tds_ppm",
+    "langelier_saturation_index",
+  ];
   const rows = (data ?? []).map((row) =>
-    [row.logged_at, row.pool_label, row.ph, row.free_chlorine, row.total_chlorine, row.alkalinity, row.temp_f].map(csvEscape).join(",")
+    [
+      row.logged_at,
+      row.pool_label,
+      row.ph,
+      row.free_chlorine,
+      row.total_chlorine,
+      row.alkalinity,
+      row.temp_f,
+      row.calcium_hardness,
+      row.tds_ppm,
+      row.langelier_saturation_index,
+    ]
+      .map(csvEscape)
+      .join(",")
   );
   const csv = [header.join(","), ...rows].join("\n");
 

@@ -43,6 +43,3 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-
-# Supabase SQL migrations
-/supabase/migrations/*.sql

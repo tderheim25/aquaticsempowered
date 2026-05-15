@@ -42,6 +42,17 @@ export type TaskCategory =
 
 export type TicketStatus = "open" | "pending" | "resolved" | "closed";
 
+export type ProcurementRequestStatus =
+  | "draft"
+  | "submitted"
+  | "in_review"
+  | "quoted"
+  | "approved"
+  | "ordered"
+  | "cancelled";
+
+export type ProcurementRequestCategory = "chemicals" | "equipment" | "parts" | "services" | "other";
+
 export type Database = {
   public: {
     Tables: {
@@ -94,6 +105,9 @@ export type Database = {
           total_chlorine: number | null;
           alkalinity: number | null;
           temp_f: number | null;
+          calcium_hardness: number | null;
+          tds_ppm: number | null;
+          langelier_saturation_index: number | null;
           logged_by: string | null;
           logged_at: string;
         };
@@ -106,6 +120,9 @@ export type Database = {
           total_chlorine?: number | null;
           alkalinity?: number | null;
           temp_f?: number | null;
+          calcium_hardness?: number | null;
+          tds_ppm?: number | null;
+          langelier_saturation_index?: number | null;
           logged_by?: string | null;
           logged_at?: string;
         };
@@ -118,6 +135,9 @@ export type Database = {
           total_chlorine?: number | null;
           alkalinity?: number | null;
           temp_f?: number | null;
+          calcium_hardness?: number | null;
+          tds_ppm?: number | null;
+          langelier_saturation_index?: number | null;
           logged_by?: string | null;
           logged_at?: string;
         };
@@ -131,6 +151,9 @@ export type Database = {
           app_role_id: string | null;
           email: string;
           full_name: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          avatar_path: string | null;
           created_at: string;
         };
         Insert: {
@@ -140,6 +163,9 @@ export type Database = {
           app_role_id?: string | null;
           email: string;
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          avatar_path?: string | null;
           created_at?: string;
         };
         Update: {
@@ -149,6 +175,9 @@ export type Database = {
           app_role_id?: string | null;
           email?: string;
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          avatar_path?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -321,6 +350,297 @@ export type Database = {
         };
         Relationships: [];
       };
+      community_profiles: {
+        Row: {
+          user_id: string;
+          bio: string;
+          updated_at: string;
+          last_connections_activity_seen_at: string | null;
+        };
+        Insert: {
+          user_id: string;
+          bio?: string;
+          updated_at?: string;
+          last_connections_activity_seen_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          bio?: string;
+          updated_at?: string;
+          last_connections_activity_seen_at?: string | null;
+        };
+        Relationships: [];
+      };
+      community_posts: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          author_id: string;
+          body: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string | null;
+          author_id: string;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string | null;
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      community_post_media: {
+        Row: {
+          id: string;
+          post_id: string;
+          storage_path: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          storage_path: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          storage_path?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_post_comments: {
+        Row: {
+          id: string;
+          post_id: string;
+          author_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          author_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          post_id?: string;
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_likes: {
+        Row: {
+          post_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          post_id: string;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          post_id?: string;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_follows: {
+        Row: {
+          follower_id: string;
+          followee_id: string;
+          created_at: string;
+        };
+        Insert: {
+          follower_id: string;
+          followee_id: string;
+          created_at?: string;
+        };
+        Update: {
+          follower_id?: string;
+          followee_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_network_requests: {
+        Row: {
+          id: string;
+          requester_id: string;
+          addressee_id: string;
+          status: string;
+          created_at: string;
+          responded_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          requester_id: string;
+          addressee_id: string;
+          status?: string;
+          created_at?: string;
+          responded_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          requester_id?: string;
+          addressee_id?: string;
+          status?: string;
+          created_at?: string;
+          responded_at?: string | null;
+        };
+        Relationships: [];
+      };
+      community_network_edges: {
+        Row: {
+          user_a: string;
+          user_b: string;
+          created_at: string;
+        };
+        Insert: {
+          user_a: string;
+          user_b: string;
+          created_at?: string;
+        };
+        Update: {
+          user_a?: string;
+          user_b?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_direct_messages: {
+        Row: {
+          id: string;
+          sender_id: string;
+          recipient_id: string;
+          body: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          sender_id: string;
+          recipient_id: string;
+          body: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          sender_id?: string;
+          recipient_id?: string;
+          body?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      community_dm_read_cursors: {
+        Row: {
+          user_id: string;
+          peer_id: string;
+          last_read_at: string;
+        };
+        Insert: {
+          user_id: string;
+          peer_id: string;
+          last_read_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          peer_id?: string;
+          last_read_at?: string;
+        };
+        Relationships: [];
+      };
+      vendors: {
+        Row: {
+          id: string;
+          name: string;
+          tier: string | null;
+          category: string | null;
+          region: string | null;
+          certified_at: string | null;
+          contact: Json | null;
+          listing_visible: boolean;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          tier?: string | null;
+          category?: string | null;
+          region?: string | null;
+          certified_at?: string | null;
+          contact?: Json | null;
+          listing_visible?: boolean;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          tier?: string | null;
+          category?: string | null;
+          region?: string | null;
+          certified_at?: string | null;
+          contact?: Json | null;
+          listing_visible?: boolean;
+        };
+        Relationships: [];
+      };
+      procurement_requests: {
+        Row: {
+          id: string;
+          org_id: string;
+          title: string;
+          description: string | null;
+          category: ProcurementRequestCategory;
+          status: ProcurementRequestStatus;
+          preferred_vendor_id: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          title: string;
+          description?: string | null;
+          category?: ProcurementRequestCategory;
+          status?: ProcurementRequestStatus;
+          preferred_vendor_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          title?: string;
+          description?: string | null;
+          category?: ProcurementRequestCategory;
+          status?: ProcurementRequestStatus;
+          preferred_vendor_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       plans: {
         Row: {
           code: PlanCode;
@@ -370,6 +690,7 @@ export type Database = {
       task_priority: TaskPriority;
       task_category: TaskCategory;
       ticket_status: TicketStatus;
+      procurement_request_status: ProcurementRequestStatus;
     };
     CompositeTypes: {
       [_ in never]: never;

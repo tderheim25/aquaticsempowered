@@ -149,3 +149,61 @@ export async function deleteTaskAction(formData: FormData) {
   revalidatePath("/app/maintenance");
   redirect("/app/maintenance?status=deleted");
 }
+
+const CHEMISTRY_BUNDLE_TITLE_PREFIX = "Water chemistry test";
+
+function utcDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Adds three open “chemistry test” tasks due today (morning / midday / evening checks). */
+export async function createDailyChemistryTestTasksAction() {
+  await requireViewAccess("maintenance");
+  const profile = await requireOrg();
+  const orgId = profile.org_id!;
+  const today = utcDateString();
+
+  const supabase = await createClient();
+  const { count, error: countError } = await supabase
+    .from("maintenance_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId)
+    .eq("due_date", today)
+    .ilike("title", `${CHEMISTRY_BUNDLE_TITLE_PREFIX}%`);
+
+  if (countError) {
+    redirect("/app/maintenance?status=error");
+  }
+  if ((count ?? 0) > 0) {
+    redirect("/app/maintenance?status=chemistry_exists");
+  }
+
+  const description =
+    "Log water chemistry (pH, sanitizer, alkalinity, temperature, calcium hardness, LSI) under Chemical Logs for this check.";
+
+  const rows = [
+    { title: `${CHEMISTRY_BUNDLE_TITLE_PREFIX} — 1st check`, description },
+    { title: `${CHEMISTRY_BUNDLE_TITLE_PREFIX} — 2nd check`, description },
+    { title: `${CHEMISTRY_BUNDLE_TITLE_PREFIX} — 3rd check`, description },
+  ].map((row) => ({
+    org_id: orgId,
+    title: row.title,
+    description: row.description,
+    status: "open" as const,
+    priority: "medium" as const,
+    category: "chemical" as const,
+    pool_label: null as string | null,
+    assigned_to: null as string | null,
+    due_date: today,
+    created_by: profile.id,
+  }));
+
+  const { error } = await supabase.from("maintenance_tasks").insert(rows);
+  if (error) {
+    redirect("/app/maintenance?status=error");
+  }
+
+  revalidatePath("/app/maintenance");
+  revalidatePath("/app");
+  redirect("/app/maintenance?status=chemistry_bundle");
+}

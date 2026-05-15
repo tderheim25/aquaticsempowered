@@ -51,10 +51,14 @@ begin
 
   if u_org is not null then
     claims := jsonb_set(claims, '{org_id}', to_jsonb(u_org::text), true);
+  else
+    claims := claims - 'org_id';
   end if;
 
   if u_role is not null then
     claims := jsonb_set(claims, '{user_role}', to_jsonb(u_role::text), true);
+  else
+    claims := claims - 'user_role';
   end if;
 
   return jsonb_set(event, '{claims}', claims, true);
