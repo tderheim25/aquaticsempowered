@@ -38,17 +38,17 @@ export async function createCommunityPostAction(formData: FormData) {
   const files = formData.getAll("images").filter((v): v is File => v instanceof File && v.size > 0);
 
   if (!body && files.length === 0) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
   if (files.length > MAX_IMAGES) {
-    redirect("/app/community?status=too_many_images");
+    redirect("/community?status=too_many_images");
   }
   for (const f of files) {
     if (f.size > MAX_BYTES) {
-      redirect("/app/community?status=file_too_large");
+      redirect("/community?status=file_too_large");
     }
     if (!ALLOWED_MIME.has(effectiveMime(f))) {
-      redirect("/app/community?status=invalid_file");
+      redirect("/community?status=invalid_file");
     }
   }
 
@@ -63,7 +63,7 @@ export async function createCommunityPostAction(formData: FormData) {
     if (process.env.NODE_ENV === "development") {
       console.error("[createCommunityPostAction] community_posts insert failed:", pErr?.message, pErr);
     }
-    redirect("/app/community?status=post_save_failed");
+    redirect("/community?status=post_save_failed");
   }
 
   const postId = post.id as string;
@@ -83,7 +83,7 @@ export async function createCommunityPostAction(formData: FormData) {
         console.error("[createCommunityPostAction] storage upload failed:", uErr.message, uErr);
       }
       await supabase.from("community_posts").delete().eq("id", postId);
-      redirect("/app/community?status=upload_error");
+      redirect("/community?status=upload_error");
     }
     const { error: mErr } = await supabase.from("community_post_media").insert({
       post_id: postId,
@@ -97,12 +97,12 @@ export async function createCommunityPostAction(formData: FormData) {
       }
       await supabase.storage.from("community-media").remove([path]);
       await supabase.from("community_posts").delete().eq("id", postId);
-      redirect("/app/community?status=media_save_failed");
+      redirect("/community?status=media_save_failed");
     }
   }
 
-  revalidatePath("/app/community");
-  redirect("/app/community?status=created");
+  revalidatePath("/community");
+  redirect("/community?status=created");
 }
 
 export async function toggleCommunityLikeAction(formData: FormData) {
@@ -110,7 +110,7 @@ export async function toggleCommunityLikeAction(formData: FormData) {
   const profile = await requireProfileForApp();
   const postId = String(formData.get("postId") ?? "");
   if (!postId) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
 
   const supabase = await createClient();
@@ -127,8 +127,8 @@ export async function toggleCommunityLikeAction(formData: FormData) {
     await supabase.from("community_likes").insert({ post_id: postId, user_id: profile.id });
   }
 
-  revalidatePath("/app/community");
-  redirect("/app/community");
+  revalidatePath("/community");
+  redirect("/community");
 }
 
 export async function followUserAction(formData: FormData) {
@@ -136,7 +136,7 @@ export async function followUserAction(formData: FormData) {
   const profile = await requireProfileForApp();
   const followeeId = String(formData.get("followeeId") ?? "");
   if (!followeeId || followeeId === profile.id) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
 
   const supabase = await createClient();
@@ -145,7 +145,7 @@ export async function followUserAction(formData: FormData) {
     (Boolean(profile.org_id) && followee?.org_id === profile.org_id) ||
     (!profile.org_id && followee && followee.org_id === null);
   if (!samePartition) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
 
   const { data: already } = await supabase
@@ -162,7 +162,7 @@ export async function followUserAction(formData: FormData) {
     await tryInsertNetworkRequest(profile, followeeId, supabase);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   revalidatePath(`/app/community/profile/${followeeId}`);
   redirect(`/app/community/profile/${followeeId}`);
 }
@@ -172,13 +172,13 @@ export async function unfollowUserAction(formData: FormData) {
   const profile = await requireProfileForApp();
   const followeeId = String(formData.get("followeeId") ?? "");
   if (!followeeId) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
 
   const supabase = await createClient();
   await supabase.from("community_follows").delete().eq("follower_id", profile.id).eq("followee_id", followeeId);
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   revalidatePath(`/app/community/profile/${followeeId}`);
   redirect(`/app/community/profile/${followeeId}`);
 }
@@ -286,7 +286,7 @@ export async function sendNetworkRequestAction(formData: FormData) {
     redirect(`${redirectTo}?status=${result.status}`);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   revalidatePath(`/app/community/profile/${addresseeId}`);
   revalidatePath(`/app/community/profile/${profile.id}`);
   redirect(`${redirectTo}?status=network_sent`);
@@ -316,7 +316,7 @@ export async function acceptNetworkRequestAction(formData: FormData) {
     redirect(`${redirectTo}?status=network_error`);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   revalidatePath(`/app/community/profile/${row.requester_id}`);
   revalidatePath(`/app/community/profile/${profile.id}`);
   redirect(`${redirectTo}?status=network_accepted`);
@@ -375,7 +375,7 @@ export async function cancelNetworkRequestAction(formData: FormData) {
     redirect(`${redirectTo}?status=network_error`);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   revalidatePath(`/app/community/profile/${profile.id}`);
   revalidatePath(`/app/community/profile/${row.addressee_id}`);
   redirect(`${redirectTo}?status=network_cancelled`);
@@ -437,7 +437,7 @@ export async function deleteCommunityPostAction(formData: FormData) {
   const profile = await requireProfileForApp();
   const postId = String(formData.get("postId") ?? "");
   if (!postId) {
-    redirect("/app/community?status=invalid");
+    redirect("/community?status=invalid");
   }
 
   const supabase = await createClient();
@@ -449,11 +449,11 @@ export async function deleteCommunityPostAction(formData: FormData) {
 
   const { error } = await supabase.from("community_posts").delete().eq("id", postId).eq("author_id", profile.id);
   if (error) {
-    redirect("/app/community?status=error");
+    redirect("/community?status=error");
   }
 
-  revalidatePath("/app/community");
-  redirect("/app/community?status=deleted");
+  revalidatePath("/community");
+  redirect("/community?status=deleted");
 }
 
 const MAX_COMMENT_CHARS = 2000;
@@ -463,7 +463,7 @@ function safeCommunityRedirect(raw: string | null | undefined, fallback: string)
     .trim()
     .split("?")[0]
     .split("#")[0];
-  if (path === "/app/community") return path;
+  if (path === "/community" || path === "/app/community") return "/community";
   if (/^\/app\/community\/profile\/[^/]+$/.test(path) && path.length < 200) return path;
   return fallback;
 }
@@ -475,7 +475,7 @@ export async function createCommunityCommentAction(formData: FormData) {
   const body = String(formData.get("comment") ?? "").trim().slice(0, MAX_COMMENT_CHARS);
   const redirectTo = safeCommunityRedirect(
     String(formData.get("redirectTo") ?? ""),
-    "/app/community"
+    "/community"
   );
 
   if (!postId || !body) {
@@ -496,7 +496,7 @@ export async function createCommunityCommentAction(formData: FormData) {
     redirect(`${redirectTo}?status=comment_error`);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   if (redirectTo.startsWith("/app/community/profile/")) {
     const seg = redirectTo.replace("/app/community/profile/", "").split("/")[0];
     if (seg) revalidatePath(`/app/community/profile/${seg}`);
@@ -510,7 +510,7 @@ export async function deleteCommunityCommentAction(formData: FormData) {
   const commentId = String(formData.get("commentId") ?? "").trim();
   const redirectTo = safeCommunityRedirect(
     String(formData.get("redirectTo") ?? ""),
-    "/app/community"
+    "/community"
   );
 
   if (!commentId) {
@@ -528,7 +528,7 @@ export async function deleteCommunityCommentAction(formData: FormData) {
     redirect(`${redirectTo}?status=comment_error`);
   }
 
-  revalidatePath("/app/community");
+  revalidatePath("/community");
   if (redirectTo.startsWith("/app/community/profile/")) {
     const seg = redirectTo.replace("/app/community/profile/", "").split("/")[0];
     if (seg) revalidatePath(`/app/community/profile/${seg}`);

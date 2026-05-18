@@ -102,7 +102,7 @@ export default async function DashboardHomePage() {
     },
     {
       title: "Community",
-      href: "/app/community",
+      href: "/community",
       description: "Connect with teammates: posts, likes, photos, and profiles.",
       viewKey: "community",
       requiresOrg: false,

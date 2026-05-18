@@ -419,7 +419,7 @@ export function CommunityFloatingChat({
           {sessionOk === false ? (
             <Alert severity="warning" sx={{ m: 2 }}>
               {SESSION_EXPIRED_MSG}{" "}
-              <Link href="/login?next=/app/community" style={{ fontWeight: 600 }}>
+              <Link href="/login?next=/community" style={{ fontWeight: 600 }}>
                 Sign in again
               </Link>
             </Alert>

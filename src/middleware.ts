@@ -22,6 +22,12 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/app/community") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/community";
+    return NextResponse.redirect(url);
+  }
+
   if (pathname.startsWith("/app")) {
     if (!user) {
       const url = request.nextUrl.clone();

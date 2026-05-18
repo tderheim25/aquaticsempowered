@@ -62,7 +62,7 @@ const navItems: { label: string; href: string; soon: boolean; viewKey: AppViewKe
   { label: "Maintenance", href: "/app/maintenance", soon: false, viewKey: "maintenance" },
   { label: "Support Center", href: "/app/support", soon: false, viewKey: "support_center" },
   { label: "Vendor Directory", href: "/app/vendors", soon: false, viewKey: "vendor_directory" },
-  { label: "Community", href: "/app/community", soon: false, viewKey: "community" },
+  { label: "Community", href: "/community", soon: false, viewKey: "community" },
   { label: "Procurement", href: "/app/procurement", soon: false, viewKey: "procurement" },
   { label: "Training / CPO", href: "/app/training-cpo", soon: false, viewKey: "training_cpo" },
   { label: "Monitoring", href: "/app/monitoring", soon: false, viewKey: "monitoring" },
@@ -212,6 +212,9 @@ export function DashboardShell({
                 View profile
               </MenuItem>
             ) : null}
+            <MenuItem component={Link} href="/" onClick={() => setAnchorEl(null)}>
+              Visit website
+            </MenuItem>
             <Divider />
             <MenuItem
               onClick={async () => {

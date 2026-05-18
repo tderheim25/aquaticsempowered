@@ -3,6 +3,7 @@
 import MenuIcon from "@mui/icons-material/Menu";
 import {
   AppBar,
+  Avatar,
   Box,
   Button,
   Divider,
@@ -11,12 +12,15 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Menu,
+  MenuItem,
   Toolbar,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
 import { useState } from "react";
 
+import { signOut } from "@/app/actions/auth";
 import { TrackedButton } from "@/components/marketing/TrackedButton";
 
 const nav = [
@@ -28,8 +32,16 @@ const nav = [
   { href: "/founders", label: "Founder Program" },
 ];
 
-export function SiteHeader() {
+export type MarketingHeaderUser = {
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
   const [open, setOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const initial = user?.displayName?.trim().charAt(0)?.toUpperCase() ?? "U";
 
   return (
     <>
@@ -60,9 +72,39 @@ export function SiteHeader() {
                 {item.label}
               </Button>
             ))}
-            <Button component={Link} href="/login" variant="contained" color="primary">
-              Login
-            </Button>
+            {user ? (
+              <>
+                <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" aria-label="account menu">
+                  <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 36, height: 36, bgcolor: "primary.main" }}>
+                    {initial}
+                  </Avatar>
+                </IconButton>
+                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                  <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start", opacity: "1 !important" }}>
+                    <Typography variant="subtitle2">{user.displayName}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Signed in
+                    </Typography>
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem component={Link} href="/app" onClick={() => setAnchorEl(null)}>
+                    Open portal
+                  </MenuItem>
+                  <MenuItem
+                    onClick={async () => {
+                      setAnchorEl(null);
+                      await signOut();
+                    }}
+                  >
+                    Sign out
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Button component={Link} href="/login" variant="contained" color="primary">
+                Login
+              </Button>
+            )}
           </Box>
           <IconButton
             edge="end"
@@ -86,9 +128,25 @@ export function SiteHeader() {
                 <ListItemText primary={item.label} />
               </ListItemButton>
             ))}
-            <ListItemButton component={Link} href="/login" onClick={() => setOpen(false)}>
-              <ListItemText primary="Login" />
-            </ListItemButton>
+            {user ? (
+              <>
+                <ListItemButton component={Link} href="/app" onClick={() => setOpen(false)}>
+                  <ListItemText primary="Open portal" />
+                </ListItemButton>
+                <ListItemButton
+                  onClick={async () => {
+                    setOpen(false);
+                    await signOut();
+                  }}
+                >
+                  <ListItemText primary="Sign out" />
+                </ListItemButton>
+              </>
+            ) : (
+              <ListItemButton component={Link} href="/login" onClick={() => setOpen(false)}>
+                <ListItemText primary="Login" />
+              </ListItemButton>
+            )}
           </List>
           <Box sx={{ p: 2 }}>
             <TrackedButton

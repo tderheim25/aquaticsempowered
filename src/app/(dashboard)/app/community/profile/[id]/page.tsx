@@ -381,7 +381,7 @@ export default async function CommunityProfilePage({
     <Container maxWidth="md">
     <SetBreadcrumbLastLabel label={breadcrumbName} />
     <Stack spacing={2}>
-      <Button component={Link} href="/app/community" variant="text" sx={{ alignSelf: "flex-start" }}>
+      <Button component={Link} href="/community" variant="text" sx={{ alignSelf: "flex-start" }}>
         ← Back to feed
       </Button>
 

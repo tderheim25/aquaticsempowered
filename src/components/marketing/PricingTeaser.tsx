@@ -1,7 +1,7 @@
 import { Card, CardContent, Container, Stack, Typography } from "@mui/material";
 
 const tiers = [
-  { name: "Free Community", price: "$0", blurb: "Forum, resources, webinars" },
+  { name: "Free Community", price: "$0", blurb: "Forum" },
   { name: "Essential", price: "$149/mo", blurb: "Logs, SOPs, support portal" },
   { name: "Professional", price: "$499/mo", blurb: "Audits, procurement, vendor guidance" },
   { name: "Enterprise", price: "From $1,500/mo", blurb: "Monitoring, advisory, capital planning" },
