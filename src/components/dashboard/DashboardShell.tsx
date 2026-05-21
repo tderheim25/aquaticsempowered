@@ -26,6 +26,13 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
+import {
+  CommunityActivityMenuItems,
+  CommunityUnreadBadge,
+  isCommunityRoute,
+  markCommunityActivitySeen,
+  useCommunityActivity,
+} from "@/components/community/CommunityActivityBadge";
 import type { AppViewKey } from "@/lib/auth/viewPermissions";
 import type { UserRole } from "@/types/database";
 
@@ -98,6 +105,15 @@ export function DashboardShell({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const section = searchParams.get("section");
+  const showCommunityActivity = isCommunityRoute(pathname);
+  const { activity, refresh: refreshActivity } = useCommunityActivity(showCommunityActivity);
+
+  const openAccountMenu = (el: HTMLElement) => {
+    setAnchorEl(el);
+    if (showCommunityActivity && (activity?.total ?? 0) > 0) {
+      void markCommunityActivitySeen().then(() => refreshActivity());
+    }
+  };
   const [adminExpanded, setAdminExpanded] = useState(pathname.startsWith("/app/admin"));
 
   const allowedViewSet = new Set(allowedViews);
@@ -195,12 +211,23 @@ export function DashboardShell({
             Aquatics Empowered
           </Typography>
           <Chip label={planLabel} size="small" sx={{ mr: 1, display: { xs: "none", sm: "flex" } }} />
-          <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" aria-label="account menu">
+          <IconButton
+            onClick={(e) => openAccountMenu(e.currentTarget)}
+            size="small"
+            aria-label={
+              (activity?.total ?? 0) > 0
+                ? `Account menu, ${activity?.total} community notifications`
+                : "Account menu"
+            }
+            sx={{ position: "relative" }}
+          >
             <Avatar src={avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
               {displayName?.charAt(0)?.toUpperCase() ?? "U"}
             </Avatar>
+            <CommunityUnreadBadge count={activity?.total ?? 0} />
           </IconButton>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+            <CommunityActivityMenuItems activity={activity} onNavigate={() => setAnchorEl(null)} />
             <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start" }}>
               <Typography variant="subtitle2">{displayName}</Typography>
               <Typography variant="caption" color="text.secondary">

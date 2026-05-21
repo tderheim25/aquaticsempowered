@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CommunityProfileSelfSettings } from "@/components/community/CommunityProfileSelfSettings";
+import { CommunityProfileSelfCard } from "@/components/community/CommunityProfileSelfCard";
 import { SetBreadcrumbLastLabel } from "@/components/dashboard/BreadcrumbLabelContext";
 import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
@@ -132,10 +132,12 @@ export default async function CommunityProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; tab?: string; edit?: string }>;
 }) {
   const { id } = await params;
-  const { status } = await searchParams;
+  const { status, tab: tabParam, edit: editParam } = await searchParams;
+  const profileInitialTab = tabParam === "connections" ? 1 : 0;
+  const openEditOnLoad = editParam === "1";
   const flash = profileStatusMessage(status);
 
   await requireViewAccess("community");
@@ -389,18 +391,14 @@ export default async function CommunityProfilePage({
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         {isSelf ? (
-          <>
-            <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
-              Your profile
-            </Typography>
-            <CommunityProfileSelfSettings
-              user={user}
-              avatarUrl={avatarUrl}
-              bio={prof?.bio ?? ""}
-              followerCount={followerCount ?? 0}
-              followingCount={followingCount ?? 0}
-            />
-          </>
+          <CommunityProfileSelfCard
+            user={user}
+            avatarUrl={avatarUrl}
+            bio={prof?.bio ?? ""}
+            followerCount={followerCount ?? 0}
+            followingCount={followingCount ?? 0}
+            initialEditOpen={openEditOnLoad}
+          />
         ) : (
         <>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "flex-start" }}>
@@ -526,6 +524,7 @@ export default async function CommunityProfilePage({
         isSelfProfile={isSelf}
         connectionsTabBadgeCount={connectionsTabBadgeCount}
         unseenFollowerCount={unseenFollowerRows.length}
+        initialTab={profileInitialTab}
       />
     </Stack>
     </Container>

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsersRowForAuthUser, getSessionUser } from "@/lib/auth/rbac";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { loadCommunityFeedData } from "@/lib/community/loadCommunityFeedData";
+import { loadCommunityJobsData } from "@/lib/community/loadCommunityJobsData";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -45,6 +46,21 @@ function statusMessage(status?: string) {
       return { severity: "error" as const, text: "Add a comment before submitting." };
     case "comment_error":
       return { severity: "error" as const, text: "Could not save that comment. Try again." };
+    case "job_created":
+      return { severity: "success" as const, text: "Job posted to the community." };
+    case "job_deleted":
+      return { severity: "success" as const, text: "Job posting removed." };
+    case "job_invalid":
+      return { severity: "error" as const, text: "Add a title and a description (at least 10 characters)." };
+    case "job_invalid_url":
+      return { severity: "error" as const, text: "Apply link must be a valid http or https URL." };
+    case "job_invalid_email":
+      return { severity: "error" as const, text: "Contact email doesn’t look valid." };
+    case "job_save_failed":
+      return {
+        severity: "error" as const,
+        text: "Could not save the job post. Apply Supabase migration 0018 if you have not, then try again.",
+      };
     default:
       return null;
   }
@@ -62,9 +78,10 @@ function createAdminClientIfConfigured() {
 export default async function MarketingCommunityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; tab?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, tab } = await searchParams;
+  const activeTab = tab === "jobs" ? "jobs" : "feed";
   const flash = statusMessage(status);
 
   const user = await getSessionUser();
@@ -80,6 +97,7 @@ export default async function MarketingCommunityPage({
   const viewer = profile ? { id: profile.id, org_id: profile.org_id } : null;
 
   let feed;
+  let jobsFeed;
   if (canInteract && viewer) {
     feed = await loadCommunityFeedData(sessionSupabase, {
       viewer,
@@ -87,6 +105,11 @@ export default async function MarketingCommunityPage({
       fetchLimit: 120,
       sliceLimit: 40,
       includeComments: true,
+    });
+    jobsFeed = await loadCommunityJobsData(sessionSupabase, {
+      viewer,
+      globalFeedOnly: false,
+      limit: 40,
     });
   } else {
     const liftClient = createAdminClientIfConfigured() ?? sessionSupabase;
@@ -96,6 +119,11 @@ export default async function MarketingCommunityPage({
       fetchLimit: 12,
       sliceLimit: 4,
       includeComments: false,
+    });
+    jobsFeed = await loadCommunityJobsData(liftClient, {
+      viewer: null,
+      globalFeedOnly: true,
+      limit: 4,
     });
   }
 
@@ -112,9 +140,11 @@ export default async function MarketingCommunityPage({
 
       <CommunityFeedPanel
         variant={canInteract ? "full" : "preview"}
+        activeTab={activeTab}
         viewer={viewer}
         canInteract={canInteract}
         feed={feed}
+        jobsFeed={jobsFeed}
         flash={flash}
         subtitle={canInteract ? undefined : ""}
       />

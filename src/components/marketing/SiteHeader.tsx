@@ -21,7 +21,15 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
+import {
+  CommunityActivityMenuItems,
+  CommunityUnreadBadge,
+  isCommunityRoute,
+  markCommunityActivitySeen,
+  useCommunityActivity,
+} from "@/components/community/CommunityActivityBadge";
 import { TrackedButton } from "@/components/marketing/TrackedButton";
+import { usePathname } from "next/navigation";
 
 const nav = [
   { href: "/", label: "Home" },
@@ -40,8 +48,18 @@ export type MarketingHeaderUser = {
 export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
   const [open, setOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const pathname = usePathname();
+  const showCommunityActivity = Boolean(user && isCommunityRoute(pathname));
+  const { activity, refresh: refreshActivity } = useCommunityActivity(showCommunityActivity);
 
   const initial = user?.displayName?.trim().charAt(0)?.toUpperCase() ?? "U";
+
+  const openAccountMenu = (el: HTMLElement) => {
+    setAnchorEl(el);
+    if (showCommunityActivity && (activity?.total ?? 0) > 0) {
+      void markCommunityActivitySeen().then(() => refreshActivity());
+    }
+  };
 
   return (
     <>
@@ -74,12 +92,26 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
             ))}
             {user ? (
               <>
-                <IconButton onClick={(e) => setAnchorEl(e.currentTarget)} size="small" aria-label="account menu">
+                <IconButton
+                  onClick={(e) => openAccountMenu(e.currentTarget)}
+                  size="small"
+                  aria-label={
+                    (activity?.total ?? 0) > 0
+                      ? `Account menu, ${activity?.total} community notifications`
+                      : "Account menu"
+                  }
+                  sx={{ position: "relative" }}
+                >
                   <Avatar src={user.avatarUrl ?? undefined} sx={{ width: 36, height: 36, bgcolor: "primary.main" }}>
                     {initial}
                   </Avatar>
+                  <CommunityUnreadBadge count={activity?.total ?? 0} />
                 </IconButton>
                 <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+                  <CommunityActivityMenuItems
+                    activity={activity}
+                    onNavigate={() => setAnchorEl(null)}
+                  />
                   <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start", opacity: "1 !important" }}>
                     <Typography variant="subtitle2">{user.displayName}</Typography>
                     <Typography variant="caption" color="text.secondary">

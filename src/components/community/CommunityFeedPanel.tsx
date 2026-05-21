@@ -20,20 +20,27 @@ import {
   toggleCommunityLikeAction,
 } from "@/app/(dashboard)/app/community/actions";
 import type { LoadedCommunityFeed } from "@/lib/community/loadCommunityFeedData";
+import type { LoadedCommunityJobs } from "@/lib/community/loadCommunityJobsData";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
 
+import { CommunityJobsSection } from "./CommunityJobsSection";
+import { CommunitySearchBar } from "./CommunitySearchBar";
 import { CommunityPostCommentsBlock } from "./CommunityPostCommentsBlock";
 import { CommunitySpotlightRail } from "./CommunitySpotlightRail";
 
 const COMMUNITY_FEED_PATH = "/community";
 
+export type CommunityFeedTab = "feed" | "jobs";
+
 export type CommunityFeedPanelProps = {
   variant: "full" | "preview";
+  activeTab?: CommunityFeedTab;
   /** Max characters of post body in preview (remainder hidden behind sign-in). */
       previewBodyMaxChars?: number;
   viewer: { id: string; org_id: string | null } | null;
   canInteract: boolean;
   feed: LoadedCommunityFeed;
+  jobsFeed: LoadedCommunityJobs;
   flash: { severity: "success" | "error"; text: string } | null;
   /**
    * Omit to use the default org/global tagline under the title.
@@ -59,10 +66,12 @@ function truncateBody(body: string, max: number) {
 
 export function CommunityFeedPanel({
   variant,
+  activeTab = "feed",
   previewBodyMaxChars = 260,
   viewer,
   canInteract,
   feed,
+  jobsFeed,
   flash,
   subtitle,
 }: CommunityFeedPanelProps) {
@@ -114,6 +123,42 @@ export function CommunityFeedPanel({
             </div>
 
             {flash ? <Alert severity={flash.severity}>{flash.text}</Alert> : null}
+
+            {canInteract ? <CommunitySearchBar /> : null}
+
+            <Stack direction="row" spacing={1} flexWrap="wrap">
+              <Button
+                component={Link}
+                href="/community"
+                variant={activeTab === "feed" ? "contained" : "outlined"}
+                size="small"
+              >
+                Updates
+              </Button>
+              <Button
+                component={Link}
+                href="/community?tab=jobs"
+                variant={activeTab === "jobs" ? "contained" : "outlined"}
+                size="small"
+              >
+                Jobs
+                {jobsFeed.jobs.length > 0 ? (
+                  <Typography component="span" variant="caption" sx={{ ml: 0.75, opacity: 0.9 }}>
+                    ({jobsFeed.jobs.length})
+                  </Typography>
+                ) : null}
+              </Button>
+            </Stack>
+
+            {activeTab === "jobs" ? (
+              <CommunityJobsSection
+                variant={variant}
+                viewer={viewer}
+                canInteract={canInteract}
+                jobsFeed={jobsFeed}
+              />
+            ) : (
+              <>
             {postsError ? <Alert severity="error">Could not load the feed.</Alert> : null}
 
             {showComposer ? (
@@ -310,6 +355,8 @@ export function CommunityFeedPanel({
                 </Button>
               </Paper>
             ) : null}
+              </>
+            )}
           </Stack>
         </Box>
 

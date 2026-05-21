@@ -1,7 +1,10 @@
+"use client";
+
 import {
   Avatar,
   Box,
   Button,
+  DialogActions,
   Stack,
   TextField,
   Typography,
@@ -24,18 +27,16 @@ type ProfileUser = {
   avatar_path?: string | null;
 };
 
-export function CommunityProfileSelfSettings({
+export function CommunityProfileEditForm({
   user,
   avatarUrl,
   bio,
-  followerCount,
-  followingCount,
+  onClose,
 }: {
   user: ProfileUser;
   avatarUrl: string | null;
   bio: string;
-  followerCount: number;
-  followingCount: number;
+  onClose: () => void;
 }) {
   const displayName = buildDisplayName({
     first_name: user.first_name,
@@ -45,34 +46,21 @@ export function CommunityProfileSelfSettings({
   });
 
   return (
-    <Stack spacing={2}>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "flex-start" }}>
-        <Avatar
-          src={avatarUrl ?? undefined}
-          sx={{ width: 72, height: 72, bgcolor: "primary.main", fontSize: "1.5rem" }}
-        >
+    <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Avatar src={avatarUrl ?? undefined} sx={{ width: 56, height: 56, bgcolor: "primary.main" }}>
           {displayName.charAt(0).toUpperCase()}
         </Avatar>
-        <Box sx={{ flex: 1 }}>
-          <Stack direction="row" spacing={2} sx={{ mt: { xs: 0, sm: 1 } }}>
-            <Typography variant="body2">
-              <strong>{followerCount}</strong> followers
-            </Typography>
-            <Typography variant="body2">
-              <strong>{followingCount}</strong> following
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ mt: 1.5 }} flexWrap="wrap" alignItems="center">
-            <AvatarUploadButton />
-            {user.avatar_path ? (
-              <Box component="form" action={removeUserAvatarAction}>
-                <Button type="submit" size="small" color="inherit">
-                  Remove photo
-                </Button>
-              </Box>
-            ) : null}
-          </Stack>
-        </Box>
+        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+          <AvatarUploadButton />
+          {user.avatar_path ? (
+            <Box component="form" action={removeUserAvatarAction}>
+              <Button type="submit" size="small" color="inherit">
+                Remove photo
+              </Button>
+            </Box>
+          ) : null}
+        </Stack>
       </Stack>
 
       <Box component="form" action={updateUserProfileAction}>
@@ -122,7 +110,7 @@ export function CommunityProfileSelfSettings({
             name="bio"
             label="Tell others about yourself"
             multiline
-            minRows={2}
+            minRows={3}
             fullWidth
             defaultValue={bio}
             inputProps={{ maxLength: 2000 }}
@@ -132,6 +120,12 @@ export function CommunityProfileSelfSettings({
           </Button>
         </Stack>
       </Box>
+
+      <DialogActions sx={{ px: 0, pb: 0 }}>
+        <Button onClick={onClose} color="inherit">
+          Close
+        </Button>
+      </DialogActions>
     </Stack>
   );
 }

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { requireProfileForApp, type UsersRow } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
+import { optimizeUploadImage } from "@/lib/images/optimizeUploadImage";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_IMAGES = 5;
@@ -70,12 +71,12 @@ export async function createCommunityPostAction(formData: FormData) {
   let sort = 0;
   for (const file of files) {
     const mime = effectiveMime(file);
-    const buf = Buffer.from(await file.arrayBuffer());
-    const ext = extFromMime(mime);
+    const raw = Buffer.from(await file.arrayBuffer());
+    const optimized = await optimizeUploadImage(raw, mime);
     const mediaPrefix = profile.org_id ? `${profile.org_id}/${profile.id}` : `global/${profile.id}`;
-    const path = `${mediaPrefix}/${postId}/${randomUUID()}.${ext}`;
-    const { error: uErr } = await supabase.storage.from("community-media").upload(path, buf, {
-      contentType: mime,
+    const path = `${mediaPrefix}/${postId}/${randomUUID()}.${optimized.ext}`;
+    const { error: uErr } = await supabase.storage.from("community-media").upload(path, optimized.buffer, {
+      contentType: optimized.mime,
       upsert: false,
     });
     if (uErr) {
@@ -103,6 +104,87 @@ export async function createCommunityPostAction(formData: FormData) {
 
   revalidatePath("/community");
   redirect("/community?status=created");
+}
+
+const JOB_EMPLOYMENT_TYPES = new Set(["full_time", "part_time", "seasonal", "contract", "internship"]);
+
+export async function createCommunityJobAction(formData: FormData) {
+  await requireViewAccess("community");
+  const profile = await requireProfileForApp();
+
+  const title = String(formData.get("title") ?? "").trim();
+  const companyName = String(formData.get("company_name") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const employmentType = String(formData.get("employment_type") ?? "full_time").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const applyUrl = String(formData.get("apply_url") ?? "").trim();
+  const contactEmail = String(formData.get("contact_email") ?? "").trim();
+
+  if (!title || description.length < 10) {
+    redirect("/community?tab=jobs&status=job_invalid");
+  }
+  if (!JOB_EMPLOYMENT_TYPES.has(employmentType)) {
+    redirect("/community?tab=jobs&status=job_invalid");
+  }
+  if (applyUrl) {
+    try {
+      const parsed = new URL(applyUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        redirect("/community?tab=jobs&status=job_invalid_url");
+      }
+    } catch {
+      redirect("/community?tab=jobs&status=job_invalid_url");
+    }
+  }
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    redirect("/community?tab=jobs&status=job_invalid_email");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("community_job_posts").insert({
+    org_id: profile.org_id ?? null,
+    author_id: profile.id,
+    title,
+    company_name: companyName,
+    location,
+    employment_type: employmentType,
+    description,
+    apply_url: applyUrl || null,
+    contact_email: contactEmail || null,
+  });
+
+  if (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[createCommunityJobAction] insert failed:", error.message, error);
+    }
+    redirect("/community?tab=jobs&status=job_save_failed");
+  }
+
+  revalidatePath("/community");
+  redirect("/community?tab=jobs&status=job_created");
+}
+
+export async function deleteCommunityJobAction(formData: FormData) {
+  await requireViewAccess("community");
+  const profile = await requireProfileForApp();
+  const jobId = String(formData.get("jobId") ?? "");
+  if (!jobId) {
+    redirect("/community?tab=jobs&status=invalid");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("community_job_posts")
+    .delete()
+    .eq("id", jobId)
+    .eq("author_id", profile.id);
+
+  if (error) {
+    redirect("/community?tab=jobs&status=error");
+  }
+
+  revalidatePath("/community");
+  redirect("/community?tab=jobs&status=job_deleted");
 }
 
 export async function toggleCommunityLikeAction(formData: FormData) {

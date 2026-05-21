@@ -398,6 +398,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      community_job_posts: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          author_id: string;
+          title: string;
+          company_name: string;
+          location: string;
+          employment_type: string;
+          description: string;
+          apply_url: string | null;
+          contact_email: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string | null;
+          author_id: string;
+          title: string;
+          company_name?: string;
+          location?: string;
+          employment_type?: string;
+          description?: string;
+          apply_url?: string | null;
+          contact_email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string | null;
+          author_id?: string;
+          title?: string;
+          company_name?: string;
+          location?: string;
+          employment_type?: string;
+          description?: string;
+          apply_url?: string | null;
+          contact_email?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       community_post_media: {
         Row: {
           id: string;

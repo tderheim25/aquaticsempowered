@@ -83,6 +83,7 @@ export function CommunityProfileTabs({
   isSelfProfile = false,
   connectionsTabBadgeCount = 0,
   unseenFollowerCount = 0,
+  initialTab = 0,
 }: {
   posts: ProfileTabPost[];
   followers: ProfileTabPerson[];
@@ -96,9 +97,15 @@ export function CommunityProfileTabs({
   isSelfProfile?: boolean;
   connectionsTabBadgeCount?: number;
   unseenFollowerCount?: number;
+  /** 0 posts, 1 connections, 2 photos, 3 events */
+  initialTab?: number;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     if (!isSelfProfile || tab !== 1 || unseenFollowerCount < 1) return;
