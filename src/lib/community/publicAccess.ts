@@ -4,6 +4,6 @@ import type { UsersRow } from "@/lib/auth/rbac";
 export function canUsePublicCommunity(
   userId: string | null | undefined,
   profile: UsersRow | null
-): boolean {
+): profile is UsersRow {
   return Boolean(userId && profile);
 }

@@ -18,7 +18,7 @@ import { useEffect, useMemo, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { createTicketAction, updateTicketAction } from "@/app/(dashboard)/app/support/actions";
+import { createPortalTicketAction, updateTicketAction } from "@/app/(dashboard)/app/support/actions";
 import { TICKET_PRIORITIES, TICKET_STATUSES } from "@/lib/validations/support";
 import type { Database } from "@/types/database";
 
@@ -94,7 +94,7 @@ export function TicketFormDialog({
       fd.set("status", (values as EditFormValues).status);
       startTransition(() => updateTicketAction(fd));
     } else {
-      startTransition(() => createTicketAction(fd));
+      startTransition(() => createPortalTicketAction(fd));
     }
   };
 
