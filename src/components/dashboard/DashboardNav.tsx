@@ -50,15 +50,37 @@ const ORG_SCOPED_VIEWS = new Set<AppViewKey>([
 ]);
 
 function normalizePath(path: string) {
-  const p = path.replace(/\/$/, "") || "/";
+  const pathOnly = path.split("?")[0]?.split("#")[0] ?? path;
+  const p = pathOnly.replace(/\/$/, "") || "/";
   return p === "" ? "/" : p;
 }
 
-function isNavItemActive(pathname: string, href: string) {
+function hrefMatchesPath(pathname: string, href: string) {
   const p = normalizePath(pathname);
   const h = normalizePath(href);
   if (h === "/app") return p === "/app";
   return p === h || p.startsWith(`${h}/`);
+}
+
+/** One active path per sibling group — longest matching prefix wins. */
+function resolveActiveNavPath(pathname: string, hrefs: string[]) {
+  const p = normalizePath(pathname);
+  const matching = hrefs
+    .map((href) => normalizePath(href))
+    .filter((candidate) => p === candidate || p.startsWith(`${candidate}/`));
+
+  if (matching.length === 0) return null;
+
+  return matching.reduce((best, candidate) => (candidate.length > best.length ? candidate : best));
+}
+
+function isNavItemActive(pathname: string, href: string, siblingHrefs?: string[]) {
+  if (siblingHrefs === undefined) {
+    return hrefMatchesPath(pathname, href);
+  }
+
+  const activePath = resolveActiveNavPath(pathname, siblingHrefs);
+  return activePath !== null && normalizePath(href) === activePath;
 }
 
 function resolveHref(
@@ -180,9 +202,13 @@ function NavGroupSection({
     );
   }
 
-  const groupActive = group.children.some((c) =>
-    isNavItemActive(pathname, resolveHref(group.viewKey, c.href, hasOrg, superAdminOrgId))
+  const childHrefs = group.children.map((c) =>
+    resolveHref(group.viewKey, c.href, hasOrg, superAdminOrgId)
   );
+
+  const activeChildPath = resolveActiveNavPath(pathname, childHrefs);
+
+  const groupActive = activeChildPath !== null;
 
   if (collapsed) {
     return (
@@ -209,9 +235,9 @@ function NavGroupSection({
           anchorOrigin={{ vertical: "top", horizontal: "right" }}
           transformOrigin={{ vertical: "top", horizontal: "left" }}
         >
-          {group.children.map((child) => {
-            const href = resolveHref(group.viewKey, child.href, hasOrg, superAdminOrgId);
-            const active = isNavItemActive(pathname, href);
+          {group.children.map((child, i) => {
+            const href = childHrefs[i];
+            const active = activeChildPath !== null && normalizePath(href) === activeChildPath;
             const ChildIcon = child.icon;
             return (
               <MenuItem
@@ -219,6 +245,7 @@ function NavGroupSection({
                 component={Link}
                 href={href}
                 selected={active}
+                aria-current={active ? "page" : undefined}
                 onClick={() => {
                   setMenuAnchor(null);
                   onNavigate();
@@ -263,9 +290,9 @@ function NavGroupSection({
       </ListItemButton>
       <Collapse in={expanded} timeout={200}>
         <List dense disablePadding>
-          {group.children.map((child) => {
-            const href = resolveHref(group.viewKey, child.href, hasOrg, superAdminOrgId);
-            const active = isNavItemActive(pathname, href);
+          {group.children.map((child, i) => {
+            const href = childHrefs[i];
+            const active = activeChildPath !== null && normalizePath(href) === activeChildPath;
             const ChildIcon = child.icon;
             return (
               <ListItemButton
@@ -273,6 +300,7 @@ function NavGroupSection({
                 component={Link}
                 href={href}
                 selected={active}
+                aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 sx={{
                   ...sidebarNavItemSx,
@@ -333,7 +361,7 @@ export function DashboardNav({
     const map: Record<string, boolean> = {};
     for (const g of DASHBOARD_POOL_OPS_GROUPS) {
       if (g.children) {
-        map[g.label] = g.children.some((c) => isNavItemActive(pathname, c.href));
+        map[g.label] = resolveActiveNavPath(pathname, g.children.map((c) => c.href)) !== null;
       }
     }
     return map;
