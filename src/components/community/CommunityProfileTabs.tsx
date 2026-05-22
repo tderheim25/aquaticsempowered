@@ -21,7 +21,6 @@ import { useRouter } from "next/navigation";
 
 import type { ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
 import { CommunityProfilePostsLive } from "@/components/community/CommunityProfilePostsLive";
-import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
 import {
   acceptNetworkRequestAction,
   declineNetworkRequestAction,

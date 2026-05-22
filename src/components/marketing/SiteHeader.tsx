@@ -11,7 +11,6 @@ import {
   IconButton,
   List,
   ListItemButton,
-  ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,

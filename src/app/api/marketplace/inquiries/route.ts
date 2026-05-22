@@ -48,7 +48,7 @@ export async function POST(req: Request) {
 
   let fromName = String(body.fromName ?? "").trim();
   let fromEmail = String(body.fromEmail ?? "").trim().toLowerCase();
-  let fromUserId: string | null = sessionUser?.id ?? null;
+  const fromUserId: string | null = sessionUser?.id ?? null;
   let fromOrgName = String(body.fromOrgName ?? "").trim() || null;
 
   if (profile) {
