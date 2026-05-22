@@ -30,17 +30,7 @@ export function buildAppUrl(baseUrl: string) {
   return url.toString();
 }
 
-/** Best-effort base URL resolver: env override → request origin → relative. */
-export function resolveBaseUrl(requestOrigin?: string | null) {
-  const envUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.APP_URL ||
-    null;
-  if (envUrl) return envUrl.replace(/\/$/, "");
-  if (requestOrigin) return requestOrigin.replace(/\/$/, "");
-  return "http://localhost:3000";
-}
+export { resolveBaseUrl } from "@/lib/site";
 
 export function isInviteExpired(expiresAt: string) {
   return new Date(expiresAt).getTime() < Date.now();

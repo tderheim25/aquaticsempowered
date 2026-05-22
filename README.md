@@ -19,6 +19,8 @@ Copy [`.env.example`](./.env.example) → `.env.local`. **Required for local dev
 
 | Variable | Where to get it |
 | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Local app URL (`http://localhost:3000` in dev) |
+| `NEXT_PUBLIC_APP_URL` | Public deployed URL for **invitation emails** and auth links ([aquaticsempowered.vercel.app](https://aquaticsempowered.vercel.app)) — must not be localhost in production |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role (server-only) |
