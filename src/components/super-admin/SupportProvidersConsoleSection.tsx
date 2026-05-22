@@ -4,6 +4,8 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
+import SendRoundedIcon from "@mui/icons-material/SendRounded";
 import {
   Box,
   Button,
@@ -24,6 +26,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { upsertSupportProviderAction } from "@/app/private/ae-console/support/actions";
+import { resendSupportTechnicianInvitationAction } from "@/app/private/ae-console/users/technicianInviteActions";
+import { InviteTechnicianDialog } from "@/components/super-admin/InviteTechnicianDialog";
 import { UsaAddressFields } from "@/components/forms/UsaAddressFields";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
 import {
@@ -103,6 +107,15 @@ export function SupportProvidersConsoleSection({
   const [editing, setEditing] = useState<Provider | null>(null);
   const [creating, setCreating] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteProviderId, setInviteProviderId] = useState<string | undefined>();
+
+  const providerOptions = useMemo(() => providers.map((p) => ({ id: p.id, name: p.name })), [providers]);
+
+  const openInvite = (providerId?: string) => {
+    setInviteProviderId(providerId);
+    setInviteOpen(true);
+  };
 
   const activeCount = useMemo(() => providers.filter((p) => p.is_active).length, [providers]);
   const techsByProvider = useMemo(() => groupByProviderId(technicians), [technicians]);
@@ -126,9 +139,19 @@ export function SupportProvidersConsoleSection({
         <Typography variant="body2" color="text.secondary">
           {activeCount} active provider{activeCount === 1 ? "" : "s"} · technicians must be linked to a provider
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
-          Add provider
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<PersonAddOutlinedIcon />}
+            onClick={() => openInvite()}
+            disabled={providers.length === 0}
+          >
+            Invite technician
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)}>
+            Add provider
+          </Button>
+        </Stack>
       </Stack>
 
       <AeConsolePanel noPadding>
@@ -171,6 +194,7 @@ export function SupportProvidersConsoleSection({
                     isExpanded={isExpanded}
                     onToggle={() => toggleExpanded(p.id)}
                     onEdit={() => setEditing(p)}
+                    onInvite={() => openInvite(p.id)}
                   />
                 );
               })
@@ -187,6 +211,16 @@ export function SupportProvidersConsoleSection({
           setEditing(null);
         }}
       />
+
+      <InviteTechnicianDialog
+        open={inviteOpen}
+        supportProviders={providerOptions}
+        defaultProviderId={inviteProviderId}
+        onClose={() => {
+          setInviteOpen(false);
+          setInviteProviderId(undefined);
+        }}
+      />
     </>
   );
 }
@@ -199,6 +233,7 @@ function ProviderRows({
   isExpanded,
   onToggle,
   onEdit,
+  onInvite,
 }: {
   provider: Provider;
   techs: ProviderTechnicianRow[];
@@ -207,6 +242,7 @@ function ProviderRows({
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: () => void;
+  onInvite: () => void;
 }) {
   return (
     <>
@@ -268,12 +304,17 @@ function ProviderRows({
         <TableCell colSpan={8} sx={{ py: 0, borderBottom: isExpanded ? 1 : 0, borderColor: "divider" }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
             <Box sx={{ py: 2, pl: { xs: 2, sm: 7 }, pr: 2, bgcolor: "action.hover", borderRadius: 1, mb: 1.5 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                Technicians for {provider.name}
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Technicians for {provider.name}
+                </Typography>
+                <Button size="small" variant="outlined" startIcon={<PersonAddOutlinedIcon />} onClick={onInvite}>
+                  Invite technician
+                </Button>
+              </Stack>
               {techs.length === 0 && pending.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
-                  No technicians linked yet. Invite one from the Users section.
+                  No technicians linked yet. Send an invitation to add one.
                 </Typography>
               ) : (
                 <Stack spacing={1.25}>
@@ -330,6 +371,14 @@ function ProviderRows({
                       </Box>
                       <StatusPill label="Invite pending" tone="warning" dot={false} />
                       <TableDateTimeCell iso={inv.created_at} />
+                      <form action={resendSupportTechnicianInvitationAction}>
+                        <input type="hidden" name="invitationId" value={inv.id} />
+                        <Tooltip title="Resend invitation">
+                          <IconButton size="small" type="submit" color="primary">
+                            <SendRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </form>
                     </Stack>
                   ))}
                 </Stack>

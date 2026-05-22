@@ -72,6 +72,12 @@ const AE_CONSOLE_TOAST_MESSAGES = {
     text: "Invitation sent — they can accept after signing in.",
     severity: "success" as const,
   },
+  "tech-invite-resent": { text: "Invitation resent.", severity: "success" as const },
+  "invite-email-failed": { text: "Could not send invitation email. Try again.", severity: "error" as const },
+  "invite-email-not-configured": {
+    text: "Invitation saved but email is not configured (RESEND_API_KEY).",
+    severity: "warning" as const,
+  },
   "already-member": { text: "That technician is already linked to this provider.", severity: "info" as const },
   "invite-failed": { text: "Could not send invitation. Please try again.", severity: "error" as const },
   org_created: { text: "Organization created.", severity: "success" as const },

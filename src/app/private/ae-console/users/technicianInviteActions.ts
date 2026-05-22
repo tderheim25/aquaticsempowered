@@ -29,7 +29,7 @@ export async function inviteSupportTechnicianAction(formData: FormData) {
 
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   if (!isEmail || !supportProviderId) {
-    redirect(consoleSectionUrl("users", { status: "invalid" }));
+    redirect(consoleSectionUrl("support_providers", { status: "invalid" }));
   }
 
   const admin = createAdminClient();
@@ -41,7 +41,7 @@ export async function inviteSupportTechnicianAction(formData: FormData) {
     .maybeSingle();
 
   if (providerErr || !provider) {
-    redirect(consoleSectionUrl("users", { status: "invalid" }));
+    redirect(consoleSectionUrl("support_providers", { status: "invalid" }));
   }
 
   const { data: existingUser } = await admin
@@ -54,7 +54,7 @@ export async function inviteSupportTechnicianAction(formData: FormData) {
     existingUser?.role === "support_technician" &&
     existingUser.support_provider_id === supportProviderId
   ) {
-    redirect(consoleSectionUrl("users", { status: "already-member" }));
+    redirect(consoleSectionUrl("support_providers", { status: "already-member" }));
   }
 
   await admin
@@ -85,7 +85,7 @@ export async function inviteSupportTechnicianAction(formData: FormData) {
 
   if (inviteErr || !invite) {
     captureException(inviteErr, { step: "support_technician_invitation_insert" });
-    redirect(consoleSectionUrl("users", { status: "invite-failed" }));
+    redirect(consoleSectionUrl("support_providers", { status: "invite-failed" }));
   }
 
   if (process.env.RESEND_API_KEY) {
@@ -124,7 +124,90 @@ export async function inviteSupportTechnicianAction(formData: FormData) {
   revalidatePath(getSuperAdminPortalPath());
   redirect(
     existingUser
-      ? consoleSectionUrl("users", { status: "tech-invited-existing" })
-      : consoleSectionUrl("users", { status: "tech-invited" }),
+      ? consoleSectionUrl("support_providers", { status: "tech-invited-existing" })
+      : consoleSectionUrl("support_providers", { status: "tech-invited" }),
   );
+}
+
+/** Resend a pending support technician invitation (refreshes token + expiry, resends email). */
+export async function resendSupportTechnicianInvitationAction(formData: FormData) {
+  const actor = await requireSuperAdminConsole();
+
+  const invitationId = String(formData.get("invitationId") ?? "").trim();
+  if (!invitationId) {
+    redirect(consoleSectionUrl("support_providers", { status: "invalid" }));
+  }
+
+  const admin = createAdminClient();
+  const { data: invite, error: inviteLoadErr } = await admin
+    .from("support_technician_invitations")
+    .select("id, email, full_name, message, status, support_provider_id, invited_user_id, expires_at")
+    .eq("id", invitationId)
+    .maybeSingle();
+
+  if (inviteLoadErr || !invite || invite.status !== "pending") {
+    redirect(consoleSectionUrl("support_providers", { status: "invalid" }));
+  }
+
+  const { data: provider } = await admin
+    .from("support_providers")
+    .select("name")
+    .eq("id", invite.support_provider_id)
+    .maybeSingle();
+
+  const providerName = provider?.name ?? "Support provider";
+
+  const token = generateInviteToken();
+  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error: updateErr } = await admin
+    .from("support_technician_invitations")
+    .update({ token, expires_at: expiresAt })
+    .eq("id", invitationId);
+
+  if (updateErr) {
+    captureException(updateErr, { step: "support_technician_invitation_resend_update" });
+    redirect(consoleSectionUrl("support_providers", { status: "invite-failed" }));
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    revalidatePath(getSuperAdminPortalPath());
+    redirect(consoleSectionUrl("support_providers", { status: "invite-email-not-configured" }));
+  }
+
+  try {
+    const hdrs = await headers();
+    const origin =
+      hdrs.get("origin") || `${hdrs.get("x-forwarded-proto") ?? "https"}://${hdrs.get("host") ?? ""}`;
+    const baseUrl = resolveBaseUrl(origin);
+    const inviterName =
+      actor.full_name?.trim() ||
+      (actor as { first_name?: string | null }).first_name?.trim() ||
+      actor.email;
+
+    const acceptPath = `/app/invitations/accept?token=${encodeURIComponent(token)}&next=${encodeURIComponent("/portal/queue")}`;
+    const appUrl = invite.invited_user_id ? `${baseUrl}${acceptPath}` : buildAppUrl(baseUrl);
+
+    await sendSupportTechnicianInvitationEmail(invite.email, {
+      providerName,
+      inviterName,
+      recipientName: invite.full_name,
+      signupUrl: buildInviteSignupUrl(baseUrl, token),
+      appUrl: invite.invited_user_id ? appUrl : buildAppUrl(baseUrl),
+      isExistingUser: Boolean(invite.invited_user_id),
+      message: invite.message,
+      expiresAt: new Date(expiresAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }),
+    });
+  } catch (e) {
+    captureException(e, { step: "support_technician_invitation_resend_email" });
+    revalidatePath(getSuperAdminPortalPath());
+    redirect(consoleSectionUrl("support_providers", { status: "invite-email-failed" }));
+  }
+
+  revalidatePath(getSuperAdminPortalPath());
+  redirect(consoleSectionUrl("support_providers", { status: "tech-invite-resent" }));
 }

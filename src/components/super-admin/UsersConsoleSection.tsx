@@ -4,7 +4,6 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
-import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   Box,
@@ -26,8 +25,6 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { deleteUserAction, updateUserDetailsAction } from "@/app/private/ae-console/users/actions";
-import { inviteSupportTechnicianAction } from "@/app/private/ae-console/users/technicianInviteActions";
-import { SUPPORT_TECHNICIAN_ROLE_LABEL } from "@/lib/supportTechnicianInvitations";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
 import {
   DataTable,
@@ -100,8 +97,6 @@ export function UsersConsoleSection({
   const [roleFilter, setRoleFilter] = useState<string>(ALL);
   const [editing, setEditing] = useState<AdminUserRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminUserRow | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
   const slugToRole = useMemo(() => new Map(appRoles.map((r) => [r.slug, r])), [appRoles]);
 
@@ -215,16 +210,6 @@ export function UsersConsoleSection({
               ))}
             </TextField>
 
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<PersonAddOutlinedIcon />}
-              onClick={() => setInviteOpen(true)}
-              disabled={supportProviders.length === 0}
-              sx={{ flexShrink: 0 }}
-            >
-              Invite technician
-            </Button>
           </Box>
         </Stack>
 
@@ -331,111 +316,7 @@ export function UsersConsoleSection({
       />
 
       <DeleteUserDialog user={confirmDelete} onClose={() => setConfirmDelete(null)} />
-
-      <InviteTechnicianDialog
-        open={inviteOpen}
-        supportProviders={supportProviders}
-        onClose={() => setInviteOpen(false)}
-      />
     </>
-  );
-}
-
-function InviteTechnicianDialog({
-  open,
-  supportProviders,
-  onClose,
-}: {
-  open: boolean;
-  supportProviders: SupportProviderOption[];
-  onClose: () => void;
-}) {
-  const formId = "invite-technician-form";
-  const defaultProviderId = supportProviders[0]?.id ?? "";
-
-  return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: { borderRadius: 2 } }}>
-      <DialogTitle sx={{ pr: 6 }}>
-        Invite support technician
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
-          Send an email invitation. After signup they appear here as <strong>{SUPPORT_TECHNICIAN_ROLE_LABEL}</strong>{" "}
-          and under their support provider.
-        </Typography>
-        <IconButton size="small" onClick={onClose} sx={{ position: "absolute", right: 12, top: 12 }} aria-label="Close">
-          <CloseRoundedIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-      <Divider />
-      <DialogContent sx={{ pt: 2.5 }}>
-        <Stack
-          id={formId}
-          component="form"
-          action={inviteSupportTechnicianAction}
-          spacing={2.25}
-          onSubmit={() => setTimeout(onClose, 0)}
-        >
-          <TextField
-            name="email"
-            type="email"
-            label="Email address"
-            required
-            fullWidth
-            size="small"
-            margin="none"
-            autoComplete="off"
-            placeholder="technician@example.com"
-          />
-          <TextField name="fullName" label="Full name (optional)" fullWidth size="small" margin="none" autoComplete="off" />
-          <TextField
-            name="supportProviderId"
-            label="Support provider"
-            select
-            required
-            fullWidth
-            size="small"
-            margin="none"
-            defaultValue={defaultProviderId}
-          >
-            {supportProviders.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
-                {p.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            name="message"
-            label="Personal note (optional)"
-            fullWidth
-            size="small"
-            margin="none"
-            multiline
-            minRows={2}
-            placeholder="Welcome to the support team."
-          />
-          <Box
-            sx={(theme) => ({
-              p: 1.5,
-              borderRadius: 1.5,
-              bgcolor: theme.palette.action.hover,
-              border: 1,
-              borderColor: "divider",
-            })}
-          >
-            <Typography variant="caption" color="text.secondary">
-              <strong>New users</strong> receive a signup link and are linked to the provider automatically.
-              <br />
-              <strong>Existing users</strong> sign in and complete acceptance from the invitation link.
-            </Typography>
-          </Box>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2.5 }}>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button type="submit" form={formId} variant="contained">
-          Send invitation
-        </Button>
-      </DialogActions>
-    </Dialog>
   );
 }
 
