@@ -21,6 +21,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CommunitySearchResult } from "@/app/api/community/search/route";
 
+import { communitySearchFieldSx } from "./communityUi";
+
+/** Stable id so MUI does not auto-generate mismatched useId() between SSR and hydration. */
+const COMMUNITY_SEARCH_INPUT_ID = "community-search-input";
+
 const TYPE_LABELS: Record<CommunitySearchResult["type"], string> = {
   user: "People",
   vendor: "Vendors",
@@ -101,8 +106,11 @@ export function CommunitySearchBar() {
   return (
     <Box ref={wrapRef} sx={{ position: "relative", width: "100%" }}>
       <TextField
+        id={COMMUNITY_SEARCH_INPUT_ID}
+        name="community-search"
         fullWidth
         size="small"
+        sx={communitySearchFieldSx}
         placeholder="Search people, vendors, or organizations…"
         value={query}
         onChange={(e) => {
@@ -110,8 +118,11 @@ export function CommunitySearchBar() {
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        autoComplete="off"
         slotProps={{
           input: {
+            id: COMMUNITY_SEARCH_INPUT_ID,
+            autoComplete: "off",
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon fontSize="small" color="action" />

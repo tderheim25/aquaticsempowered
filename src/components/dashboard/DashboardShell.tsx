@@ -3,7 +3,6 @@
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import {
   AppBar,
-  Avatar,
   Box,
   Chip,
   Divider,
@@ -21,13 +20,13 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import {
-  CommunityActivityMenuItems,
+  CommunityNotificationsBell,
   CommunityUnreadBadge,
   isCommunityRoute,
-  markCommunityActivitySeen,
-  useCommunityActivity,
-} from "@/components/community/CommunityActivityBadge";
+} from "@/components/community/CommunityNotificationsBell";
 import { BreadcrumbLabelProvider } from "@/components/dashboard/BreadcrumbLabelContext";
 import { DashboardBreadcrumbs } from "@/components/dashboard/DashboardBreadcrumbs";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
@@ -77,13 +76,12 @@ export function DashboardShell({
   const [collapsed, setCollapsed] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const pathname = usePathname();
-  const showCommunityActivity = isCommunityRoute(pathname);
-  const { activity, refresh: refreshActivity } = useCommunityActivity(showCommunityActivity);
   const { invitations, refresh: refreshInvitations } = useOrgInvitations(true);
   const invitationCount = invitations.length;
-  const totalBadge = (activity?.total ?? 0) + invitationCount;
 
   const drawerWidth = collapsed ? SIDEBAR_DRAWER_COLLAPSED : SIDEBAR_DRAWER_WIDTH;
+  const communityContext = isCommunityRoute(pathname);
+  const headerInitial = displayName?.trim().charAt(0)?.toUpperCase() ?? "U";
 
   const sidebar = (
     <DashboardNav
@@ -98,12 +96,7 @@ export function DashboardShell({
     />
   );
 
-  const openAccountMenu = (el: HTMLElement) => {
-    setAnchorEl(el);
-    if (showCommunityActivity && (activity?.total ?? 0) > 0) {
-      void markCommunityActivitySeen().then(() => refreshActivity());
-    }
-  };
+  const openAccountMenu = (el: HTMLElement) => setAnchorEl(el);
 
   return (
     <Box sx={sidebarShellBackgroundSx}>
@@ -114,45 +107,54 @@ export function DashboardShell({
               <MenuRoundedIcon />
             </IconButton>
           ) : null}
-          <Typography
-            variant="h6"
-            component={Link}
-            href="/app"
-            sx={{
-              flexGrow: 1,
-              minWidth: 0,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              lineHeight: 1.2,
-              color: "primary.main",
-              textDecoration: "none",
-            }}
-          >
-            Aquatics Empowered
-          </Typography>
+          {communityContext ? (
+            <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", alignItems: "center" }}>
+              <BrandMark href="/community" ariaLabel="Community home" />
+            </Box>
+          ) : (
+            <Typography
+              variant="h6"
+              component={Link}
+              href="/app"
+              sx={{
+                flexGrow: 1,
+                minWidth: 0,
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.2,
+                color: "primary.main",
+                textDecoration: "none",
+              }}
+            >
+              Aquatics Empowered
+            </Typography>
+          )}
           <Chip
             label={planLabel}
             size="small"
             sx={{
-              display: { xs: "none", sm: "flex" },
+              display: { xs: "none", sm: communityContext ? "none" : "flex" },
               borderRadius: 2,
               fontWeight: 600,
             }}
           />
+          {communityContext ? <CommunityNotificationsBell enabled /> : null}
           <IconButton
             onClick={(e) => openAccountMenu(e.currentTarget)}
             size="small"
             aria-label={
-              totalBadge > 0
-                ? `Account menu, ${totalBadge} notification${totalBadge === 1 ? "" : "s"}`
+              invitationCount > 0
+                ? `Account menu, ${invitationCount} organization invitation${invitationCount === 1 ? "" : "s"}`
                 : "Account menu"
             }
-            sx={{ position: "relative" }}
+            sx={{ position: "relative", p: communityContext ? 0.25 : undefined }}
           >
-            <Avatar src={avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
-              {displayName?.charAt(0)?.toUpperCase() ?? "U"}
-            </Avatar>
-            <CommunityUnreadBadge count={totalBadge} />
+            <CommunityAvatar
+              src={avatarUrl}
+              initials={headerInitial}
+              size={communityContext ? 36 : 32}
+            />
+            <CommunityUnreadBadge count={invitationCount} />
           </IconButton>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
             <OrgInvitationsMenuItems
@@ -162,7 +164,6 @@ export function DashboardShell({
                 void refreshInvitations();
               }}
             />
-            <CommunityActivityMenuItems activity={activity} onNavigate={() => setAnchorEl(null)} />
             <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start" }}>
               <Typography variant="subtitle2">{displayName}</Typography>
               <Typography variant="caption" color="text.secondary">

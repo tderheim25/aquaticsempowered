@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { homePathForRole, isSupportTechnicianAllowedAppPath } from "@/lib/auth/homePath";
+import { homePathForRole, isSupportTechnicianAllowedAppPath, isVendorAllowedAppPath } from "@/lib/auth/homePath";
 import { getUserRoleForMiddleware } from "@/lib/auth/middlewareProfile";
 import { createMiddlewareClient } from "@/lib/supabase/middleware";
 
@@ -51,6 +51,20 @@ export async function middleware(request: NextRequest) {
     if (role === "support_technician" && pathname.startsWith("/app") && !isSupportTechnicianAllowedAppPath(pathname)) {
       const url = request.nextUrl.clone();
       url.pathname = "/portal/queue";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (role === "vendor" && pathname.startsWith("/app") && !isVendorAllowedAppPath(pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/app/vendor";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (role === "vendor" && (pathname === "/app" || pathname === "/app/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/app/vendor";
       url.search = "";
       return NextResponse.redirect(url);
     }

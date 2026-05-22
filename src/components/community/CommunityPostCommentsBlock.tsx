@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Box,
   Button,
@@ -6,12 +8,15 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { useState, useTransition } from "react";
 
 import {
   createCommunityCommentAction,
   deleteCommunityCommentAction,
 } from "@/app/(dashboard)/app/community/actions";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
+
+import { communityContainedButtonSx } from "./communityUi";
 
 export type ResolvedPostComment = {
   id: string;
@@ -31,12 +36,58 @@ export function CommunityPostCommentsBlock({
   viewerId,
   comments,
   redirectTo,
+  liveUpdates = false,
+  onCommentAdded,
+  onCommentRemoved,
 }: {
   postId: string;
   viewerId: string;
   comments: ResolvedPostComment[];
   redirectTo: string;
+  /** When true, submit/delete via API without full page reload. */
+  liveUpdates?: boolean;
+  onCommentAdded?: (comment: ResolvedPostComment) => void;
+  onCommentRemoved?: (commentId: string) => void;
 }) {
+  const [pending, startTransition] = useTransition();
+  const [submitError, setSubmitError] = useState(false);
+
+  const submitLive = (text: string) => {
+    setSubmitError(false);
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/community/comments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId, comment: text }),
+        });
+        if (!res.ok) {
+          setSubmitError(true);
+          return;
+        }
+        const data = (await res.json()) as { comment: ResolvedPostComment };
+        onCommentAdded?.(data.comment);
+        window.dispatchEvent(new Event("community-activity-refresh"));
+      } catch {
+        setSubmitError(true);
+      }
+    });
+  };
+
+  const removeLive = (commentId: string) => {
+    startTransition(async () => {
+      try {
+        const res = await fetch(`/api/community/comments?id=${encodeURIComponent(commentId)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) return;
+        onCommentRemoved?.(commentId);
+      } catch {
+        /* ignore */
+      }
+    });
+  };
+
   return (
     <Box sx={{ mt: 0 }}>
       {comments.length > 0 ? (
@@ -70,13 +121,27 @@ export function CommunityPostCommentsBlock({
                   </Typography>
                 </Box>
                 {c.author_id === viewerId ? (
-                  <Box component="form" action={deleteCommunityCommentAction} sx={{ flexShrink: 0 }}>
-                    <input type="hidden" name="commentId" value={c.id} />
-                    <input type="hidden" name="redirectTo" value={redirectTo} />
-                    <Button type="submit" size="small" color="error">
+                  liveUpdates ? (
+                    <Button
+                      type="button"
+                      size="small"
+                      color="error"
+                      variant="text"
+                      disabled={pending}
+                      onClick={() => removeLive(c.id)}
+                      sx={{ flexShrink: 0 }}
+                    >
                       Remove
                     </Button>
-                  </Box>
+                  ) : (
+                    <Box component="form" action={deleteCommunityCommentAction} sx={{ flexShrink: 0 }}>
+                      <input type="hidden" name="commentId" value={c.id} />
+                      <input type="hidden" name="redirectTo" value={redirectTo} />
+                      <Button type="submit" size="small" color="error" variant="text">
+                        Remove
+                      </Button>
+                    </Box>
+                  )
                 ) : null}
               </Stack>
             </Box>
@@ -84,27 +149,75 @@ export function CommunityPostCommentsBlock({
         </Stack>
       ) : null}
 
-      <Box component="form" action={createCommunityCommentAction}>
-        <input type="hidden" name="postId" value={postId} />
-        <input type="hidden" name="redirectTo" value={redirectTo} />
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-start" }}>
-          <TextField
-            id={`community-comment-${postId}`}
-            name="comment"
-            label="Write a comment"
-            placeholder="Say something…"
-            multiline
-            minRows={1}
-            maxRows={4}
-            fullWidth
-            size="small"
-            inputProps={{ maxLength: 2000 }}
-          />
-          <Button type="submit" variant="outlined" size="small" sx={{ flexShrink: 0, alignSelf: { sm: "center" } }}>
-            Comment
-          </Button>
-        </Stack>
-      </Box>
+      {liveUpdates ? (
+        <Box
+          component="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const text = String(fd.get("comment") ?? "").trim();
+            if (!text) return;
+            submitLive(text);
+            e.currentTarget.reset();
+          }}
+        >
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-start" }}>
+            <TextField
+              id={`community-comment-${postId}`}
+              name="comment"
+              label="Write a comment"
+              placeholder="Say something…"
+              multiline
+              minRows={1}
+              maxRows={4}
+              fullWidth
+              size="small"
+              autoComplete="off"
+              disabled={pending}
+              error={submitError}
+              helperText={submitError ? "Could not post comment. Try again." : undefined}
+              inputProps={{ maxLength: 2000 }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              size="small"
+              disabled={pending}
+              sx={{ flexShrink: 0, alignSelf: { sm: "center" }, ...communityContainedButtonSx() }}
+            >
+              Comment
+            </Button>
+          </Stack>
+        </Box>
+      ) : (
+        <Box component="form" action={createCommunityCommentAction}>
+          <input type="hidden" name="postId" value={postId} />
+          <input type="hidden" name="redirectTo" value={redirectTo} />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "flex-start" }}>
+            <TextField
+              id={`community-comment-${postId}`}
+              name="comment"
+              label="Write a comment"
+              placeholder="Say something…"
+              multiline
+              minRows={1}
+              maxRows={4}
+              fullWidth
+              size="small"
+              autoComplete="off"
+              inputProps={{ maxLength: 2000 }}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              size="small"
+              sx={{ flexShrink: 0, alignSelf: { sm: "center" }, ...communityContainedButtonSx() }}
+            >
+              Comment
+            </Button>
+          </Stack>
+        </Box>
+      )}
     </Box>
   );
 }

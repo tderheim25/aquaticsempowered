@@ -28,6 +28,7 @@ import {
   DASHBOARD_FACILITY_NAV,
   DASHBOARD_POOL_OPS_GROUPS,
   DASHBOARD_TOP_NAV,
+  DASHBOARD_VENDOR_NAV,
   type DashboardNavGroup,
   type DashboardNavLink,
 } from "@/components/dashboard/dashboardNavConfig";
@@ -326,6 +327,7 @@ export function DashboardNav({
   const pathname = usePathname();
   const allowedViewSet = useMemo(() => new Set(allowedViews), [allowedViews]);
   const showOrgSwitcher = userRole === "super_admin" && (superAdminOrgOptions?.length ?? 0) > 0;
+  const isVendorPortal = userRole === "vendor";
 
   const defaultExpanded = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -370,7 +372,7 @@ export function DashboardNav({
               Portal
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block">
-              Pool operations
+              {isVendorPortal ? "Vendor portal" : "Pool operations"}
             </Typography>
           </Box>
         ) : null}
@@ -414,23 +416,32 @@ export function DashboardNav({
           </Typography>
         ) : null}
         <List dense disablePadding>
-          {DASHBOARD_TOP_NAV.filter((item) => allowedViewSet.has(item.viewKey))
-            .filter((item) => !item.roles || (userRole ? item.roles.includes(userRole) : false))
-            .map((item) => {
-              const active = isNavItemActive(pathname, item.href);
-              return (
+          {isVendorPortal
+            ? DASHBOARD_VENDOR_NAV.filter((item) => allowedViewSet.has(item.viewKey)).map((item) => (
                 <NavLeafButton
                   key={item.href}
                   href={item.href}
                   label={item.label}
                   icon={item.icon}
-                  selected={active}
+                  selected={isNavItemActive(pathname, item.href)}
                   collapsed={collapsed}
                   onNavigate={handleNavigate}
                 />
-              );
-            })}
-          {userRole === "super_admin" ? (
+              ))
+            : DASHBOARD_TOP_NAV.filter((item) => allowedViewSet.has(item.viewKey))
+                .filter((item) => !item.roles || (userRole ? item.roles.includes(userRole) : false))
+                .map((item) => (
+                  <NavLeafButton
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={item.icon}
+                    selected={isNavItemActive(pathname, item.href)}
+                    collapsed={collapsed}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+          {!isVendorPortal && userRole === "super_admin" ? (
             <NavLeafButton
               href={DASHBOARD_AE_CONSOLE_NAV.href}
               label={DASHBOARD_AE_CONSOLE_NAV.label}
@@ -442,51 +453,55 @@ export function DashboardNav({
           ) : null}
         </List>
 
-        {!collapsed ? (
-          <Typography variant="caption" sx={{ ...sidebarGroupHeaderSx, mt: 1.5 }}>
-            Pool Operations
-          </Typography>
-        ) : null}
-        <List dense disablePadding sx={{ mt: collapsed ? 0.5 : 0 }}>
-          {DASHBOARD_POOL_OPS_GROUPS.map((group) => (
-            <NavGroupSection
-              key={group.label}
-              group={group}
-              pathname={pathname}
-              allowed={allowedViewSet.has(group.viewKey)}
-              hasOrg={hasOrg}
-              superAdminOrgId={superAdminActiveOrgId}
-              expanded={expanded[group.label] ?? false}
-              onToggle={() => setExpanded((e) => ({ ...e, [group.label]: !e[group.label] }))}
-              onNavigate={handleNavigate}
-              userRole={userRole}
-              collapsed={collapsed}
-            />
-          ))}
-        </List>
+        {!isVendorPortal ? (
+          <>
+            {!collapsed ? (
+              <Typography variant="caption" sx={{ ...sidebarGroupHeaderSx, mt: 1.5 }}>
+                Pool Operations
+              </Typography>
+            ) : null}
+            <List dense disablePadding sx={{ mt: collapsed ? 0.5 : 0 }}>
+              {DASHBOARD_POOL_OPS_GROUPS.map((group) => (
+                <NavGroupSection
+                  key={group.label}
+                  group={group}
+                  pathname={pathname}
+                  allowed={allowedViewSet.has(group.viewKey)}
+                  hasOrg={hasOrg}
+                  superAdminOrgId={superAdminActiveOrgId}
+                  expanded={expanded[group.label] ?? false}
+                  onToggle={() => setExpanded((e) => ({ ...e, [group.label]: !e[group.label] }))}
+                  onNavigate={handleNavigate}
+                  userRole={userRole}
+                  collapsed={collapsed}
+                />
+              ))}
+            </List>
 
-        {!collapsed ? (
-          <Typography variant="caption" sx={{ ...sidebarGroupHeaderSx, mt: 1.5 }}>
-            Facility
-          </Typography>
+            {!collapsed ? (
+              <Typography variant="caption" sx={{ ...sidebarGroupHeaderSx, mt: 1.5 }}>
+                Facility
+              </Typography>
+            ) : null}
+            <List dense disablePadding sx={{ mt: collapsed ? 0.5 : 0 }}>
+              {DASHBOARD_FACILITY_NAV.filter((item) => allowedViewSet.has(item.viewKey)).map((item) => {
+                const href = resolveHref(item.viewKey, item.href, hasOrg, superAdminActiveOrgId);
+                const active = isNavItemActive(pathname, href);
+                return (
+                  <NavLeafButton
+                    key={item.href}
+                    href={href}
+                    label={item.label}
+                    icon={item.icon}
+                    selected={active}
+                    collapsed={collapsed}
+                    onNavigate={handleNavigate}
+                  />
+                );
+              })}
+            </List>
+          </>
         ) : null}
-        <List dense disablePadding sx={{ mt: collapsed ? 0.5 : 0 }}>
-          {DASHBOARD_FACILITY_NAV.filter((item) => allowedViewSet.has(item.viewKey)).map((item) => {
-            const href = resolveHref(item.viewKey, item.href, hasOrg, superAdminActiveOrgId);
-            const active = isNavItemActive(pathname, href);
-            return (
-              <NavLeafButton
-                key={item.href}
-                href={href}
-                label={item.label}
-                icon={item.icon}
-                selected={active}
-                collapsed={collapsed}
-                onNavigate={handleNavigate}
-              />
-            );
-          })}
-        </List>
       </Box>
     </Box>
   );

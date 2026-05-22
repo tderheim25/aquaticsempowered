@@ -6,7 +6,6 @@ import SendIcon from "@mui/icons-material/Send";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import {
   Alert,
-  Avatar,
   Badge,
   Box,
   Button,
@@ -27,6 +26,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import { createClient, isSupabaseAuthTransportError } from "@/lib/supabase/client";
 import { totalUnread } from "@/lib/community/dmUnread";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
@@ -468,7 +468,7 @@ export function CommunityFloatingChat({
                               overlap="circular"
                               anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                             >
-                              <Avatar sx={{ width: 32, height: 32, fontSize: "0.75rem" }}>{contactInitials(c)}</Avatar>
+                              <CommunityAvatar initials={contactInitials(c)} size={32} />
                             </Badge>
                           </ListItemAvatar>
                           <ListItemText

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Avatar,
   Box,
   Button,
   DialogActions,
@@ -17,6 +16,9 @@ import {
 import { updateCommunityBioAction } from "@/app/(dashboard)/app/community/actions";
 import { AvatarUploadButton } from "@/components/profile/AvatarUploadButton";
 import { buildDisplayName } from "@/lib/profile/avatar";
+
+import { CommunityAvatar } from "./CommunityAvatar";
+import { communityContainedButtonSx, communityOutlinedButtonSx, communitySectionTitleSx } from "./communityUi";
 
 type ProfileUser = {
   id: string;
@@ -48,9 +50,11 @@ export function CommunityProfileEditForm({
   return (
     <Stack spacing={2.5} sx={{ pt: 0.5 }}>
       <Stack direction="row" spacing={2} alignItems="center">
-        <Avatar src={avatarUrl ?? undefined} sx={{ width: 56, height: 56, bgcolor: "primary.main" }}>
-          {displayName.charAt(0).toUpperCase()}
-        </Avatar>
+        <CommunityAvatar
+          src={avatarUrl}
+          initials={displayName.slice(0, 2).toUpperCase()}
+          size={56}
+        />
         <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
           <AvatarUploadButton />
           {user.avatar_path ? (
@@ -65,7 +69,7 @@ export function CommunityProfileEditForm({
 
       <Box component="form" action={updateUserProfileAction}>
         <Stack spacing={1.5}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          <Typography variant="subtitle2" sx={communitySectionTitleSx}>
             Your name
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
@@ -94,7 +98,12 @@ export function CommunityProfileEditForm({
             disabled
             helperText="Email is managed through your sign-in provider."
           />
-          <Button type="submit" variant="contained" size="small" sx={{ alignSelf: "flex-start" }}>
+          <Button
+            type="submit"
+            variant="contained"
+            size="small"
+            sx={{ alignSelf: "flex-start", ...communityContainedButtonSx() }}
+          >
             Save name
           </Button>
         </Stack>
@@ -102,7 +111,7 @@ export function CommunityProfileEditForm({
 
       <Box component="form" action={updateCommunityBioAction}>
         <Stack spacing={1}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+          <Typography variant="subtitle2" sx={communitySectionTitleSx}>
             Bio
           </Typography>
           <TextField
@@ -115,7 +124,12 @@ export function CommunityProfileEditForm({
             defaultValue={bio}
             inputProps={{ maxLength: 2000 }}
           />
-          <Button type="submit" variant="outlined" size="small" sx={{ alignSelf: "flex-start" }}>
+          <Button
+            type="submit"
+            variant="outlined"
+            size="small"
+            sx={{ alignSelf: "flex-start", ...communityOutlinedButtonSx() }}
+          >
             Save bio
           </Button>
         </Stack>

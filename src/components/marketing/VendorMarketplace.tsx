@@ -18,6 +18,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
+import { ProductInquiryDialog } from "@/components/marketing/ProductInquiryDialog";
 import type { MarketplaceProduct } from "@/lib/vendors/loadVendorMarketplace";
 
 function ProductCard({ product, onOpen }: { product: MarketplaceProduct; onOpen: () => void }) {
@@ -76,8 +77,15 @@ function ProductCard({ product, onOpen }: { product: MarketplaceProduct; onOpen:
   );
 }
 
-export function VendorMarketplace({ products }: { products: MarketplaceProduct[] }) {
+export function VendorMarketplace({
+  products,
+  signedIn = false,
+}: {
+  products: MarketplaceProduct[];
+  signedIn?: boolean;
+}) {
   const [selected, setSelected] = useState<MarketplaceProduct | null>(null);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
 
   if (products.length === 0) {
     return (
@@ -167,18 +175,22 @@ export function VendorMarketplace({ products }: { products: MarketplaceProduct[]
                         {selected.description}
                       </Typography>
                     ) : null}
-                    {selected.product_url ? (
-                      <Button
-                        component="a"
-                        href={selected.product_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="contained"
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        View product page
+                    <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ alignSelf: "flex-start" }}>
+                      <Button variant="contained" onClick={() => setInquiryOpen(true)}>
+                        Ask about this product
                       </Button>
-                    ) : null}
+                      {selected.product_url ? (
+                        <Button
+                          component="a"
+                          href={selected.product_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="outlined"
+                        >
+                          View product page
+                        </Button>
+                      ) : null}
+                    </Stack>
 
                     <Box sx={{ pt: 1, borderTop: 1, borderColor: "divider" }}>
                       <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700 }}>
@@ -252,6 +264,13 @@ export function VendorMarketplace({ products }: { products: MarketplaceProduct[]
           </>
         ) : null}
       </Dialog>
+
+      <ProductInquiryDialog
+        product={selected}
+        open={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+        signedIn={signedIn}
+      />
     </>
   );
 }

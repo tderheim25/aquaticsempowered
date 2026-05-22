@@ -3,6 +3,8 @@
 import { Box, Stack, Typography } from "@mui/material";
 import type { ReactNode } from "react";
 
+import { formatTableDate, formatTableTime } from "@/lib/formatTableDateTime";
+
 export function TablePrimaryCell({
   primary,
   secondary,
@@ -70,9 +72,8 @@ export function TableDateTimeCell({ iso }: { iso: string }) {
   let date = iso;
   let time = "";
   try {
-    const d = new Date(iso);
-    date = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-    time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    date = formatTableDate(iso);
+    time = formatTableTime(iso);
   } catch {
     /* keep raw */
   }

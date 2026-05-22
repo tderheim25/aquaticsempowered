@@ -37,12 +37,13 @@ function isMissingProfileColumnError(message: string | undefined) {
     m.includes("first_name") ||
     m.includes("last_name") ||
     m.includes("avatar_path") ||
+    m.includes("vendor_id") ||
     (m.includes("schema cache") && m.includes("users"))
   );
 }
 
 const USERS_SELECT_FULL =
-  "id, org_id, role, app_role_id, support_provider_id, email, full_name, first_name, last_name, avatar_path, created_at";
+  "id, org_id, vendor_id, role, app_role_id, support_provider_id, email, full_name, first_name, last_name, avatar_path, created_at";
 /** Used when migration 0027 is not applied yet — keeps existing accounts working. */
 const USERS_SELECT_WITHOUT_SUPPORT_PROVIDER =
   "id, org_id, role, app_role_id, email, full_name, first_name, last_name, avatar_path, created_at";
@@ -61,6 +62,7 @@ function normalizeUsersRow(
     first_name: (data.first_name as string | null | undefined) ?? null,
     last_name: (data.last_name as string | null | undefined) ?? null,
     avatar_path: (data.avatar_path as string | null | undefined) ?? null,
+    vendor_id: (data.vendor_id as string | null | undefined) ?? null,
     ...extras,
   } as UsersRow;
 }

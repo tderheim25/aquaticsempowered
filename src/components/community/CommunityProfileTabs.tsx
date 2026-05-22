@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Avatar,
   Badge,
   Box,
   Button,
@@ -9,6 +8,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  Paper,
   Stack,
   Tab,
   Tabs,
@@ -19,13 +19,30 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { CommunityPostCommentsBlock, type ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
-import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
+import type { ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
+import { CommunityProfilePostsLive } from "@/components/community/CommunityProfilePostsLive";
 import {
   acceptNetworkRequestAction,
   declineNetworkRequestAction,
   markCommunityConnectionsSeenAction,
 } from "@/app/(dashboard)/app/community/actions";
+
+import { CommunityAvatar } from "./CommunityAvatar";
+import {
+  communityContainedButtonSx,
+  communityOutlinedButtonSx,
+  communitySectionTitleSx,
+  communitySurfacePaperSx,
+  communityTabsSx,
+} from "./communityUi";
+
+export type ProfileOwner = {
+  id: string;
+  displayName: string;
+  initials: string;
+  avatarUrl: string | null;
+  email: string;
+};
 
 export type ProfileTabPost = {
   id: string;
@@ -64,13 +81,19 @@ function personInitials(p: ProfileTabPerson) {
 function TabPanel({ children, value, index }: { children: ReactNode; value: number; index: number }) {
   if (value !== index) return null;
   return (
-    <Box role="tabpanel" id={`profile-tabpanel-${index}`} sx={{ pt: 2 }} aria-labelledby={`profile-tab-${index}`}>
+    <Box
+      role="tabpanel"
+      id={`profile-tabpanel-${index}`}
+      sx={{ pt: 2, px: { xs: 2, sm: 2.5 }, pb: 2.5 }}
+      aria-labelledby={`profile-tab-${index}`}
+    >
       {children}
     </Box>
   );
 }
 
 export function CommunityProfileTabs({
+  profileOwner,
   posts,
   followers,
   following,
@@ -85,6 +108,7 @@ export function CommunityProfileTabs({
   unseenFollowerCount = 0,
   initialTab = 0,
 }: {
+  profileOwner: ProfileOwner;
   posts: ProfileTabPost[];
   followers: ProfileTabPerson[];
   following: ProfileTabPerson[];
@@ -120,14 +144,14 @@ export function CommunityProfileTabs({
   }, [tab, isSelfProfile, router, unseenFollowerCount]);
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Paper variant="outlined" sx={{ width: "100%", ...communitySurfacePaperSx({ p: 0 }) }}>
       <Tabs
         value={tab}
         onChange={(_, v) => setTab(v)}
         variant="scrollable"
         scrollButtons="auto"
         allowScrollButtonsMobile
-        sx={{ borderBottom: 1, borderColor: "divider" }}
+        sx={{ ...communityTabsSx, px: { xs: 1, sm: 2 } }}
       >
         <Tab id="profile-tab-0" aria-controls="profile-tabpanel-0" label="Posts" />
         <Tab
@@ -160,49 +184,20 @@ export function CommunityProfileTabs({
       </Tabs>
 
       <TabPanel value={tab} index={0}>
+        <Typography variant="h6" sx={{ ...communitySectionTitleSx, mb: 1.5 }}>
+          Posts
+        </Typography>
         {posts.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             No posts yet.
           </Typography>
         ) : (
-          <Stack spacing={2}>
-            {posts.map((post) => (
-              <Card key={post.id} variant="outlined">
-                <CardContent>
-                  <Typography variant="caption" color="text.secondary">
-                    {formatCommunityTimestamp(post.created_at)}
-                  </Typography>
-                  {post.body ? (
-                    <Typography variant="body2" sx={{ mt: 1, whiteSpace: "pre-wrap" }}>
-                      {post.body}
-                    </Typography>
-                  ) : null}
-                  {post.images.length > 0 ? (
-                    <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
-                      {post.images.map((img) => (
-                        <Box
-                          key={img.storage_path}
-                          component="img"
-                          src={img.signedUrl}
-                          alt=""
-                          sx={{ maxWidth: 240, maxHeight: 180, borderRadius: 1, objectFit: "cover" }}
-                        />
-                      ))}
-                    </Stack>
-                  ) : null}
-
-                  <Divider sx={{ mt: 1.5 }} />
-
-                  <CommunityPostCommentsBlock
-                    postId={post.id}
-                    viewerId={viewerId}
-                    comments={post.comments}
-                    redirectTo={commentsRedirectTo}
-                  />
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
+          <CommunityProfilePostsLive
+            profileOwner={profileOwner}
+            posts={posts}
+            viewerId={viewerId}
+            commentsRedirectTo={commentsRedirectTo}
+          />
         )}
       </TabPanel>
 
@@ -211,7 +206,7 @@ export function CommunityProfileTabs({
           {isSelfProfile ? (
             <>
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                <Typography variant="subtitle2" sx={{ ...communitySectionTitleSx, fontSize: "0.875rem", mb: 1 }}>
                   Connection requests
                 </Typography>
                 {incomingNetworkRequests.length === 0 ? (
@@ -231,7 +226,7 @@ export function CommunityProfileTabs({
                             spacing={1}
                           >
                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                              <Avatar sx={{ width: 36, height: 36 }}>{personInitials(req.from)}</Avatar>
+                              <CommunityAvatar initials={personInitials(req.from)} size={36} />
                               <Box sx={{ minWidth: 0 }}>
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                   {personLabel(req.from)}
@@ -245,14 +240,24 @@ export function CommunityProfileTabs({
                               <Box component="form" action={acceptNetworkRequestAction}>
                                 <input type="hidden" name="requestId" value={req.requestId} />
                                 <input type="hidden" name="redirectTo" value={networkActionRedirectTo} />
-                                <Button type="submit" size="small" variant="contained">
+                                <Button
+                                  type="submit"
+                                  size="small"
+                                  variant="contained"
+                                  sx={communityContainedButtonSx()}
+                                >
                                   Accept connection request
                                 </Button>
                               </Box>
                               <Box component="form" action={declineNetworkRequestAction}>
                                 <input type="hidden" name="requestId" value={req.requestId} />
                                 <input type="hidden" name="redirectTo" value={networkActionRedirectTo} />
-                                <Button type="submit" size="small" variant="outlined" color="inherit">
+                                <Button
+                                  type="submit"
+                                  size="small"
+                                  variant="outlined"
+                                  sx={communityOutlinedButtonSx()}
+                                >
                                   Decline
                                 </Button>
                               </Box>
@@ -270,7 +275,7 @@ export function CommunityProfileTabs({
           ) : null}
 
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ ...communitySectionTitleSx, fontSize: "0.875rem", mb: 1 }}>
               Network ({networkPeers.length})
             </Typography>
             {networkPeers.length === 0 ? (
@@ -286,7 +291,7 @@ export function CommunityProfileTabs({
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>
-                      <Avatar sx={{ width: 36, height: 36 }}>{personInitials(p)}</Avatar>
+                      <CommunityAvatar initials={personInitials(p)} size={36} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {personLabel(p)}
@@ -305,7 +310,7 @@ export function CommunityProfileTabs({
           <Divider />
 
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ ...communitySectionTitleSx, fontSize: "0.875rem", mb: 1 }}>
               Followers ({followers.length})
             </Typography>
             {followers.length === 0 ? (
@@ -321,7 +326,7 @@ export function CommunityProfileTabs({
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>
-                      <Avatar sx={{ width: 36, height: 36 }}>{personInitials(p)}</Avatar>
+                      <CommunityAvatar initials={personInitials(p)} size={36} />
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -345,7 +350,7 @@ export function CommunityProfileTabs({
           <Divider />
 
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ ...communitySectionTitleSx, fontSize: "0.875rem", mb: 1 }}>
               Following ({following.length})
             </Typography>
             {following.length === 0 ? (
@@ -361,7 +366,7 @@ export function CommunityProfileTabs({
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>
-                      <Avatar sx={{ width: 36, height: 36 }}>{personInitials(p)}</Avatar>
+                      <CommunityAvatar initials={personInitials(p)} size={36} />
                       <Box sx={{ minWidth: 0 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {personLabel(p)}
@@ -380,6 +385,9 @@ export function CommunityProfileTabs({
       </TabPanel>
 
       <TabPanel value={tab} index={2}>
+        <Typography variant="h6" sx={{ ...communitySectionTitleSx, mb: 1.5 }}>
+          Photos
+        </Typography>
         {photos.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
             No photos in posts yet.
@@ -389,7 +397,7 @@ export function CommunityProfileTabs({
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-              gap: 1,
+              gap: 1.25,
             }}
           >
             {photos.map((ph) => (
@@ -402,8 +410,11 @@ export function CommunityProfileTabs({
                   width: "100%",
                   aspectRatio: "1",
                   objectFit: "cover",
-                  borderRadius: 1,
+                  borderRadius: 2,
                   display: "block",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  boxShadow: "0 4px 16px -10px rgba(15, 23, 42, 0.12)",
                 }}
               />
             ))}
@@ -412,13 +423,18 @@ export function CommunityProfileTabs({
       </TabPanel>
 
       <TabPanel value={tab} index={3}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Facility meetups, webinars, and regional gatherings will show here.
+        <Typography variant="h6" sx={{ ...communitySectionTitleSx, mb: 1 }}>
+          Events
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Coming soon — connect this tab to your events calendar or ticketing when you are ready.
-        </Typography>
+        <Paper variant="outlined" sx={communitySurfacePaperSx({ mt: 0 })}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Facility meetups, webinars, and regional gatherings will show here.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Coming soon — connect this tab to your events calendar or ticketing when you are ready.
+          </Typography>
+        </Paper>
       </TabPanel>
-    </Box>
+    </Paper>
   );
 }

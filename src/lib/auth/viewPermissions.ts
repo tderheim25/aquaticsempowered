@@ -21,6 +21,7 @@ export const VIEW_DEFINITIONS = [
   { key: "support_center", label: "Support Center" },
   { key: "support_portal", label: "Support Portal" },
   { key: "vendor_directory", label: "Vendor Directory" },
+  { key: "vendor_portal", label: "Vendor Portal" },
   { key: "community", label: "Community" },
   { key: "procurement", label: "Procurement" },
   { key: "training_cpo", label: "Training / CPO" },
@@ -63,7 +64,7 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
     "training_cpo",
   ],
   staff: ["dashboard_home", "pools", "chemical_logs", "maintenance", "support_center", "vendor_directory", "procurement", "training_cpo"],
-  vendor: ["dashboard_home", "vendor_directory", "support_center"],
+  vendor: ["vendor_portal", "support_center"],
   support_technician: ["support_portal"],
 };
 

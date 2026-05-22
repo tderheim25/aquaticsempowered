@@ -40,7 +40,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} ${jakarta.variable} ${outfit.variable}`}>
         {/* enableCssLayer breaks MUI OutlinedInput legend/notch + label alignment (CSS @layer order) */}
-        <AppRouterCacheProvider options={{ enableCssLayer: false }}>
+        {/* key: 'css' matches MUI class names from Server Components (default emotion key). */}
+        <AppRouterCacheProvider options={{ enableCssLayer: false, key: "css" }}>
           <ThemeRegistry>{children}</ThemeRegistry>
         </AppRouterCacheProvider>
       </body>

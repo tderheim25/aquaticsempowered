@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
+import { resolveCommunityViewer } from "@/lib/community/communityPartition";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,11 +34,12 @@ export async function GET(request: Request) {
   const pattern = `%${escapeIlike(q)}%`;
   const supabase = await createClient();
   const results: CommunitySearchResult[] = [];
+  const viewer = await resolveCommunityViewer(profile);
 
   const userSelect = "id, full_name, email, first_name, last_name, org_id";
   const userLimit = 8;
-  const orgFilter = profile.org_id
-    ? { column: "org_id" as const, value: profile.org_id }
+  const orgFilter = viewer.org_id
+    ? { column: "org_id" as const, value: viewer.org_id }
     : { column: "org_id" as const, value: null as null };
 
   const baseUserQuery = () => {
@@ -107,10 +109,10 @@ export async function GET(request: Request) {
 
   let orgQuery = supabase.from("organizations").select("id, name, tier").ilike("name", pattern).limit(6);
   if (profile.role !== "super_admin") {
-    if (!profile.org_id) {
+    if (!viewer.org_id) {
       return NextResponse.json({ results });
     }
-    orgQuery = orgQuery.eq("id", profile.org_id);
+    orgQuery = orgQuery.eq("id", viewer.org_id);
   }
 
   const { data: orgRows } = await orgQuery;

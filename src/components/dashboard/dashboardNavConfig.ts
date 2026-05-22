@@ -89,6 +89,16 @@ export const DASHBOARD_POOL_OPS_GROUPS: DashboardNavGroup[] = [
   },
 ];
 
+export const DASHBOARD_VENDOR_NAV: {
+  label: string;
+  href: string;
+  viewKey: AppViewKey;
+  icon: SvgIconComponent;
+}[] = [
+  { label: "Vendor dashboard", href: "/app/vendor", viewKey: "vendor_portal", icon: StorefrontOutlinedIcon },
+  { label: "Support", href: "/app/support", viewKey: "support_center", icon: SupportAgentOutlinedIcon },
+];
+
 export const DASHBOARD_FACILITY_NAV: {
   label: string;
   href: string;

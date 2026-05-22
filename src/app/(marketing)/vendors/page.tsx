@@ -2,6 +2,7 @@ import { Alert, Box, Button, Card, Container, Stack, TextField, Typography } fro
 import { submitVendorApplicationAction } from "@/app/(marketing)/vendors/actions";
 import { VendorLogoLoop } from "@/components/marketing/VendorLogoLoop";
 import { VendorMarketplace } from "@/components/marketing/VendorMarketplace";
+import { getSessionUser } from "@/lib/auth/rbac";
 import { loadVendorMarketplace } from "@/lib/vendors/loadVendorMarketplace";
 
 export const metadata = {
@@ -17,6 +18,7 @@ export default async function VendorsPage({
 }) {
   const { apply } = await searchParams;
   const { products, loopVendors } = await loadVendorMarketplace();
+  const user = await getSessionUser();
 
   return (
     <Box sx={{ bgcolor: "background.default" }}>
@@ -34,7 +36,7 @@ export default async function VendorsPage({
             </Typography>
           </Stack>
 
-          <VendorMarketplace products={products} />
+          <VendorMarketplace products={products} signedIn={Boolean(user)} />
 
           <Card
             id="vendor-apply"

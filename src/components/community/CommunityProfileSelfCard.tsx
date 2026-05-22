@@ -2,12 +2,12 @@
 
 import EditIcon from "@mui/icons-material/Edit";
 import {
-  Avatar,
   Box,
   Dialog,
   DialogContent,
   DialogTitle,
   IconButton,
+  Paper,
   Stack,
   Tooltip,
   Typography,
@@ -16,7 +16,9 @@ import { useEffect, useState } from "react";
 
 import { buildDisplayName } from "@/lib/profile/avatar";
 
+import { CommunityAvatar } from "./CommunityAvatar";
 import { CommunityProfileEditForm } from "./CommunityProfileEditForm";
+import { communityOutlinedButtonSx, communityPageTitleSx, communitySectionTitleSx, communitySurfacePaperSx } from "./communityUi";
 
 type ProfileUser = {
   id: string;
@@ -59,17 +61,13 @@ export function CommunityProfileSelfCard({
 
   return (
     <>
+      <Paper variant="outlined" sx={communitySurfacePaperSx()}>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "flex-start" }}>
-        <Avatar
-          src={avatarUrl ?? undefined}
-          sx={{ width: 72, height: 72, fontSize: "1.5rem", bgcolor: "primary.main" }}
-        >
-          {initial}
-        </Avatar>
+        <CommunityAvatar src={avatarUrl} initials={initial} size={72} />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
             <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h5" sx={{ fontWeight: 800 }}>
+              <Typography variant="h5" sx={{ ...communityPageTitleSx, fontSize: "1.5rem" }}>
                 {displayName}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -88,14 +86,14 @@ export function CommunityProfileSelfCard({
               <IconButton
                 aria-label="Edit profile"
                 onClick={() => setEditOpen(true)}
-                color="primary"
                 sx={{
-                  border: 1,
-                  borderColor: "divider",
+                  ...communityOutlinedButtonSx(),
+                  width: 40,
+                  height: 40,
                   flexShrink: 0,
                 }}
               >
-                <EditIcon />
+                <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           </Stack>
@@ -111,9 +109,10 @@ export function CommunityProfileSelfCard({
           No bio yet.
         </Typography>
       )}
+      </Paper>
 
       <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>Edit profile</DialogTitle>
+        <DialogTitle sx={communitySectionTitleSx}>Edit profile</DialogTitle>
         <DialogContent>
           <CommunityProfileEditForm
             user={user}
