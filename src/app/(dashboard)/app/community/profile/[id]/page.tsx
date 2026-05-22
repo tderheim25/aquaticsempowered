@@ -1,23 +1,17 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  Container,
-  FormControlLabel,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CommunityPageShell } from "@/components/community/CommunityPageShell";
+import { CommunityProfileOtherCard } from "@/components/community/CommunityProfileOtherCard";
 import { CommunityProfileSelfCard } from "@/components/community/CommunityProfileSelfCard";
+import type { CommunityVendorSpotlight } from "@/components/community/CommunitySpotlightRail";
 import { SetBreadcrumbLastLabel } from "@/components/dashboard/BreadcrumbLabelContext";
 import { StatusToast, type StatusToastMessages } from "@/components/ui/StatusToast";
-import { requireProfileForApp } from "@/lib/auth/rbac";
+import { getUsersRowWithAdminFallback, requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
+import {
+  canViewCommunityProfile,
+  resolveCommunityViewer,
+} from "@/lib/community/communityPartition";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
 import {
   CommunityProfileTabs,
@@ -28,15 +22,6 @@ import {
 import { type ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
 import { signCommunityMediaPaths } from "@/lib/community/signMedia";
 import { createClient } from "@/lib/supabase/server";
-
-import {
-  acceptNetworkRequestAction,
-  cancelNetworkRequestAction,
-  declineNetworkRequestAction,
-  followUserAction,
-  sendNetworkRequestAction,
-  unfollowUserAction,
-} from "../../actions";
 
 function displayName(u: {
   full_name: string | null;
@@ -50,15 +35,6 @@ function displayName(u: {
     full_name: u.full_name,
     email: u.email,
   });
-}
-
-function initials(u: {
-  full_name: string | null;
-  email: string;
-  first_name?: string | null;
-  last_name?: string | null;
-}) {
-  return displayName(u).slice(0, 2).toUpperCase();
 }
 
 const COMMUNITY_PROFILE_TOAST_MESSAGES: StatusToastMessages = {
@@ -119,21 +95,17 @@ export default async function CommunityProfilePage({
   const openEditOnLoad = editParam === "1";
   await requireViewAccess("community");
   const me = await requireProfileForApp();
+  const viewer = await resolveCommunityViewer(me);
 
   const supabase = await createClient();
-  const { data: user } = await supabase
-    .from("users")
-    .select("id, full_name, email, org_id, first_name, last_name, avatar_path")
-    .eq("id", id)
-    .maybeSingle();
+  const user = await getUsersRowWithAdminFallback(id);
 
   if (!user) {
     notFound();
   }
-  const sameOrgFeed =
-    Boolean(me.org_id) && Boolean(user.org_id) && me.org_id === user.org_id;
-  const sameGlobalFeed = !me.org_id && !user.org_id;
-  if (!sameOrgFeed && !sameGlobalFeed) {
+
+  const mayView = await canViewCommunityProfile(supabase, viewer, user);
+  if (!mayView) {
     notFound();
   }
 
@@ -199,8 +171,8 @@ export default async function CommunityProfilePage({
     .eq("author_id", id)
     .order("created_at", { ascending: false })
     .limit(20);
-  if (me.org_id) {
-    postsQuery.eq("org_id", me.org_id);
+  if (viewer.org_id) {
+    postsQuery.eq("org_id", viewer.org_id);
   } else {
     postsQuery.is("org_id", null);
   }
@@ -355,18 +327,33 @@ export default async function CommunityProfilePage({
   }
 
   const breadcrumbName = displayName(user);
+  const profileTitle = isSelf ? "Your profile" : breadcrumbName;
+  const profileSubtitle = isSelf
+    ? "Manage how others see you in the community — posts, connections, and photos."
+    : `Member profile · ${user.email}`;
+
+  const { data: vendorRows } = await supabase
+    .from("vendors")
+    .select("id, name, tier, category, region")
+    .eq("listing_visible", true)
+    .order("name", { ascending: true })
+    .limit(24);
+
+  const vendorSpotlights = (vendorRows ?? []) as CommunityVendorSpotlight[];
 
   return (
-    <Container maxWidth="md">
-    <SetBreadcrumbLastLabel label={breadcrumbName} />
-    <Stack spacing={2}>
-      <Button component={Link} href="/community" variant="text" sx={{ alignSelf: "flex-start" }}>
-        ← Back to feed
-      </Button>
+    <>
+      <SetBreadcrumbLastLabel label={breadcrumbName} />
+      <CommunityPageShell
+        embedded
+        eyebrow={isSelf ? "Connect · Share · Grow" : "Member · Community"}
+        title={profileTitle}
+        subtitle={profileSubtitle}
+        vendors={vendorSpotlights}
+        showSupportForm
+      >
+        <StatusToast status={status} messages={COMMUNITY_PROFILE_TOAST_MESSAGES} />
 
-      <StatusToast status={status} messages={COMMUNITY_PROFILE_TOAST_MESSAGES} />
-
-      <Paper variant="outlined" sx={{ p: 2 }}>
         {isSelf ? (
           <CommunityProfileSelfCard
             user={user}
@@ -377,133 +364,43 @@ export default async function CommunityProfilePage({
             initialEditOpen={openEditOnLoad}
           />
         ) : (
-        <>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "flex-start" }}>
-          <Avatar
-            src={avatarUrl ?? undefined}
-            sx={{ width: 72, height: 72, fontSize: "1.5rem", bgcolor: "primary.main" }}
-          >
-            {initials(user)}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>
-              {displayName(user)}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {user.email}
-            </Typography>
-            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-              <Typography variant="body2">
-                <strong>{followerCount ?? 0}</strong> followers
-              </Typography>
-              <Typography variant="body2">
-                <strong>{followingCount ?? 0}</strong> following
-              </Typography>
-            </Stack>
-
-              <Stack spacing={1.5} sx={{ mt: 2 }} alignItems="flex-start">
-                {isFollowing ? (
-                  <Box component="form" action={unfollowUserAction}>
-                    <input type="hidden" name="followeeId" value={id} />
-                    <Button type="submit" variant="outlined" color="inherit">
-                      Following
-                    </Button>
-                  </Box>
-                ) : (
-                  <Box component="form" action={followUserAction}>
-                    <Stack spacing={1} alignItems="flex-start">
-                      <input type="hidden" name="followeeId" value={id} />
-                      <Button type="submit" variant="contained">
-                        Follow
-                      </Button>
-                      <FormControlLabel
-                        control={<Checkbox name="alsoNetwork" value="1" size="small" />}
-                        label="Also send a network connection request"
-                      />
-                    </Stack>
-                  </Box>
-                )}
-
-                {inNetwork ? (
-                  <Chip label="In your network" color="success" size="small" variant="outlined" />
-                ) : null}
-
-                {!inNetwork && pendingInRequestId ? (
-                  <Stack spacing={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      {displayName(user)} invited you to connect.
-                    </Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap">
-                      <Box component="form" action={acceptNetworkRequestAction}>
-                        <input type="hidden" name="requestId" value={pendingInRequestId} />
-                        <input type="hidden" name="redirectTo" value={profileRedirectPath} />
-                        <Button type="submit" size="small" variant="contained">
-                          Accept
-                        </Button>
-                      </Box>
-                      <Box component="form" action={declineNetworkRequestAction}>
-                        <input type="hidden" name="requestId" value={pendingInRequestId} />
-                        <input type="hidden" name="redirectTo" value={profileRedirectPath} />
-                        <Button type="submit" size="small" variant="outlined" color="inherit">
-                          Decline
-                        </Button>
-                      </Box>
-                    </Stack>
-                  </Stack>
-                ) : null}
-
-                {!inNetwork && !pendingInRequestId && pendingOutRequestId ? (
-                  <Box component="form" action={cancelNetworkRequestAction}>
-                    <input type="hidden" name="requestId" value={pendingOutRequestId} />
-                    <input type="hidden" name="redirectTo" value={profileRedirectPath} />
-                    <Button type="submit" variant="outlined" color="inherit" size="small">
-                      Cancel request
-                    </Button>
-                  </Box>
-                ) : null}
-
-                {!inNetwork && !pendingInRequestId && !pendingOutRequestId && isFollowing ? (
-                  <Box component="form" action={sendNetworkRequestAction}>
-                    <input type="hidden" name="addresseeId" value={id} />
-                    <input type="hidden" name="redirectTo" value={profileRedirectPath} />
-                    <Button type="submit" variant="outlined" size="small">
-                      Request network connection
-                    </Button>
-                  </Box>
-                ) : null}
-              </Stack>
-          </Box>
-        </Stack>
-
-        {prof?.bio ? (
-          <Typography variant="body2" sx={{ mt: 2, whiteSpace: "pre-wrap" }}>
-            {prof.bio}
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            No bio yet.
-          </Typography>
+          <CommunityProfileOtherCard
+            user={user}
+            avatarUrl={avatarUrl}
+            bio={prof?.bio ?? ""}
+            followerCount={followerCount ?? 0}
+            followingCount={followingCount ?? 0}
+            isFollowing={isFollowing}
+            inNetwork={inNetwork}
+            pendingInRequestId={pendingInRequestId}
+            pendingOutRequestId={pendingOutRequestId}
+            profileRedirectPath={profileRedirectPath}
+          />
         )}
-        </>
-        )}
-      </Paper>
 
-      <CommunityProfileTabs
-        posts={tabPosts}
-        followers={followers}
-        following={following}
-        networkPeers={tabNetwork}
-        incomingNetworkRequests={incomingNetworkRequests}
-        photos={tabPhotos}
-        viewerId={me.id}
-        commentsRedirectTo={`/app/community/profile/${id}`}
-        networkActionRedirectTo={profileRedirectPath}
-        isSelfProfile={isSelf}
-        connectionsTabBadgeCount={connectionsTabBadgeCount}
-        unseenFollowerCount={unseenFollowerRows.length}
-        initialTab={profileInitialTab}
-      />
-    </Stack>
-    </Container>
+        <CommunityProfileTabs
+          profileOwner={{
+            id: user.id,
+            displayName: breadcrumbName,
+            initials: breadcrumbName.slice(0, 2).toUpperCase(),
+            avatarUrl,
+            email: user.email,
+          }}
+          posts={tabPosts}
+          followers={followers}
+          following={following}
+          networkPeers={tabNetwork}
+          incomingNetworkRequests={incomingNetworkRequests}
+          photos={tabPhotos}
+          viewerId={me.id}
+          commentsRedirectTo={`/app/community/profile/${id}`}
+          networkActionRedirectTo={profileRedirectPath}
+          isSelfProfile={isSelf}
+          connectionsTabBadgeCount={connectionsTabBadgeCount}
+          unseenFollowerCount={unseenFollowerRows.length}
+          initialTab={profileInitialTab}
+        />
+      </CommunityPageShell>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Card,
@@ -22,6 +21,13 @@ import {
 } from "@/app/(dashboard)/app/community/actions";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
 import type { CommunityJobRow, LoadedCommunityJobs } from "@/lib/community/loadCommunityJobsData";
+
+import { CommunityAvatar } from "./CommunityAvatar";
+import {
+  communityContainedButtonSx,
+  communitySectionTitleSx,
+  communitySurfacePaperSx,
+} from "./communityUi";
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
   full_time: "Full-time",
@@ -130,10 +136,10 @@ export function CommunityJobsSection({
       {jobsError ? <Alert severity="error">Could not load job postings.</Alert> : null}
 
       {showComposer ? (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={communitySurfacePaperSx()}>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
             <WorkOutlineIcon color="primary" />
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <Typography variant="h6" sx={communitySectionTitleSx}>
               Post a job
             </Typography>
           </Stack>
@@ -182,7 +188,11 @@ export function CommunityJobsSection({
                   type="email"
                 />
               </Stack>
-              <Button type="submit" variant="contained" sx={{ alignSelf: "flex-start" }}>
+              <Button
+                type="submit"
+                variant="contained"
+                sx={{ alignSelf: "flex-start", ...communityContainedButtonSx() }}
+              >
                 Publish job
               </Button>
             </Stack>
@@ -190,7 +200,7 @@ export function CommunityJobsSection({
         </Paper>
       ) : null}
 
-      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+      <Typography variant="h6" sx={communitySectionTitleSx}>
         {variant === "preview" ? "Recent openings" : "Open roles"}
       </Typography>
 
@@ -219,7 +229,7 @@ export function CommunityJobsSection({
               <CardContent>
                 <Stack direction="row" spacing={1.5} alignItems="flex-start">
                   <Link href={profileLink} style={{ textDecoration: "none" }}>
-                    <Avatar sx={{ bgcolor: "primary.main" }}>{author ? initials(author) : "?"}</Avatar>
+                    <CommunityAvatar initials={author ? initials(author) : "?"} size={40} />
                   </Link>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>

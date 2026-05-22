@@ -3,9 +3,12 @@ import { Alert, Box } from "@mui/material";
 import { CommunityFeedPanel } from "@/components/community/CommunityFeedPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
+import { resolveCommunityViewer } from "@/lib/community/communityPartition";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { loadCommunityFeedData } from "@/lib/community/loadCommunityFeedData";
 import { loadCommunityJobsData } from "@/lib/community/loadCommunityJobsData";
+import { loadCommunityMarketplaceData } from "@/lib/community/loadCommunityMarketplaceData";
+import { serializeLoadedCommunityFeed } from "@/lib/community/serializeFeedEngagement";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
@@ -34,7 +37,7 @@ function statusMessage(status?: string) {
       return {
         severity: "error" as const,
         text:
-          "Could not save your post. Apply Supabase migrations 0007 and 0008 if you have not, then sign out and sign back in so your JWT matches your account.",
+          "Could not save your post. In Supabase SQL Editor, run supabase/scripts/RUN_THIS_community_post_save_fix.sql (or migration 0032), then sign out and sign back in.",
       };
     case "media_save_failed":
       return {
@@ -81,7 +84,8 @@ export default async function MarketingCommunityPage({
   searchParams: Promise<{ status?: string; tab?: string }>;
 }) {
   const { status, tab } = await searchParams;
-  const activeTab = tab === "jobs" ? "jobs" : "feed";
+  const activeTab =
+    tab === "jobs" ? "jobs" : tab === "marketplace" ? "marketplace" : "feed";
   const flash = statusMessage(status);
 
   const user = await getSessionUser();
@@ -89,13 +93,14 @@ export default async function MarketingCommunityPage({
   const profile = user ? await getUsersRowWithAdminFallback(user.id) : null;
   const canInteract = canUsePublicCommunity(user?.id, profile);
 
-  const viewer = profile ? { id: profile.id, org_id: profile.org_id } : null;
+  const viewer = profile ? await resolveCommunityViewer(profile) : null;
 
   // Prefer service-role reads so the feed loads reliably (RLS + JWT org_id can block session queries).
   const feedClient = createAdminClientIfConfigured() ?? sessionSupabase;
 
   let feed;
   let jobsFeed;
+  let marketplace;
   if (canInteract && viewer) {
     feed = await loadCommunityFeedData(feedClient, {
       viewer,
@@ -109,6 +114,7 @@ export default async function MarketingCommunityPage({
       globalFeedOnly: false,
       limit: 40,
     });
+    marketplace = await loadCommunityMarketplaceData(feedClient);
   } else {
     feed = await loadCommunityFeedData(feedClient, {
       viewer: null,
@@ -122,6 +128,7 @@ export default async function MarketingCommunityPage({
       globalFeedOnly: true,
       limit: 4,
     });
+    marketplace = await loadCommunityMarketplaceData(feedClient);
   }
 
   return (
@@ -143,8 +150,9 @@ export default async function MarketingCommunityPage({
         activeTab={activeTab}
         viewer={viewer}
         canInteract={canInteract}
-        feed={feed}
+        feed={serializeLoadedCommunityFeed(feed)}
         jobsFeed={jobsFeed}
+        marketplace={marketplace}
         flash={flash}
         subtitle={canInteract ? undefined : ""}
       />

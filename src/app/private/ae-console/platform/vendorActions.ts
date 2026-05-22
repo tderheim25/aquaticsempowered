@@ -58,6 +58,23 @@ export async function reviewVendorApplicationAction(formData: FormData) {
     })
     .eq("id", id);
 
+  if (decision === "approved" && vendorId) {
+    const email = (app.email ?? "").trim().toLowerCase();
+    if (email) {
+      const { data: userRow } = await admin.from("users").select("id").ilike("email", email).maybeSingle();
+      if (userRow?.id) {
+        await admin
+          .from("users")
+          .update({
+            role: "vendor",
+            vendor_id: vendorId,
+            org_id: null,
+          })
+          .eq("id", userRow.id);
+      }
+    }
+  }
+
   revalidatePath(getSuperAdminPortalPath());
   revalidatePath("/vendors");
   redirect(consoleSectionUrl("vendors", { tab: "requests", status: decision }));

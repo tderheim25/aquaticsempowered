@@ -2,6 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
 import type { CommunityVendorSpotlight } from "@/components/community/CommunitySpotlightRail";
+import {
+  DEMO_ORGANIZATION_SPOTLIGHTS,
+  mapOrganizationRowToSpotlight,
+  type CommunityOrganizationSpotlight,
+} from "@/lib/community/organizationSpotlight";
 
 import { signCommunityMediaPaths } from "./signMedia";
 
@@ -17,6 +22,7 @@ export type LoadedCommunityFeed = {
   likeCountByPost: Map<string, number>;
   likedByMe: Set<string>;
   vendorSpotlights: CommunityVendorSpotlight[];
+  organizationSpotlights: CommunityOrganizationSpotlight[];
 };
 
 /**
@@ -189,6 +195,19 @@ export async function loadCommunityFeedData(
 
   const vendorSpotlights = (vendorRows ?? []) as CommunityVendorSpotlight[];
 
+  const { data: orgRows } = await supabase
+    .from("organizations")
+    .select("id, name, tier, plan_code, website_url, phone, founder")
+    .order("name", { ascending: true })
+    .limit(8);
+
+  const organizationSpotlights =
+    (orgRows ?? []).length > 0
+      ? (orgRows ?? []).map((row) =>
+          mapOrganizationRowToSpotlight(row, viewer?.org_id ?? null)
+        )
+      : DEMO_ORGANIZATION_SPOTLIGHTS;
+
   return {
     posts: postList,
     postsError: Boolean(postsError),
@@ -199,5 +218,6 @@ export async function loadCommunityFeedData(
     likeCountByPost,
     likedByMe,
     vendorSpotlights,
+    organizationSpotlights,
   };
 }

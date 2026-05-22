@@ -2,6 +2,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { getUsersRowWithAdminFallback, requireAuth } from "@/lib/auth/rbac";
+import { getVendorForUser } from "@/lib/auth/vendorPortal";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
 import { communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
@@ -37,7 +38,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let displayOrgName: string | null = orgCtx.activeOrgName;
   let planCode: PlanCode = orgCtx.planCode;
 
-  if (profile?.org_id) {
+  if (profile?.role === "vendor") {
+    const vendor = await getVendorForUser(profile.id);
+    displayOrgName = vendor?.name ?? "Vendor partner";
+    planCode = "essential";
+  } else if (profile?.org_id) {
     const { data: memberOrg } = await supabase
       .from("organizations")
       .select("name, plan_code")

@@ -3,10 +3,7 @@
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
-import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
-import WavesRoundedIcon from "@mui/icons-material/WavesRounded";
 import {
-  Avatar,
   Box,
   Button,
   Divider,
@@ -27,13 +24,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
-import {
-  CommunityActivityMenuItems,
-  CommunityUnreadBadge,
-  isCommunityRoute,
-  markCommunityActivitySeen,
-  useCommunityActivity,
-} from "@/components/community/CommunityActivityBadge";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
+import { CommunityNotificationsBell } from "@/components/community/CommunityNotificationsBell";
 import { TrackedButton } from "@/components/marketing/TrackedButton";
 
 const nav = [
@@ -47,84 +40,9 @@ const nav = [
 export type MarketingHeaderUser = {
   displayName: string;
   avatarUrl: string | null;
+  /** Community profile page for the signed-in user. */
+  profileHref: string;
 };
-
-function BrandMark() {
-  return (
-    <Box
-      component={Link}
-      href="/"
-      aria-label="Aquatics Empowered home"
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1.25,
-        textDecoration: "none",
-        color: "inherit",
-        flexShrink: 0,
-        "&:hover .brand-mark": {
-          transform: "translateY(-1px) rotate(-6deg)",
-        },
-      }}
-    >
-      <Box
-        className="brand-mark"
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: "grid",
-          placeItems: "center",
-          color: "common.white",
-          background:
-            "linear-gradient(135deg, #003B6F 0%, #0a4d8c 50%, #2EA5A0 100%)",
-          boxShadow: "0 6px 16px -6px rgba(0, 59, 111, 0.55)",
-          transition: "transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-        }}
-      >
-        <WavesRoundedIcon sx={{ fontSize: 22 }} />
-      </Box>
-      <Stack spacing={0.1} sx={{ display: { xs: "none", sm: "flex" } }}>
-        <Typography
-          component="span"
-          sx={{
-            fontWeight: 800,
-            fontSize: "1.05rem",
-            lineHeight: 1,
-            color: "text.primary",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          Aquatics Empowered
-        </Typography>
-        <Typography
-          component="span"
-          sx={{
-            fontSize: "0.68rem",
-            color: "text.secondary",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            fontWeight: 600,
-          }}
-        >
-          Operate · Protect · Grow
-        </Typography>
-      </Stack>
-      <Typography
-        component="span"
-        sx={{
-          display: { xs: "block", sm: "none" },
-          fontWeight: 800,
-          fontSize: "1rem",
-          color: "text.primary",
-          letterSpacing: "-0.01em",
-        }}
-      >
-        Aquatics
-      </Typography>
-    </Box>
-  );
-}
 
 function isActive(pathname: string | null, href: string) {
   if (!pathname) return false;
@@ -137,8 +55,9 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
-  const showCommunityActivity = Boolean(user && isCommunityRoute(pathname));
-  const { activity, refresh: refreshActivity } = useCommunityActivity(showCommunityActivity);
+  const showCommunityNotifications = Boolean(
+    user && pathname && (pathname === "/community" || pathname.startsWith("/community/"))
+  );
 
   const initial = user?.displayName?.trim().charAt(0)?.toUpperCase() ?? "U";
 
@@ -149,12 +68,7 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const openAccountMenu = (el: HTMLElement) => {
-    setAnchorEl(el);
-    if (showCommunityActivity && (activity?.total ?? 0) > 0) {
-      void markCommunityActivitySeen().then(() => refreshActivity());
-    }
-  };
+  const openAccountMenu = (el: HTMLElement) => setAnchorEl(el);
 
   return (
     <>
@@ -285,45 +199,14 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
                 >
                   Go to Dashboard
                 </Button>
-                <IconButton
-                  size="small"
-                  color="inherit"
-                  aria-label="Notifications"
-                  sx={{
-                    display: { xs: "none", sm: "inline-flex" },
-                    color: "text.secondary",
-                    "&:hover": { color: "primary.main", bgcolor: (t) => alpha(t.palette.primary.main, 0.06) },
-                  }}
-                >
-                  <NotificationsNoneOutlinedIcon />
-                </IconButton>
+                {showCommunityNotifications ? <CommunityNotificationsBell enabled /> : null}
                 <IconButton
                   onClick={(e) => openAccountMenu(e.currentTarget)}
                   size="small"
-                  aria-label={
-                    (activity?.total ?? 0) > 0
-                      ? `Account menu, ${activity?.total} community notifications`
-                      : "Account menu"
-                  }
-                  sx={{ position: "relative", p: 0.25 }}
+                  aria-label="Account menu"
+                  sx={{ p: 0.25 }}
                 >
-                  <Avatar
-                    src={user.avatarUrl ?? undefined}
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      background: "linear-gradient(135deg, #003B6F 0%, #2EA5A0 100%)",
-                      color: "common.white",
-                      fontWeight: 700,
-                      fontSize: "0.95rem",
-                      border: "2px solid",
-                      borderColor: "background.paper",
-                      boxShadow: "0 4px 12px -6px rgba(0,59,111,0.45)",
-                    }}
-                  >
-                    {initial}
-                  </Avatar>
-                  <CommunityUnreadBadge count={activity?.total ?? 0} />
+                  <CommunityAvatar src={user.avatarUrl} initials={initial} size={36} />
                 </IconButton>
                 <Menu
                   anchorEl={anchorEl}
@@ -340,10 +223,6 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
                     },
                   }}
                 >
-                  <CommunityActivityMenuItems
-                    activity={activity}
-                    onNavigate={() => setAnchorEl(null)}
-                  />
                   <MenuItem
                     disabled
                     sx={{ flexDirection: "column", alignItems: "flex-start", opacity: "1 !important", py: 1.25 }}
@@ -356,6 +235,9 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
                     </Typography>
                   </MenuItem>
                   <Divider />
+                  <MenuItem component={Link} href={user.profileHref} onClick={() => setAnchorEl(null)}>
+                    View profile
+                  </MenuItem>
                   <MenuItem
                     onClick={async () => {
                       setAnchorEl(null);
@@ -507,16 +389,11 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
           {user ? (
             <>
               <Divider sx={{ my: 1.5, opacity: 0.6 }} />
-              <ListItemButton disabled sx={{ borderRadius: 2, mb: 0.5, opacity: 1 }}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  <NotificationsNoneOutlinedIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Notifications"
-                  secondary="Coming soon"
-                  primaryTypographyProps={{ fontWeight: 600 }}
-                />
-              </ListItemButton>
+              {showCommunityNotifications ? (
+                <Box sx={{ px: 1, py: 0.5, display: "flex", justifyContent: "center" }}>
+                  <CommunityNotificationsBell enabled />
+                </Box>
+              ) : null}
               <ListItemButton
                 component={Link}
                 href="/app"
@@ -524,6 +401,14 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
                 sx={{ borderRadius: 2, mb: 0.5 }}
               >
                 <ListItemText primary="Go to Dashboard" primaryTypographyProps={{ fontWeight: 600 }} />
+              </ListItemButton>
+              <ListItemButton
+                component={Link}
+                href={user.profileHref}
+                onClick={() => setOpen(false)}
+                sx={{ borderRadius: 2, mb: 0.5 }}
+              >
+                <ListItemText primary="View profile" primaryTypographyProps={{ fontWeight: 600 }} />
               </ListItemButton>
               <ListItemButton
                 onClick={async () => {

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { resolveVendorImageUrl } from "@/lib/vendors/publicMediaUrl";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,6 +28,19 @@ export type MarketplaceVendor = {
   logo_url: string | null;
 };
 
+/** Vendor directory entry with nested products (community marketplace list). */
+export type MarketplaceVendorGroup = {
+  id: string;
+  name: string;
+  slug: string | null;
+  logo_url: string | null;
+  category: string | null;
+  tagline: string | null;
+  website_url: string | null;
+  description: string;
+  products: MarketplaceProduct[];
+};
+
 type ProductRow = {
   id: string;
   name: string;
@@ -45,16 +60,67 @@ type ProductRow = {
   };
 };
 
-export async function loadVendorMarketplace() {
-  const supabase = await createClient();
+export function groupMarketplaceByVendor(
+  products: MarketplaceProduct[],
+  directoryVendors?: Array<{
+    id: string;
+    name: string;
+    slug: string | null;
+    logo_url: string | null;
+    category: string | null;
+    tagline: string | null;
+    website_url: string | null;
+    description: string | null;
+  }>
+): MarketplaceVendorGroup[] {
+  const map = new Map<string, MarketplaceVendorGroup>();
+
+  for (const v of directoryVendors ?? []) {
+    map.set(v.id, {
+      id: v.id,
+      name: v.name,
+      slug: v.slug,
+      logo_url: resolveVendorImageUrl(v.logo_url),
+      category: v.category,
+      tagline: v.tagline,
+      website_url: v.website_url,
+      description: v.description ?? "",
+      products: [],
+    });
+  }
+
+  for (const product of products) {
+    let group = map.get(product.vendor.id);
+    if (!group) {
+      group = {
+        id: product.vendor.id,
+        name: product.vendor.name,
+        slug: product.vendor.slug,
+        logo_url: product.vendor.logo_url,
+        category: product.vendor.category,
+        tagline: product.vendor.tagline,
+        website_url: product.vendor.website_url,
+        description: product.vendor.description,
+        products: [],
+      };
+      map.set(product.vendor.id, group);
+    }
+    group.products.push(product);
+  }
+
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function loadVendorMarketplace(supabase?: SupabaseClient) {
+  const client = supabase ?? (await createClient());
 
   const [{ data: vendors }, { data: productRows }] = await Promise.all([
-    supabase
+    client
       .from("vendors")
-      .select("id, name, slug, logo_url")
+      .select("id, name, slug, logo_url, category, tagline, website_url, description")
       .eq("listing_visible", true)
       .order("name"),
-    supabase
+    client
       .from("vendor_products")
       .select(
         `id, name, description, image_url, product_url,
@@ -99,5 +165,7 @@ export async function loadVendorMarketplace() {
     logo_url: resolveVendorImageUrl(v.logo_url),
   }));
 
-  return { products, loopVendors };
+  const vendorGroups = groupMarketplaceByVendor(products, vendors ?? []);
+
+  return { products, loopVendors, vendorGroups };
 }

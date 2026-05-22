@@ -3,7 +3,6 @@
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   Box,
-  Button,
   Card,
   CardActionArea,
   CardContent,
@@ -14,9 +13,16 @@ import {
   Typography,
 } from "@mui/material";
 import Link from "next/link";
-import { Suspense } from "react";
+import { useState } from "react";
 
+import {
+  DEMO_ORGANIZATION_SPOTLIGHTS,
+  type CommunityOrganizationSpotlight,
+} from "@/lib/community/organizationSpotlight";
+
+import { CommunityOrganizationModal } from "./CommunityOrganizationModal";
 import { CommunitySupportForm } from "./CommunitySupportForm";
+import { COMMUNITY_ACCENT_BAR_GRADIENT, communityEyebrowSx, communitySectionTitleSx } from "./communityUi";
 
 export type CommunityVendorSpotlight = {
   id: string;
@@ -67,24 +73,6 @@ const DEMO_SUPPLIERS: CommunityVendorSpotlight[] = [
   },
 ];
 
-const GROUP_SPOTLIGHTS = [
-  {
-    id: "group-1",
-    title: "Regional operators circle",
-    blurb: "Swap inspection notes and seasonal opening checklists with nearby facilities.",
-  },
-  {
-    id: "group-2",
-    title: "CPO study lab",
-    blurb: "Short prompts, code references, and CE prep with peers and trainers.",
-  },
-  {
-    id: "group-3",
-    title: "Procurement roundtable",
-    blurb: "Compare bids, vendor SLAs, and bulk buys without leaving the app (soon).",
-  },
-];
-
 function isSupplierLike(v: CommunityVendorSpotlight) {
   const c = (v.category ?? "").toLowerCase();
   return /chem|chlor|acid|alkali|salt|sanit|water treat|reagent|bulk|supply/.test(c);
@@ -115,15 +103,10 @@ function AdSpotCard({
       }}
     >
       <CardActionArea component={Link} href={href} sx={{ alignItems: "stretch", textAlign: "left" }}>
-        <Box
-          sx={{
-            height: 4,
-            background: (t) => `linear-gradient(90deg, ${t.palette.primary.main}, ${t.palette.secondary.main})`,
-          }}
-        />
+        <Box sx={{ height: 4, background: COMMUNITY_ACCENT_BAR_GRADIENT }} />
         <CardContent sx={{ pt: 1.5, pb: 1.5, "&:last-child": { pb: 1.5 } }}>
           <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.25 }}>
+            <Typography variant="subtitle2" sx={{ ...communitySectionTitleSx, fontSize: "0.875rem", lineHeight: 1.25 }}>
               {title}
             </Typography>
             {badge ? (
@@ -152,9 +135,48 @@ function AdSpotCard({
   );
 }
 
+function OrganizationSpotlightCard({
+  organization,
+  onSelect,
+}: {
+  organization: CommunityOrganizationSpotlight;
+  onSelect: (org: CommunityOrganizationSpotlight) => void;
+}) {
+  return (
+    <Card variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover", overflow: "hidden" }}>
+      <CardActionArea onClick={() => onSelect(organization)} sx={{ textAlign: "left" }}>
+        <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
+            {organization.name}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              mt: 0.75,
+            }}
+          >
+            {organization.description}
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mt: 1 }}>
+            <Typography variant="caption" color="primary" sx={{ fontWeight: 600 }}>
+              View details
+            </Typography>
+            <ChevronRightIcon sx={{ fontSize: 14, color: "primary.main" }} />
+          </Stack>
+        </CardContent>
+      </CardActionArea>
+    </Card>
+  );
+}
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: 0.08, color: "text.secondary" }}>
+    <Typography component="span" sx={communityEyebrowSx({ mb: 0 })}>
       {children}
     </Typography>
   );
@@ -162,11 +184,16 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export function CommunitySpotlightRail({
   vendors,
+  organizations,
   showSupportForm = false,
 }: {
   vendors: CommunityVendorSpotlight[];
+  organizations?: CommunityOrganizationSpotlight[];
   showSupportForm?: boolean;
 }) {
+  const orgList = organizations ?? DEMO_ORGANIZATION_SPOTLIGHTS;
+  const [selectedOrg, setSelectedOrg] = useState<CommunityOrganizationSpotlight | null>(null);
+
   const supplierLike = vendors.filter(isSupplierLike);
   const vendorLike = vendors.filter((v) => !isSupplierLike(v));
 
@@ -175,23 +202,25 @@ export function CommunitySpotlightRail({
   const supplierSlots =
     supplierLike.length > 0 ? supplierLike.slice(0, 4) : DEMO_SUPPLIERS.slice(0, Math.min(2, DEMO_SUPPLIERS.length));
 
+  const orgSlots = orgList.slice(0, 6);
   const showDemoHint = vendors.length === 0;
+  const showOrgDemoHint = orgList.some((o) => o.isDemo);
 
   return (
-    <Box component="aside" aria-label="Partners and groups" sx={{ width: "100%" }}>
+    <Box component="aside" aria-label="Partners and organizations" sx={{ width: "100%" }}>
       <Stack spacing={2.25}>
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
+          <Typography variant="subtitle1" sx={{ ...communitySectionTitleSx, mb: 0.5 }}>
             Network spotlight
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Vendors, suppliers, and groups curated for operators. Links open the public directory where available.
+            Vendors, suppliers, and organizations curated for operators. Open a card for details.
           </Typography>
         </Box>
 
         {showDemoHint ? (
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 0.25 }}>
-            Showing sample listings until your directory is populated in Supabase{" "}
+            Showing sample vendor listings until your directory is populated in Supabase{" "}
             <Box component="code" sx={{ fontSize: "0.7rem" }}>
               vendors
             </Box>
@@ -236,22 +265,19 @@ export function CommunitySpotlightRail({
         <Divider />
 
         <Stack spacing={1.25}>
-          <SectionTitle>Groups</SectionTitle>
+          <SectionTitle>Organizations</SectionTitle>
+          {showOrgDemoHint ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", px: 0.25 }}>
+              Sample organizations shown until facilities are listed in{" "}
+              <Box component="code" sx={{ fontSize: "0.7rem" }}>
+                organizations
+              </Box>
+              .
+            </Typography>
+          ) : null}
           <Stack spacing={1.25}>
-            {GROUP_SPOTLIGHTS.map((g) => (
-              <Card key={g.id} variant="outlined" sx={{ borderRadius: 2, bgcolor: "action.hover" }}>
-                <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                    {g.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
-                    {g.blurb}
-                  </Typography>
-                  <Button size="small" sx={{ mt: 1, px: 0 }} disabled>
-                    Join (soon)
-                  </Button>
-                </CardContent>
-              </Card>
+            {orgSlots.map((org) => (
+              <OrganizationSpotlightCard key={org.id} organization={org} onSelect={setSelectedOrg} />
             ))}
           </Stack>
         </Stack>
@@ -260,13 +286,17 @@ export function CommunitySpotlightRail({
           <>
             <Divider />
             <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper" }}>
-              <Suspense fallback={null}>
-                <CommunitySupportForm />
-              </Suspense>
+              <CommunitySupportForm />
             </Paper>
           </>
         ) : null}
       </Stack>
+
+      <CommunityOrganizationModal
+        organization={selectedOrg}
+        open={Boolean(selectedOrg)}
+        onClose={() => setSelectedOrg(null)}
+      />
     </Box>
   );
 }

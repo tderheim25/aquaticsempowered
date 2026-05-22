@@ -376,6 +376,7 @@ export type Database = {
         Row: {
           id: string;
           org_id: string | null;
+          vendor_id: string | null;
           role: UserRole;
           app_role_id: string | null;
           support_provider_id: string | null;
@@ -389,6 +390,7 @@ export type Database = {
         Insert: {
           id: string;
           org_id?: string | null;
+          vendor_id?: string | null;
           role?: UserRole;
           app_role_id?: string | null;
           support_provider_id?: string | null;
@@ -402,6 +404,7 @@ export type Database = {
         Update: {
           id?: string;
           org_id?: string | null;
+          vendor_id?: string | null;
           role?: UserRole;
           app_role_id?: string | null;
           support_provider_id?: string | null;
@@ -867,6 +870,48 @@ export type Database = {
           sort_order?: number;
           is_visible?: boolean;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      vendor_product_inquiries: {
+        Row: {
+          id: string;
+          vendor_id: string;
+          product_id: string;
+          from_user_id: string | null;
+          from_name: string;
+          from_email: string;
+          from_org_name: string | null;
+          message: string;
+          status: "open" | "read" | "resolved";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          vendor_id: string;
+          product_id: string;
+          from_user_id?: string | null;
+          from_name: string;
+          from_email: string;
+          from_org_name?: string | null;
+          message: string;
+          status?: "open" | "read" | "resolved";
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          vendor_id?: string;
+          product_id?: string;
+          from_user_id?: string | null;
+          from_name?: string;
+          from_email?: string;
+          from_org_name?: string | null;
+          message?: string;
+          status?: "open" | "read" | "resolved";
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

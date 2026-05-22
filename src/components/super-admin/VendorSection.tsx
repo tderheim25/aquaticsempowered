@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/data-table";
 
 import { reviewVendorApplicationAction } from "@/app/private/ae-console/platform/vendorActions";
+import { formatTableDate, formatTableTime } from "@/lib/formatTableDateTime";
 import { VendorDirectorySection } from "@/components/super-admin/VendorDirectorySection";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
 import { VendorProductsSection } from "@/components/super-admin/VendorProductsSection";
@@ -90,7 +91,8 @@ export function VendorSection({
                   <Chip label="Pending review" size="small" color="warning" sx={{ alignSelf: "flex-start" }} />
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  Submitted {new Date(app.created_at).toLocaleString()}
+                  Submitted {formatTableDate(app.created_at)}
+                  {formatTableTime(app.created_at) ? ` · ${formatTableTime(app.created_at)}` : ""}
                 </Typography>
               </Stack>
 
