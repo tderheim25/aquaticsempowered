@@ -2,8 +2,8 @@ import { Alert, Box } from "@mui/material";
 
 import { CommunityFeedPanel } from "@/components/community/CommunityFeedPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getUsersRowForAuthUser, getSessionUser } from "@/lib/auth/rbac";
-import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
+import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
+import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { loadCommunityFeedData } from "@/lib/community/loadCommunityFeedData";
 import { loadCommunityJobsData } from "@/lib/community/loadCommunityJobsData";
 import { createClient } from "@/lib/supabase/server";
@@ -86,41 +86,38 @@ export default async function MarketingCommunityPage({
 
   const user = await getSessionUser();
   const sessionSupabase = await createClient();
-  const profile = user ? await getUsersRowForAuthUser(user.id) : null;
-
-  let canInteract = false;
-  if (profile) {
-    const allowed = await getAllowedViewsForProfile({ role: profile.role, app_role_id: profile.app_role_id });
-    canInteract = allowed.includes("community");
-  }
+  const profile = user ? await getUsersRowWithAdminFallback(user.id) : null;
+  const canInteract = canUsePublicCommunity(user?.id, profile);
 
   const viewer = profile ? { id: profile.id, org_id: profile.org_id } : null;
+
+  // Prefer service-role reads so the feed loads reliably (RLS + JWT org_id can block session queries).
+  const feedClient = createAdminClientIfConfigured() ?? sessionSupabase;
 
   let feed;
   let jobsFeed;
   if (canInteract && viewer) {
-    feed = await loadCommunityFeedData(sessionSupabase, {
+    feed = await loadCommunityFeedData(feedClient, {
       viewer,
       globalFeedOnly: false,
       fetchLimit: 120,
       sliceLimit: 40,
       includeComments: true,
     });
-    jobsFeed = await loadCommunityJobsData(sessionSupabase, {
+    jobsFeed = await loadCommunityJobsData(feedClient, {
       viewer,
       globalFeedOnly: false,
       limit: 40,
     });
   } else {
-    const liftClient = createAdminClientIfConfigured() ?? sessionSupabase;
-    feed = await loadCommunityFeedData(liftClient, {
+    feed = await loadCommunityFeedData(feedClient, {
       viewer: null,
       globalFeedOnly: true,
       fetchLimit: 12,
       sliceLimit: 4,
       includeComments: false,
     });
-    jobsFeed = await loadCommunityJobsData(liftClient, {
+    jobsFeed = await loadCommunityJobsData(feedClient, {
       viewer: null,
       globalFeedOnly: true,
       limit: 4,
@@ -129,11 +126,14 @@ export default async function MarketingCommunityPage({
 
   return (
     <Box sx={{ pt: 2 }}>
-      {user && profile && !canInteract ? (
-        <Box sx={{ maxWidth: "xl", mx: "auto", px: { xs: 2, sm: 3 }, mb: 2 }}>
-          <Alert severity="info">
-            You&apos;re signed in, but your role doesn&apos;t include the full community workspace yet. You can still
-            browse public highlights — open your portal for the tools your plan allows.
+      {user && !profile ? (
+        <Box sx={{ width: "100%", px: { xs: 2, sm: 3, md: 4 }, mb: 2 }}>
+          <Alert severity="warning">
+            You&apos;re signed in, but we couldn&apos;t load your account profile. Open{" "}
+            <Box component="a" href="/app/needs-profile" sx={{ fontWeight: 600 }}>
+              your portal
+            </Box>{" "}
+            to finish setup, or sign out and sign back in.
           </Alert>
         </Box>
       ) : null}

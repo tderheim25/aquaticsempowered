@@ -24,6 +24,7 @@ import type { Database } from "@/types/database";
 type MaintenanceTaskRow = Database["public"]["Tables"]["maintenance_tasks"]["Row"];
 
 type OrgMember = { id: string; full_name: string | null; email: string };
+type PoolOption = { id: string; name: string };
 
 function memberLabel(m: OrgMember) {
   return m.full_name?.trim() || m.email;
@@ -37,6 +38,7 @@ function toFormValues(task: MaintenanceTaskRow | null): TaskFormValues {
       status: "open",
       priority: "medium",
       category: "other",
+      pool_id: null,
       pool_label: undefined,
       assigned_to: null,
       due_date: null,
@@ -48,6 +50,7 @@ function toFormValues(task: MaintenanceTaskRow | null): TaskFormValues {
     status: task.status,
     priority: task.priority,
     category: task.category ?? "other",
+    pool_id: task.pool_id,
     pool_label: task.pool_label ?? undefined,
     assigned_to: task.assigned_to,
     due_date: task.due_date,
@@ -59,12 +62,14 @@ export function TaskFormDialog({
   mode,
   task,
   orgMembers,
+  pools,
   onClose,
 }: {
   open: boolean;
   mode: "create" | "edit";
   task: MaintenanceTaskRow | null;
   orgMembers: OrgMember[];
+  pools: PoolOption[];
   onClose: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -93,7 +98,7 @@ export function TaskFormDialog({
     fd.set("status", values.status);
     fd.set("priority", values.priority);
     fd.set("category", values.category);
-    fd.set("pool_label", values.pool_label ?? "");
+    fd.set("pool_id", values.pool_id ?? "");
     fd.set("assigned_to", values.assigned_to ?? "");
     fd.set("due_date", values.due_date ?? "");
     if (mode === "edit" && task) {
@@ -175,9 +180,26 @@ export function TaskFormDialog({
               )}
             />
             <Controller
-              name="pool_label"
+              name="pool_id"
               control={control}
-              render={({ field }) => <TextField {...field} label="Pool / location (optional)" fullWidth placeholder="e.g. Pool 3, Hot tub" />}
+              render={({ field }) => (
+                <FormControl fullWidth size="small">
+                  <InputLabel id="task-pool-label">Pool (optional)</InputLabel>
+                  <Select
+                    value={field.value ?? ""}
+                    labelId="task-pool-label"
+                    label="Pool (optional)"
+                    onChange={(e) => field.onChange(e.target.value === "" ? null : e.target.value)}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {pools.map((p) => (
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
             />
             <Controller
               name="assigned_to"

@@ -49,18 +49,39 @@ export async function loadCommunityFeedData(
   let postsQuery = supabase
     .from("community_posts")
     .select("id, author_id, body, created_at")
+    .eq("moderation_status", "visible")
     .order("created_at", { ascending: false })
     .limit(fetchLimit);
 
   if (globalFeedOnly) {
     postsQuery = postsQuery.is("org_id", null);
   } else if (viewer?.org_id) {
-    postsQuery = postsQuery.eq("org_id", viewer.org_id);
+    // Facility members see their org feed plus the global (org-less) community partition.
+    postsQuery = postsQuery.or(`org_id.eq.${viewer.org_id},org_id.is.null`);
   } else {
     postsQuery = postsQuery.is("org_id", null);
   }
 
-  const { data: posts, error: postsError } = await postsQuery;
+  let { data: posts, error: postsError } = await postsQuery;
+
+  // Migration 0019 may not be applied yet on older databases.
+  if (postsError && /moderation_status/i.test(postsError.message ?? "")) {
+    let fallbackQuery = supabase
+      .from("community_posts")
+      .select("id, author_id, body, created_at")
+      .order("created_at", { ascending: false })
+      .limit(fetchLimit);
+    if (globalFeedOnly) {
+      fallbackQuery = fallbackQuery.is("org_id", null);
+    } else if (viewer?.org_id) {
+      fallbackQuery = fallbackQuery.or(`org_id.eq.${viewer.org_id},org_id.is.null`);
+    } else {
+      fallbackQuery = fallbackQuery.is("org_id", null);
+    }
+    const fallback = await fallbackQuery;
+    posts = fallback.data;
+    postsError = fallback.error;
+  }
 
   const unsorted = [...(posts ?? [])];
   let postList: typeof unsorted;
@@ -80,16 +101,25 @@ export async function loadCommunityFeedData(
   const postIds = postList.map((p) => p.id);
   const postAuthorIds = [...new Set(postList.map((p) => p.author_id))];
 
-  const commentRows =
-    includeComments && postIds.length > 0
-      ? (
-          await supabase
-            .from("community_post_comments")
-            .select("id, post_id, author_id, body, created_at")
-            .in("post_id", postIds)
-            .order("created_at", { ascending: true })
-        ).data
-      : [];
+  let commentRows: { id: string; post_id: string; author_id: string; body: string; created_at: string }[] = [];
+  if (includeComments && postIds.length > 0) {
+    const commentsRes = await supabase
+      .from("community_post_comments")
+      .select("id, post_id, author_id, body, created_at")
+      .eq("moderation_status", "visible")
+      .in("post_id", postIds)
+      .order("created_at", { ascending: true });
+    if (commentsRes.error && /moderation_status/i.test(commentsRes.error.message ?? "")) {
+      const fallback = await supabase
+        .from("community_post_comments")
+        .select("id, post_id, author_id, body, created_at")
+        .in("post_id", postIds)
+        .order("created_at", { ascending: true });
+      commentRows = fallback.data ?? [];
+    } else {
+      commentRows = commentsRes.data ?? [];
+    }
+  }
 
   const commentAuthorIds = [...new Set((commentRows ?? []).map((c) => c.author_id))];
   const allAuthorIds = [...new Set([...postAuthorIds, ...commentAuthorIds])];

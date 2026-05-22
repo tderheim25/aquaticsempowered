@@ -1,7 +1,6 @@
 "use client";
 
-import { Chip } from "@mui/material";
-
+import { StatusPill } from "@/components/ui/data-table";
 import type { TaskPriority } from "@/types/database";
 
 const LABELS: Record<TaskPriority, string> = {
@@ -11,8 +10,13 @@ const LABELS: Record<TaskPriority, string> = {
   urgent: "Urgent",
 };
 
+const TONE: Record<TaskPriority, "neutral" | "info" | "warning" | "error"> = {
+  low: "neutral",
+  medium: "info",
+  high: "warning",
+  urgent: "error",
+};
+
 export function PriorityChip({ priority, size = "small" }: { priority: TaskPriority; size?: "small" | "medium" }) {
-  const color =
-    priority === "urgent" ? "error" : priority === "high" ? "warning" : priority === "medium" ? "info" : "default";
-  return <Chip label={LABELS[priority]} color={color} size={size} variant="outlined" />;
+  return <StatusPill label={LABELS[priority]} tone={TONE[priority]} size={size} />;
 }

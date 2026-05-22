@@ -10,6 +10,15 @@ import { useBreadcrumbLastLabel } from "./BreadcrumbLabelContext";
 /** Maps path segments under `/app` to human-readable labels (last segment wins). */
 const SEGMENT_LABELS: Record<string, string> = {
   app: "Dashboard",
+  pools: "Pools",
+  history: "History & Trends",
+  calculator: "Calculator",
+  reports: "Reports",
+  cleaning: "Cleaning Log",
+  inspections: "Inspections",
+  equipment: "Equipment",
+  alerts: "Alerts",
+  sensors: "Sensors",
   maintenance: "Maintenance",
   admin: "Admin",
   users: "User management",

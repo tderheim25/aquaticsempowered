@@ -1,119 +1,91 @@
-import { Alert, Box, Button, Container, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import { Alert, Button, Container, Link as MuiLink, Stack, Typography } from "@mui/material";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { ChemicalLogForm } from "@/components/chemistry/ChemicalLogForm";
+import { ChemicalLogsFilters } from "@/components/chemistry/ChemicalLogsFilters";
+import {
+  DataTable,
+  TableBody,
+  TableCell,
+  TableDateTimeCell,
+  TableHead,
+  TableRow,
+} from "@/components/ui/data-table";
+import { EmptyStateIllustration } from "@/components/pool-ops/EmptyStateIllustration";
+import { PoolOpsPageShell } from "@/components/pool-ops/PoolOpsPageShell";
+import { PoolOpsSectionCard } from "@/components/pool-ops/PoolOpsSectionCard";
+import { StatusToast, type StatusToastMessages } from "@/components/ui/StatusToast";
+import { SelectOrgSidebarHint } from "@/components/dashboard/SelectOrgSidebarHint";
+import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { localDateString } from "@/lib/dates/localDate";
+import { fetchChemicalLogsForOrg, fetchPoolOptionsForOrg, type ChemicalLogListRow } from "@/lib/org/fetchOrgScopedData";
 import { createClient } from "@/lib/supabase/server";
 
 import { createChemicalLogAction, deleteChemicalLogAction, updateChemicalLogAction } from "./actions";
 
-export const metadata = {
-  title: "Chemical Logs | Aquatics Empowered",
+export const metadata = { title: "Chemical Logs | Aquatics Empowered" };
+
+const CHEMICAL_LOG_TOAST_MESSAGES: StatusToastMessages = {
+  created: { severity: "success", text: "Chemical log saved." },
+  invalid: { severity: "error", text: "Please add at least one reading before saving." },
+  updated: { severity: "success", text: "Chemical log updated." },
+  deleted: { severity: "success", text: "Chemical log deleted." },
+  error: { severity: "error", text: "Unable to save chemical log. Please try again." },
 };
 
-function statusMessage(status?: string) {
-  switch (status) {
-    case "created":
-      return { severity: "success" as const, text: "Chemical log saved." };
-    case "invalid":
-      return { severity: "error" as const, text: "Please add at least one reading before saving." };
-    case "updated":
-      return { severity: "success" as const, text: "Chemical log updated." };
-    case "deleted":
-      return { severity: "success" as const, text: "Chemical log deleted." };
-    case "error":
-      return { severity: "error" as const, text: "Unable to save chemical log. Please try again." };
-    default:
-      return null;
-  }
+function outOfRangeStyle(value: number | null, min: number, max: number) {
+  if (value === null) return {};
+  if (value < min || value > max) return { color: "error.main", fontWeight: 700 };
+  return {};
 }
-
-type ChemicalLogRow = {
-  id: string;
-  pool_label: string | null;
-  ph: number | null;
-  free_chlorine: number | null;
-  total_chlorine: number | null;
-  alkalinity: number | null;
-  temp_f: number | null;
-  calcium_hardness: number | null;
-  tds_ppm: number | null;
-  langelier_saturation_index: number | null;
-  logged_by: string | null;
-  logged_at: string;
-};
 
 export default async function ChemicalLogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; pool?: string; from?: string; to?: string; edit?: string; org?: string }>;
+  searchParams: Promise<{ status?: string; pool_id?: string; date?: string; edit?: string; org?: string }>;
 }) {
   await requireViewAccess("chemical_logs");
   const profile = await requireProfileForApp();
-  const { status, pool, from, to, edit, org } = await searchParams;
-  const flash = statusMessage(status);
+  const { status, pool_id: poolIdParam, date: dateParam, edit, org } = await searchParams;
+  const orgCtx = await loadActiveOrgContext(profile, org);
+  const activeOrgId = orgCtx.activeOrgId;
   const isSuperAdmin = profile.role === "super_admin";
 
   const supabase = await createClient();
-  const admin = createAdminClient();
-  const { data: orgOptions } =
-    isSuperAdmin && !profile.org_id
-      ? await admin.from("organizations").select("id, name").order("name", { ascending: true }).limit(200)
-      : { data: [] as { id: string; name: string }[] };
-
-  const activeOrgId = profile.org_id ?? (isSuperAdmin ? (org?.trim() || orgOptions?.[0]?.id || null) : null);
 
   if (!activeOrgId) {
-    const hasOrgOptions = Boolean(orgOptions && orgOptions.length > 0);
     return (
       <Container maxWidth="lg">
-        <Stack spacing={2}>
-          <Alert severity="warning">
-            {isSuperAdmin
-              ? "No organization yet. Choose an organization to manage chemical logs."
-              : "No organization yet. Your account is not linked to an organization."}
-          </Alert>
-          {isSuperAdmin && hasOrgOptions ? (
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack component="form" direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-end" }}>
-                <TextField name="org" label="Organization" select size="small" defaultValue="">
-                  {(orgOptions ?? []).map((option) => (
-                    <MenuItem key={option.id} value={option.id}>
-                      {option.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <Button type="submit" variant="outlined">
-                  Open logs
-                </Button>
-              </Stack>
-            </Paper>
-          ) : null}
-          {isSuperAdmin && !hasOrgOptions ? (
-            <Alert severity="info">No organizations exist yet. Create an organization first, then return to Chemical Logs.</Alert>
-          ) : null}
-        </Stack>
+        <PoolOpsPageShell title="Chemical Logs" subtitle="Record water chemistry and LSI.">
+          <SelectOrgSidebarHint superAdmin={isSuperAdmin} />
+        </PoolOpsPageShell>
       </Container>
     );
   }
 
-  let logsQuery = supabase
-    .from("chemical_logs")
-    .select(
-      "id, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f, calcium_hardness, tds_ppm, langelier_saturation_index, logged_by, logged_at"
-    )
-    .eq("org_id", activeOrgId);
-  if (pool?.trim()) {
-    logsQuery = logsQuery.eq("pool_label", pool.trim());
+  const orgId = activeOrgId;
+  const poolOptions = await fetchPoolOptionsForOrg(orgId, profile);
+  const filterDate = dateParam?.trim() || localDateString();
+
+  if (poolOptions.length > 0 && !poolIdParam?.trim()) {
+    const params = new URLSearchParams();
+    if (org) params.set("org", org);
+    params.set("pool_id", poolOptions[0].id);
+    params.set("date", filterDate);
+    if (edit) params.set("edit", edit);
+    if (status) params.set("status", status);
+    redirect(`/app/chemical-logs?${params.toString()}`);
   }
-  if (from?.trim()) {
-    logsQuery = logsQuery.gte("logged_at", `${from.trim()}T00:00:00`);
-  }
-  if (to?.trim()) {
-    logsQuery = logsQuery.lte("logged_at", `${to.trim()}T23:59:59.999`);
-  }
-  const { data: logs, error: logsError } = await logsQuery.order("logged_at", { ascending: false }).limit(200);
+
+  const activePoolId = poolIdParam?.trim() || "";
+  const { logs, error: logsError } = await fetchChemicalLogsForOrg(orgId, profile, {
+    poolId: activePoolId || undefined,
+    date: filterDate,
+    limit: 200,
+  });
 
   const loggerIds = [...new Set((logs ?? []).map((log) => log.logged_by).filter((id): id is string => Boolean(id)))];
   const { data: loggerRows } = loggerIds.length
@@ -123,222 +95,204 @@ export default async function ChemicalLogsPage({
   const loggerNameById = new Map(
     (loggerRows ?? []).map((u) => [u.id, u.full_name?.trim() || u.email.split("@")[0] || "Unknown user"])
   );
-  const poolLabels = [...new Set((logs ?? []).map((l) => l.pool_label?.trim()).filter((v): v is string => Boolean(v)))].sort();
-  const selectedLog = (logs ?? []).find((log) => log.id === edit) as ChemicalLogRow | undefined;
+
+  const selectedLog = logs.find((log) => log.id === edit);
+
+  function poolName(log: ChemicalLogListRow) {
+    const p = log.pools;
+    if (Array.isArray(p)) return p[0]?.name ?? log.pool_label ?? "—";
+    return p?.name ?? log.pool_label ?? "—";
+  }
+
+  function queryHref(extra?: { edit?: string }) {
+    const params = new URLSearchParams();
+    if (orgId !== profile.org_id) params.set("org", orgId);
+    if (activePoolId) params.set("pool_id", activePoolId);
+    if (filterDate) params.set("date", filterDate);
+    if (extra?.edit) params.set("edit", extra.edit);
+    const qs = params.toString();
+    return `/app/chemical-logs${qs ? `?${qs}` : ""}`;
+  }
 
   function csvHref() {
     const params = new URLSearchParams();
-    if (activeOrgId !== profile.org_id) params.set("org", activeOrgId);
-    if (pool?.trim()) params.set("pool", pool.trim());
-    if (from?.trim()) params.set("from", from.trim());
-    if (to?.trim()) params.set("to", to.trim());
+    if (orgId !== profile.org_id) params.set("org", orgId);
+    if (activePoolId) params.set("pool_id", activePoolId);
+    if (filterDate) {
+      params.set("from", filterDate);
+      params.set("to", filterDate);
+    }
     return `/app/chemical-logs/export${params.toString() ? `?${params.toString()}` : ""}`;
-  }
-
-  function outOfRangeStyle(value: number | null, min: number, max: number) {
-    if (value === null) return {};
-    if (value < min || value > max) return { color: "error.main", fontWeight: 700 };
-    return {};
   }
 
   return (
     <Container maxWidth="lg">
-      <Stack spacing={2}>
-        <div>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Chemical Logs
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Track water chemistry readings per pool, including Langelier Saturation Index when hardness and core readings
-            are provided.
-          </Typography>
-        </div>
-
-        {flash ? <Alert severity={flash.severity}>{flash.text}</Alert> : null}
-        {logsError ? <Alert severity="error">Could not load chemical logs for your organization.</Alert> : null}
-
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Stack component="form" direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-end" }}>
-            {isSuperAdmin && !profile.org_id ? (
-              <TextField name="org" label="Organization" size="small" select defaultValue={activeOrgId} sx={{ minWidth: 260 }}>
-                {(orgOptions ?? []).map((option) => (
-                  <MenuItem key={option.id} value={option.id}>
-                    {option.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            ) : null}
-            <TextField name="pool" label="Pool" size="small" select defaultValue={pool?.trim() || ""} sx={{ minWidth: 220 }}>
-              <MenuItem value="">All pools</MenuItem>
-              {poolLabels.map((label) => (
-                <MenuItem key={label} value={label}>
-                  {label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField name="from" label="From" type="date" size="small" defaultValue={from || ""} InputLabelProps={{ shrink: true }} />
-            <TextField name="to" label="To" type="date" size="small" defaultValue={to || ""} InputLabelProps={{ shrink: true }} />
-            <Button type="submit" variant="outlined">
-              Apply filters
+      <PoolOpsPageShell
+        title="Chemical Logs"
+        subtitle="Track water chemistry readings per pool with LSI when hardness and core readings are provided."
+        accent="chemistry"
+        actions={
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button component={Link} href="/app/chemical-logs/history" size="small" variant="outlined">
+              Trends
             </Button>
-            <Button component={Link} href="/app/chemical-logs" variant="text">
-              Clear
+            <Button component={Link} href="/app/chemical-logs/calculator" size="small" variant="outlined">
+              Calculator
             </Button>
-            <Button component={Link} href={csvHref()} variant="outlined">
+            <Button component={Link} href="/app/chemical-logs/reports" size="small" variant="outlined">
+              Reports
+            </Button>
+            <Button component={Link} href={csvHref()} size="small" variant="outlined">
               Export CSV
             </Button>
           </Stack>
-        </Paper>
+        }
+      >
+        <StatusToast status={status} messages={CHEMICAL_LOG_TOAST_MESSAGES} />
+        {logsError ? <Alert severity="error">Could not load chemical logs for your organization.</Alert> : null}
 
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-            Add reading
-          </Typography>
-          <Box component="form" action={createChemicalLogAction}>
-            <input type="hidden" name="orgId" value={activeOrgId} />
-            <Stack spacing={1.5}>
-              <TextField name="poolLabel" label="Pool label" size="small" placeholder="e.g. Main Lap Pool" />
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                <TextField name="ph" label="pH" type="number" size="small" inputProps={{ step: "0.01" }} fullWidth />
-                <TextField name="freeChlorine" label="Free Chlorine" type="number" size="small" inputProps={{ step: "0.01" }} fullWidth />
-                <TextField name="totalChlorine" label="Total Chlorine" type="number" size="small" inputProps={{ step: "0.01" }} fullWidth />
-              </Stack>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                <TextField name="alkalinity" label="Alkalinity" type="number" size="small" inputProps={{ step: "0.01" }} fullWidth />
-                <TextField name="tempF" label="Temperature (F)" type="number" size="small" inputProps={{ step: "0.1" }} fullWidth />
-              </Stack>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                <TextField
-                  name="calciumHardness"
-                  label="Calcium hardness (ppm CaCO₃)"
-                  type="number"
-                  size="small"
-                  inputProps={{ step: "0.01" }}
-                  fullWidth
-                  helperText="Used with pH, alkalinity, and temperature to compute LSI."
-                />
-                <TextField
-                  name="tdsPpm"
-                  label="TDS (ppm)"
-                  type="number"
-                  size="small"
-                  inputProps={{ step: "1" }}
-                  fullWidth
-                  helperText="Optional; defaults to 800 ppm for LSI if blank."
-                />
-              </Stack>
-              <Button type="submit" variant="contained" sx={{ alignSelf: "flex-start" }}>
-                Save log
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
-
-        {selectedLog ? (
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-              Edit reading
-            </Typography>
-            <Box component="form" action={updateChemicalLogAction}>
-              <input type="hidden" name="id" value={selectedLog.id} />
-              <input type="hidden" name="orgId" value={activeOrgId} />
-              <Stack spacing={1.5}>
-                <TextField name="poolLabel" label="Pool label" size="small" defaultValue={selectedLog.pool_label || ""} />
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                  <TextField name="ph" label="pH" type="number" size="small" defaultValue={selectedLog.ph ?? ""} inputProps={{ step: "0.01" }} fullWidth />
-                  <TextField name="freeChlorine" label="Free Chlorine" type="number" size="small" defaultValue={selectedLog.free_chlorine ?? ""} inputProps={{ step: "0.01" }} fullWidth />
-                  <TextField name="totalChlorine" label="Total Chlorine" type="number" size="small" defaultValue={selectedLog.total_chlorine ?? ""} inputProps={{ step: "0.01" }} fullWidth />
-                </Stack>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                  <TextField name="alkalinity" label="Alkalinity" type="number" size="small" defaultValue={selectedLog.alkalinity ?? ""} inputProps={{ step: "0.01" }} fullWidth />
-                  <TextField name="tempF" label="Temperature (F)" type="number" size="small" defaultValue={selectedLog.temp_f ?? ""} inputProps={{ step: "0.1" }} fullWidth />
-                </Stack>
-                <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                  <TextField
-                    name="calciumHardness"
-                    label="Calcium hardness (ppm CaCO₃)"
-                    type="number"
-                    size="small"
-                    defaultValue={selectedLog.calcium_hardness ?? ""}
-                    inputProps={{ step: "0.01" }}
-                    fullWidth
-                  />
-                  <TextField name="tdsPpm" label="TDS (ppm)" type="number" size="small" defaultValue={selectedLog.tds_ppm ?? ""} inputProps={{ step: "1" }} fullWidth />
-                </Stack>
-                <Stack direction="row" spacing={1}>
-                  <Button type="submit" variant="contained">
-                    Update log
-                  </Button>
-                  <Button component={Link} href="/app/chemical-logs" variant="text">
-                    Cancel
-                  </Button>
-                </Stack>
-              </Stack>
-            </Box>
-          </Paper>
+        {poolOptions.length > 0 ? (
+          <PoolOpsSectionCard accent="chemistry">
+            <ChemicalLogsFilters
+              pools={poolOptions}
+              poolId={activePoolId}
+              date={filterDate}
+              orgQuery={orgId !== profile.org_id ? orgId : undefined}
+            />
+          </PoolOpsSectionCard>
         ) : null}
 
-        <Paper variant="outlined" sx={{ overflowX: "auto" }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Logged at</TableCell>
-                <TableCell>Pool</TableCell>
-                <TableCell>pH</TableCell>
-                <TableCell>Free Cl</TableCell>
-                <TableCell>Total Cl</TableCell>
-                <TableCell>Alkalinity</TableCell>
-                <TableCell>Temp (F)</TableCell>
-                <TableCell>Ca hardness</TableCell>
-                <TableCell>TDS</TableCell>
-                <TableCell>LSI</TableCell>
-                <TableCell>Logged by</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(logs as ChemicalLogRow[] | null)?.map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell>{new Date(log.logged_at).toLocaleString()}</TableCell>
-                  <TableCell>{log.pool_label || "-"}</TableCell>
-                  <TableCell sx={outOfRangeStyle(log.ph, 7.2, 7.8)}>{log.ph ?? "-"}</TableCell>
-                  <TableCell sx={outOfRangeStyle(log.free_chlorine, 1, 4)}>{log.free_chlorine ?? "-"}</TableCell>
-                  <TableCell sx={outOfRangeStyle(log.total_chlorine, 1, 5)}>{log.total_chlorine ?? "-"}</TableCell>
-                  <TableCell sx={outOfRangeStyle(log.alkalinity, 80, 120)}>{log.alkalinity ?? "-"}</TableCell>
-                  <TableCell sx={outOfRangeStyle(log.temp_f, 78, 84)}>{log.temp_f ?? "-"}</TableCell>
-                  <TableCell>{log.calcium_hardness ?? "-"}</TableCell>
-                  <TableCell>{log.tds_ppm ?? "-"}</TableCell>
-                  <TableCell>{log.langelier_saturation_index ?? "-"}</TableCell>
-                  <TableCell>{(log.logged_by && loggerNameById.get(log.logged_by)) || "Unknown user"}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
-                      <Button size="small" component={Link} href={`/app/chemical-logs?edit=${encodeURIComponent(log.id)}`}>
-                        Edit
-                      </Button>
-                      <Box component="form" action={deleteChemicalLogAction}>
-                        <input type="hidden" name="id" value={log.id} />
-                        <input type="hidden" name="orgId" value={activeOrgId} />
-                        <Button size="small" type="submit" color="error">
-                          Delete
-                        </Button>
-                      </Box>
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {(!logs || logs.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={12}>
-                    <Typography variant="body2" color="text.secondary">
-                      No logs yet. Add your first reading above.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </Paper>
-      </Stack>
+        {poolOptions.length === 0 ? (
+          <EmptyStateIllustration
+            title="No pools yet"
+            description="Register pools before logging chemistry readings."
+            action={
+              <Button component={Link} href="/app/pools?add=1" variant="contained">
+                Add pool
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <PoolOpsSectionCard accent="chemistry" index={1}>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+                {selectedLog ? "Edit reading" : "Add reading"}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                {poolOptions.find((p) => p.id === (selectedLog?.pool_id ?? activePoolId))?.name ?? "Pool"} · {filterDate}
+              </Typography>
+              <ChemicalLogForm
+                action={selectedLog ? updateChemicalLogAction : createChemicalLogAction}
+                orgId={orgId}
+                pools={poolOptions}
+                fixedPoolId={selectedLog?.pool_id ?? activePoolId}
+                filterDate={filterDate}
+                returnOrg={orgId !== profile.org_id ? orgId : undefined}
+                editId={selectedLog?.id}
+                defaults={
+                  selectedLog
+                    ? {
+                        ph: selectedLog.ph,
+                        freeChlorine: selectedLog.free_chlorine,
+                        totalChlorine: selectedLog.total_chlorine,
+                        alkalinity: selectedLog.alkalinity,
+                        tempF: selectedLog.temp_f,
+                        calciumHardness: selectedLog.calcium_hardness,
+                        tdsPpm: selectedLog.tds_ppm,
+                        cyanuricAcid: selectedLog.cyanuric_acid_ppm,
+                        filterPsi: selectedLog.filter_psi,
+                        flowGpm: selectedLog.flow_gpm,
+                        notes: selectedLog.notes,
+                        operatorInitials: selectedLog.operator_initials,
+                      }
+                    : undefined
+                }
+              />
+              {selectedLog ? (
+                <Button component={Link} href={queryHref()} sx={{ mt: 1 }}>
+                  Cancel edit
+                </Button>
+              ) : null}
+            </PoolOpsSectionCard>
+
+            <PoolOpsSectionCard accent="chemistry" index={2}>
+              <DataTable embedded>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Logged at</TableCell>
+                    <TableCell>Pool</TableCell>
+                    <TableCell>pH</TableCell>
+                    <TableCell>Free Cl</TableCell>
+                    <TableCell>Alkalinity</TableCell>
+                    <TableCell>Temp (F)</TableCell>
+                    <TableCell>LSI</TableCell>
+                    <TableCell>Logged by</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        <TableDateTimeCell iso={log.logged_at} />
+                      </TableCell>
+                      <TableCell>{poolName(log)}</TableCell>
+                      <TableCell sx={outOfRangeStyle(log.ph, 7.2, 7.8)}>{log.ph ?? "—"}</TableCell>
+                      <TableCell sx={outOfRangeStyle(log.free_chlorine, 1, 4)}>{log.free_chlorine ?? "—"}</TableCell>
+                      <TableCell sx={outOfRangeStyle(log.alkalinity, 80, 120)}>{log.alkalinity ?? "—"}</TableCell>
+                      <TableCell sx={outOfRangeStyle(log.temp_f, 78, 84)}>{log.temp_f ?? "—"}</TableCell>
+                      <TableCell>{log.langelier_saturation_index ?? "—"}</TableCell>
+                      <TableCell>{(log.logged_by && loggerNameById.get(log.logged_by)) || "—"}</TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button
+                            size="small"
+                            component={Link}
+                            href={queryHref({ edit: log.id })}
+                          >
+                            Edit
+                          </Button>
+                          <form action={deleteChemicalLogAction}>
+                            <input type="hidden" name="id" value={log.id} />
+                            <input type="hidden" name="orgId" value={orgId} />
+                            <input type="hidden" name="returnPoolId" value={activePoolId} />
+                            <input type="hidden" name="returnDate" value={filterDate} />
+                            {orgId !== profile.org_id ? <input type="hidden" name="returnOrg" value={orgId} /> : null}
+                            <Button size="small" type="submit" color="error">
+                              Delete
+                            </Button>
+                          </form>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {logs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9}>
+                        <Typography variant="body2" color="text.secondary">
+                          No readings for this pool on {filterDate}. Add one above or pick another date.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </DataTable>
+            </PoolOpsSectionCard>
+          </>
+        )}
+
+        <Typography variant="body2" color="text.secondary">
+          View{" "}
+          <MuiLink component={Link} href="/app/chemical-logs/history">
+            chemistry trends
+          </MuiLink>{" "}
+          or{" "}
+          <MuiLink component={Link} href="/app/monitoring">
+            monitoring
+          </MuiLink>
+          .
+        </Typography>
+      </PoolOpsPageShell>
     </Container>
   );
 }

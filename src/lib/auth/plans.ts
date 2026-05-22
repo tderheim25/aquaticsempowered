@@ -1,7 +1,17 @@
-import type { PlanCode } from "@/types/database";
+import type { PlanCode, UserRole } from "@/types/database";
+
+/** Org admins (and super admins) can use these regardless of subscription tier. */
+const ROLE_UNLOCKED_FEATURES: FeatureKey[] = [
+  "pools",
+  "monitoring",
+  "sensors",
+  "chemistry_calculator",
+  "chemistry_reports",
+];
 
 export type FeatureKey =
   | "dashboard"
+  | "pools"
   | "chemical_logs"
   | "maintenance"
   | "support"
@@ -10,12 +20,16 @@ export type FeatureKey =
   | "procurement"
   | "training"
   | "monitoring"
+  | "chemistry_calculator"
+  | "chemistry_reports"
+  | "sensors"
   | "admin";
 
 /** Plan → feature flags (MVP: permissive; tighten per-feature PRs). */
 export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
   free: {
     dashboard: true,
+    pools: false,
     chemical_logs: false,
     maintenance: false,
     support: false,
@@ -24,10 +38,14 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     procurement: false,
     training: false,
     monitoring: false,
+    chemistry_calculator: false,
+    chemistry_reports: false,
+    sensors: false,
     admin: false,
   },
   essential: {
     dashboard: true,
+    pools: true,
     chemical_logs: true,
     maintenance: true,
     support: true,
@@ -36,10 +54,14 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     procurement: false,
     training: true,
     monitoring: false,
+    chemistry_calculator: false,
+    chemistry_reports: false,
+    sensors: false,
     admin: false,
   },
   pro: {
     dashboard: true,
+    pools: true,
     chemical_logs: true,
     maintenance: true,
     support: true,
@@ -48,10 +70,14 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     procurement: true,
     training: true,
     monitoring: false,
+    chemistry_calculator: true,
+    chemistry_reports: true,
+    sensors: false,
     admin: false,
   },
   enterprise: {
     dashboard: true,
+    pools: true,
     chemical_logs: true,
     maintenance: true,
     support: true,
@@ -60,11 +86,21 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     procurement: true,
     training: true,
     monitoring: true,
+    chemistry_calculator: true,
+    chemistry_reports: true,
+    sensors: true,
     admin: false,
   },
 };
 
-export function hasFeature(plan: PlanCode | null | undefined, feature: FeatureKey): boolean {
+export function hasFeature(
+  plan: PlanCode | null | undefined,
+  feature: FeatureKey,
+  role?: UserRole | null
+): boolean {
+  if (role === "org_admin" || role === "super_admin") {
+    if (ROLE_UNLOCKED_FEATURES.includes(feature)) return true;
+  }
   const p = plan ?? "free";
   return PLAN_FEATURES[p]?.[feature] ?? false;
 }

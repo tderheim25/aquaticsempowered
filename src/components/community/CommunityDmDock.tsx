@@ -1,7 +1,7 @@
 import { CommunityFloatingChat, type CommunityChatContact } from "@/components/community/CommunityFloatingChat";
 import { buildUnreadCountByPeer } from "@/lib/community/dmUnread";
-import { getUsersRowForAuthUser, getSessionUser } from "@/lib/auth/rbac";
-import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
+import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
+import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { createClient } from "@/lib/supabase/server";
 
 function sortContacts(a: CommunityChatContact, b: CommunityChatContact) {
@@ -20,12 +20,8 @@ export default async function CommunityDmDock() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const profile = await getUsersRowForAuthUser(user.id);
-  if (!profile) return null;
-
-  const viewsProfile = { role: profile.role, app_role_id: profile.app_role_id };
-  const allowedViews = await getAllowedViewsForProfile(viewsProfile);
-  if (!allowedViews.includes("community")) return null;
+  const profile = await getUsersRowWithAdminFallback(user.id);
+  if (!canUsePublicCommunity(user.id, profile)) return null;
 
   const supabase = await createClient();
 

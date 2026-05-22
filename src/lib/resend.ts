@@ -1,8 +1,15 @@
 import { render } from "@react-email/render";
 import { Resend } from "resend";
 
+import FounderDemoRequestEmail, {
+  type FounderDemoRequestProps,
+} from "@/emails/FounderDemoRequest";
 import FounderWelcomeEmail, { type FounderWelcomeProps } from "@/emails/FounderWelcome";
 import MagicLinkEmail, { type MagicLinkProps } from "@/emails/MagicLink";
+import OrgInvitationEmail, { type OrgInvitationProps } from "@/emails/OrgInvitation";
+import SupportTechnicianInvitationEmail, {
+  type SupportTechnicianInvitationProps,
+} from "@/emails/SupportTechnicianInvitation";
 
 const resend = () => {
   const key = process.env.RESEND_API_KEY;
@@ -16,22 +23,76 @@ const from = () => {
   return email;
 };
 
+type ResendSendResult = Awaited<ReturnType<ReturnType<typeof resend>["emails"]["send"]>>;
+
+/** Resend returns `{ error }` without throwing — callers must check the result. */
+function assertEmailSent(result: ResendSendResult, context: string) {
+  if (result.error) {
+    const msg = result.error.message ?? "Resend rejected the email";
+    throw new Error(`${context}: ${msg}`);
+  }
+}
+
 export async function sendFounderWelcome(to: string, props: FounderWelcomeProps) {
   const html = await render(FounderWelcomeEmail(props));
-  return resend().emails.send({
+  const result = await resend().emails.send({
     from: from(),
     to,
     subject: "Welcome to Aquatics Empowered — Founder Program",
     html,
   });
+  assertEmailSent(result, "Founder welcome email");
+  return result;
+}
+
+export async function sendFounderDemoRequest(to: string, props: FounderDemoRequestProps) {
+  const html = await render(FounderDemoRequestEmail(props));
+  const result = await resend().emails.send({
+    from: from(),
+    to,
+    replyTo: props.email,
+    subject: `Founder demo request — ${props.facilityName}`,
+    html,
+  });
+  assertEmailSent(result, "Founder demo request email");
+  return result;
+}
+
+export async function sendOrgInvitationEmail(to: string, props: OrgInvitationProps) {
+  const html = await render(OrgInvitationEmail(props));
+  const result = await resend().emails.send({
+    from: from(),
+    to,
+    subject: `You're invited to join ${props.orgName} on Aquatics Empowered`,
+    html,
+  });
+  assertEmailSent(result, "Org invitation email");
+  return result;
+}
+
+export async function sendSupportTechnicianInvitationEmail(
+  to: string,
+  props: SupportTechnicianInvitationProps,
+) {
+  const html = await render(SupportTechnicianInvitationEmail(props));
+  const result = await resend().emails.send({
+    from: from(),
+    to,
+    subject: `Support technician invitation — ${props.providerName}`,
+    html,
+  });
+  assertEmailSent(result, "Support technician invitation email");
+  return result;
 }
 
 export async function sendMagicLinkPreview(to: string, props: MagicLinkProps) {
   const html = await render(MagicLinkEmail(props));
-  return resend().emails.send({
+  const result = await resend().emails.send({
     from: from(),
     to,
     subject: "Your Aquatics Empowered sign-in link",
     html,
   });
+  assertEmailSent(result, "Magic link preview email");
+  return result;
 }

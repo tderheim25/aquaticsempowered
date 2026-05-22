@@ -21,10 +21,22 @@ function parseSignupError(rawMessage: string) {
   return { isRateLimited, message: rawMessage };
 }
 
-export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nextPath?: string }) {
+export function EmailPasswordForm({
+  mode,
+  nextPath = "/app",
+  inviteToken,
+  lockedEmail,
+  defaultFullName,
+}: {
+  mode: Mode;
+  nextPath?: string;
+  inviteToken?: string;
+  lockedEmail?: string;
+  defaultFullName?: string;
+}) {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState(defaultFullName ?? "");
+  const [email, setEmail] = useState(lockedEmail ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -72,11 +84,19 @@ export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nex
         return;
       }
 
+      const metadata: Record<string, string> = {};
+      if (fullName.trim()) metadata.full_name = fullName.trim();
+      if (inviteToken) metadata.invite_token = inviteToken;
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: fullName.trim() ? { full_name: fullName.trim() } : undefined,
+          data: Object.keys(metadata).length ? metadata : undefined,
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/callback?next=${encodeURIComponent(nextPath)}`
+              : undefined,
         },
       });
 
@@ -120,7 +140,6 @@ export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nex
           fullWidth
           required
           margin="normal"
-          autoComplete="name"
         />
       )}
 
@@ -133,7 +152,8 @@ export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nex
         fullWidth
         required
         margin="normal"
-        autoComplete="email"
+        disabled={Boolean(lockedEmail)}
+        helperText={lockedEmail ? "Email locked from invitation." : undefined}
       />
 
       <TextField
@@ -145,7 +165,6 @@ export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nex
         fullWidth
         required
         margin="normal"
-        autoComplete={mode === "signup" ? "new-password" : "current-password"}
       />
 
       {mode === "signup" && (
@@ -158,7 +177,6 @@ export function EmailPasswordForm({ mode, nextPath = "/app" }: { mode: Mode; nex
           fullWidth
           required
           margin="normal"
-          autoComplete="new-password"
         />
       )}
 

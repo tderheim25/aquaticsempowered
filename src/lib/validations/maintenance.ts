@@ -31,6 +31,7 @@ export const taskSchema = z.object({
     "inspection",
     "other",
   ]),
+  pool_id: z.string().uuid().nullable(),
   pool_label: z.string().max(120).optional(),
   assigned_to: z.string().uuid().nullable(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),

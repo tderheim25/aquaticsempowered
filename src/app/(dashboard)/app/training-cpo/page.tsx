@@ -127,6 +127,39 @@ export default async function TrainingCpoPage() {
 
   const trainingUnlocked = profile?.role === "super_admin" || hasFeature(planCode, "training");
 
+  const { data: dbCourses } = await supabase
+    .from("training_courses")
+    .select("id, title, slug, description, category, is_published")
+    .eq("is_published", true)
+    .order("sort_order", { ascending: true });
+
+  const courseIds = (dbCourses ?? []).map((c) => c.id);
+  const { data: videos } =
+    courseIds.length > 0
+      ? await supabase.from("training_course_videos").select("course_id, duration_seconds").in("course_id", courseIds)
+      : { data: [] as { course_id: string; duration_seconds: number | null }[] };
+
+  const durationByCourse = new Map<string, number>();
+  for (const v of videos ?? []) {
+    durationByCourse.set(v.course_id, (durationByCourse.get(v.course_id) ?? 0) + (v.duration_seconds ?? 0));
+  }
+
+  const catalogFromDb: TrainingCoursePreview[] = (dbCourses ?? []).map((c) => {
+    const secs = durationByCourse.get(c.id) ?? 0;
+    const durationLabel = secs >= 60 ? `${Math.round(secs / 60)} min` : secs > 0 ? `${secs}s` : "—";
+    return {
+      id: c.slug,
+      title: c.title,
+      subtitle: c.description || "",
+      category: c.category,
+      durationLabel,
+      thumbnailUrl: IMG("photo-1575429198097-0414ec08e8cd"),
+      thumbnailAlt: c.title,
+    };
+  });
+
+  const catalog = catalogFromDb.length > 0 ? catalogFromDb : PLACEHOLDER_COURSES;
+
   return (
     <Container maxWidth="lg">
       <Stack spacing={3}>
@@ -160,7 +193,7 @@ export default async function TrainingCpoPage() {
                 Temporary modules — thumbnails and durations are illustrative until video assets are uploaded.
               </Typography>
             </Stack>
-            <TrainingCourseCatalog courses={PLACEHOLDER_COURSES} />
+            <TrainingCourseCatalog courses={catalog} />
           </Stack>
         </Paper>
 

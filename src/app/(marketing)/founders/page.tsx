@@ -1,52 +1,167 @@
-import { Box, Card, CardContent, Container, Stack, Typography } from "@mui/material";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
+import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
+import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
+import { Avatar, Box, Card, CardContent, Chip, Container, Stack, Typography } from "@mui/material";
 
-import { FounderForm } from "@/components/marketing/FounderForm";
+import { FounderApplyWizard } from "@/components/marketing/FounderApplyWizard";
+import { getUsersRowForAuthUser } from "@/lib/auth/rbac";
+import { buildDisplayName } from "@/lib/profile/avatar";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "Founder Program | Aquatics Empowered",
 };
 
 const perks = [
-  "Preferred founder pricing & contract terms",
-  "Concierge onboarding with our founding team",
-  "Early access to chemical logs, maintenance, and support workflows",
-  "Seat at the table for roadmap prioritization for your facility type",
+  {
+    icon: VerifiedRoundedIcon,
+    title: "Preferred founder pricing",
+    body: "Locked-in rates and contract terms reserved for the first 50 founder facilities.",
+  },
+  {
+    icon: RocketLaunchRoundedIcon,
+    title: "Concierge onboarding",
+    body: "Direct line to our founding team to migrate logs, SOPs, and staff workflows.",
+  },
+  {
+    icon: AutoAwesomeRoundedIcon,
+    title: "Roadmap input",
+    body: "Help shape chemical logging, maintenance, and reporting features for your facility type.",
+  },
+  {
+    icon: EventAvailableRoundedIcon,
+    title: "White-glove rollout",
+    body: "Training, support, and early access to new modules before they ship publicly.",
+  },
 ];
 
-export default function FoundersPage() {
+export default async function FoundersPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let currentUser: { id: string; email: string; displayName: string | null } | null = null;
+  if (user) {
+    const profile = await getUsersRowForAuthUser(user.id);
+    currentUser = {
+      id: user.id,
+      email: user.email ?? profile?.email ?? "",
+      displayName: profile
+        ? buildDisplayName({
+            first_name: profile.first_name,
+            last_name: profile.last_name,
+            full_name: profile.full_name,
+            email: profile.email,
+          })
+        : null,
+    };
+  }
+
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 4, md: 8 } }}>
-      <Typography variant="h3" sx={{ fontWeight: 800, mb: 1 }}>
-        Founder Program
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 720 }}>
-        We&apos;re onboarding the first 50 aquatic facilities with white-glove support. Tell us about your operation —
-        we&apos;ll follow up with founder benefits and next steps.
-      </Typography>
-      <Stack direction={{ xs: "column", md: "row" }} spacing={4} alignItems="flex-start">
-        <Box sx={{ flex: 2, minWidth: 0, width: "100%" }}>
-          <Card>
-            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-                Apply in two minutes
-              </Typography>
-              <FounderForm />
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: 1, minWidth: { md: 280 }, width: "100%" }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-            What founders get
+    <Box
+      sx={{
+        position: "relative",
+        overflow: "hidden",
+        background:
+          "linear-gradient(180deg, rgba(0,59,111,0.06) 0%, rgba(46,165,160,0.04) 40%, rgba(245,247,250,1) 80%)",
+      }}
+    >
+      <Box
+        aria-hidden
+        sx={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "radial-gradient(900px 320px at 12% -10%, rgba(0,59,111,0.18), transparent 60%), radial-gradient(700px 320px at 88% -10%, rgba(46,165,160,0.22), transparent 60%)",
+        }}
+      />
+      <Container maxWidth="lg" sx={{ position: "relative", py: { xs: 5, md: 8 } }}>
+        <Stack spacing={1.5} sx={{ maxWidth: 720, mb: { xs: 4, md: 6 } }}>
+          <Chip
+            label="Founder Program · First 50 facilities"
+            size="small"
+            sx={{
+              alignSelf: "flex-start",
+              fontWeight: 700,
+              bgcolor: "secondary.main",
+              color: "common.white",
+              letterSpacing: "0.04em",
+            }}
+          />
+          <Typography variant="h3" sx={{ fontWeight: 800 }}>
+            Build the future of aquatics with us.
           </Typography>
-          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-            {perks.map((p) => (
-              <Typography key={p} component="li" variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                {p}
-              </Typography>
-            ))}
+          <Typography variant="body1" color="text.secondary">
+            Tell us about your facility and choose how to move forward — create your founder account
+            today or book a personalized demo with our team. Either way, you&apos;re joining the operators
+            shaping the playbook.
+          </Typography>
+        </Stack>
+
+        <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 3, md: 4 }} alignItems="flex-start">
+          <Box sx={{ flex: 1.6, minWidth: 0, width: "100%" }}>
+            <Card
+              sx={{
+                p: { xs: 1, sm: 1.5 },
+                borderRadius: 4,
+                boxShadow: "0 22px 60px rgba(15, 23, 42, 0.08)",
+              }}
+            >
+              <CardContent sx={{ p: { xs: 2, sm: 3.5 } }}>
+                <FounderApplyWizard currentUser={currentUser} />
+              </CardContent>
+            </Card>
           </Box>
-        </Box>
-      </Stack>
-    </Container>
+
+          <Box sx={{ flex: 1, minWidth: { md: 280 }, width: "100%" }}>
+            <Stack spacing={2}>
+              <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.16em" }}>
+                What founders get
+              </Typography>
+              {perks.map((perk) => (
+                <Stack key={perk.title} direction="row" spacing={1.5} alignItems="flex-start">
+                  <Avatar
+                    sx={{
+                      bgcolor: "primary.main",
+                      width: 36,
+                      height: 36,
+                      boxShadow: "0 6px 18px rgba(0,59,111,0.25)",
+                    }}
+                  >
+                    <perk.icon fontSize="small" />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {perk.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {perk.body}
+                    </Typography>
+                  </Box>
+                </Stack>
+              ))}
+
+              <Card
+                variant="outlined"
+                sx={{ borderRadius: 3, mt: 1, borderColor: "divider", backgroundColor: "background.paper" }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Not sure yet?
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Request a demo on the last step. We&apos;ll reach out within two business days with
+                    founder pricing tailored to your facility.
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Stack>
+          </Box>
+        </Stack>
+      </Container>
+    </Box>
   );
 }

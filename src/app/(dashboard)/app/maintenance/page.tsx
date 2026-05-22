@@ -40,15 +40,16 @@ export default async function MaintenancePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   await requireViewAccess("maintenance");
-  const profile = await requireOrg();
-  const orgId = profile.org_id!;
-  const userId = profile.id;
 
   const sp = await searchParams;
   const raw = (k: string) => {
     const v = sp[k];
     return Array.isArray(v) ? v[0] : v;
   };
+
+  const profile = await requireOrg(raw("org"));
+  const orgId = profile.org_id!;
+  const userId = profile.id;
 
   const view = parseView(raw("view"));
   const q = raw("q")?.trim() || undefined;
@@ -58,6 +59,8 @@ export default async function MaintenancePage({
   const assigneeRaw = raw("assignee");
   const assignee = isUuid(assigneeRaw) ? assigneeRaw : undefined;
   const mine = raw("mine") === "1" || raw("mine") === "true";
+  const poolRaw = raw("pool");
+  const poolFilter = isUuid(poolRaw) ? poolRaw : undefined;
 
   const supabase = await createClient();
 
@@ -80,16 +83,21 @@ export default async function MaintenancePage({
   } else if (assignee) {
     tasksQuery = tasksQuery.eq("assigned_to", assignee);
   }
+  if (poolFilter) {
+    tasksQuery = tasksQuery.eq("pool_id", poolFilter);
+  }
 
   tasksQuery = tasksQuery.order("updated_at", { ascending: false });
 
-  const [tasksRes, usersRes] = await Promise.all([
+  const [tasksRes, usersRes, poolsRes] = await Promise.all([
     tasksQuery,
     supabase.from("users").select("id, full_name, email").eq("org_id", orgId).order("full_name", { ascending: true }),
+    supabase.from("pools").select("id, name").eq("org_id", orgId).order("name", { ascending: true }),
   ]);
 
   const tasks = (tasksRes.data ?? []) as MaintenanceTaskRow[];
   const orgMembers = (usersRes.data ?? []) as OrgMember[];
+  const pools = (poolsRes.data ?? []) as { id: string; name: string }[];
 
   if (tasksRes.error) {
     return (
@@ -115,6 +123,7 @@ export default async function MaintenancePage({
       <MaintenanceView
         tasks={tasks}
         orgMembers={orgMembers}
+        pools={pools}
         initialView={view}
         initialFilters={{
           q: q ?? "",
@@ -123,6 +132,7 @@ export default async function MaintenancePage({
           category: (category ?? "") as TaskCategory | "",
           assignee: assignee ?? "",
           mine,
+          pool: poolFilter ?? "",
         }}
       />
     </Suspense>

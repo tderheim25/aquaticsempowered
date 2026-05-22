@@ -2,6 +2,7 @@ import { Alert, Button, Card, CardContent, Container, Stack, Typography } from "
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { resolveActiveOrgId } from "@/lib/auth/activeOrg";
 import { getCurrentProfile } from "@/lib/auth/rbac";
 
 export const metadata = {
@@ -13,7 +14,8 @@ export default async function NoOrganizationPage() {
   if (!profile) {
     redirect("/app/needs-profile");
   }
-  if (profile.org_id) {
+  const activeOrgId = await resolveActiveOrgId(profile);
+  if (profile.org_id || activeOrgId) {
     redirect("/app");
   }
 
@@ -25,31 +27,34 @@ export default async function NoOrganizationPage() {
         <CardContent>
           <Stack spacing={2}>
             <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              Organization required
+              {isSuperAdmin ? "Select a facility" : "Organization required"}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Maintenance, Support Center, and other facility tools are tied to an organization. Your account does not
-              have an <strong>organization</strong> assigned yet in <strong>public.users.org_id</strong>.
+              {isSuperAdmin
+                ? "Super admins are not tied to one organization. Use the organization switcher at the top of the sidebar to work in a facility’s context, then open Pools, Maintenance, or Support."
+                : "Pools, maintenance, and other facility tools need an organization. You can still use Support Center to submit a help request anytime."}
             </Typography>
             {isSuperAdmin ? (
               <Alert severity="info">
-                As a super admin, open <strong>Admin → Organizations</strong> or <strong>Admin → Users</strong>, create
-                or pick an organization, and set <strong>org_id</strong> on your user row (and sign out/in if the app
-                still behaves oddly, so your session picks up the new JWT claims).
+                Platform-wide tools are in <strong>AE Console</strong> (sidebar). Facility tools unlock after you pick an
+                organization.
               </Alert>
             ) : (
               <Alert severity="info">
-                Ask your organization administrator to add you to their facility in the app, or to assign your account
-                to the correct organization in Supabase.
+                Ask your organization administrator to add you to their facility, or open{" "}
+                <Link href="/app/support" style={{ fontWeight: 600 }}>
+                  Support Center
+                </Link>{" "}
+                to request help.
               </Alert>
             )}
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <Button component={Link} href="/app" variant="outlined" fullWidth>
+              <Button component={Link} href="/app" variant="contained" fullWidth>
                 Back to dashboard
               </Button>
               {isSuperAdmin ? (
-                <Button component={Link} href="/app/admin?section=organizations" variant="contained" fullWidth>
-                  Admin: Organizations
+                <Button component={Link} href="/private/ae-console" variant="outlined" fullWidth>
+                  AE Console
                 </Button>
               ) : null}
             </Stack>

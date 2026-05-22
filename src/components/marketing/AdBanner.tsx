@@ -1,4 +1,7 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Link as MuiLink, Typography } from "@mui/material";
+import Image from "next/image";
+
+import type { AdPlacementRow } from "@/lib/marketing/adPlacementTypes";
 
 type AdBannerVariant = "leaderboard" | "inline" | "compact";
 
@@ -9,10 +12,48 @@ const height: Record<AdBannerVariant, number> = {
 };
 
 /**
- * Reserved advertising surface for sponsors. Replace inner content with your ad network
- * or managed placements when inventory is live.
+ * Advertising surface — pass `placement` from loadActiveAdPlacement or shows default reserve copy.
  */
-export function AdBanner({ variant = "inline", label = "Advertisement" }: { variant?: AdBannerVariant; label?: string }) {
+export function AdBanner({
+  variant = "inline",
+  label = "Advertisement",
+  placement = null,
+}: {
+  variant?: AdBannerVariant;
+  label?: string;
+  placement?: AdPlacementRow | null;
+}) {
+  if (placement?.image_url || placement?.target_url) {
+    const inner = (
+      <Box
+        sx={{
+          minHeight: height[variant],
+          position: "relative",
+          borderRadius: 1,
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {placement.image_url ? (
+          <Image src={placement.image_url} alt={placement.title || label} fill style={{ objectFit: "cover" }} />
+        ) : (
+          <Typography variant="body2" sx={{ px: 2 }}>
+            {placement.title}
+          </Typography>
+        )}
+      </Box>
+    );
+    return placement.target_url ? (
+      <MuiLink href={placement.target_url} target="_blank" rel="noopener sponsored" sx={{ display: "block", textDecoration: "none" }}>
+        {inner}
+      </MuiLink>
+    ) : (
+      inner
+    );
+  }
+
   return (
     <Box
       role="complementary"

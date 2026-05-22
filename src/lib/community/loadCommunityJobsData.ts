@@ -36,13 +36,14 @@ export async function loadCommunityJobsData(
     .select(
       "id, author_id, title, company_name, location, employment_type, description, apply_url, contact_email, created_at"
     )
+    .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (globalFeedOnly) {
     jobsQuery = jobsQuery.is("org_id", null);
   } else if (viewer?.org_id) {
-    jobsQuery = jobsQuery.eq("org_id", viewer.org_id);
+    jobsQuery = jobsQuery.or(`org_id.eq.${viewer.org_id},org_id.is.null`);
   } else {
     jobsQuery = jobsQuery.is("org_id", null);
   }

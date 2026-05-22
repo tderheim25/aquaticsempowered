@@ -11,19 +11,23 @@ import {
   FormControlLabel,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Snackbar,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
+
+import {
+  DataTable,
+  StatusPill,
+  TableBody,
+  TableCell,
+  TableDateTimeCell,
+  TableHead,
+  TablePrimaryCell,
+  TableRow,
+} from "@/components/ui/data-table";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -78,18 +82,18 @@ function labelCategory(c: ProcurementRequestCategory) {
 }
 
 function ProcurementStatusChip({ status }: { status: ProcurementRequestStatus }) {
-  const color =
+  const tone =
     status === "ordered"
       ? "success"
       : status === "cancelled"
-        ? "default"
+        ? "neutral"
         : status === "approved" || status === "quoted"
           ? "info"
           : status === "in_review"
             ? "warning"
             : "primary";
   const label = status.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-  return <Chip label={label} color={color} size="small" variant="outlined" />;
+  return <StatusPill label={label} tone={tone} />;
 }
 
 export function ProcurementView({
@@ -280,8 +284,7 @@ export function ProcurementView({
               />
             </Stack>
 
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
+            <DataTable>
                 <TableHead>
                   <TableRow>
                     <TableCell>Title</TableCell>
@@ -305,20 +308,23 @@ export function ProcurementView({
                   ) : (
                     requests.map((r) => (
                       <TableRow key={r.id} hover sx={{ cursor: "pointer" }} onClick={() => openEdit(r)}>
-                        <TableCell sx={{ fontWeight: 600 }}>{r.title}</TableCell>
+                        <TableCell>
+                          <TablePrimaryCell primary={r.title} />
+                        </TableCell>
                         <TableCell>{labelCategory(r.category)}</TableCell>
                         <TableCell>
                           <ProcurementStatusChip status={r.status} />
                         </TableCell>
                         <TableCell>{vendorName(r.preferred_vendor_id)}</TableCell>
-                        <TableCell>{formatDate(r.created_at)}</TableCell>
+                        <TableCell>
+                          <TableDateTimeCell iso={r.created_at} />
+                        </TableCell>
                         <TableCell>{memberLabel(orgMembers.find((u) => u.id === r.created_by))}</TableCell>
                       </TableRow>
                     ))
                   )}
                 </TableBody>
-              </Table>
-            </TableContainer>
+            </DataTable>
           </>
         )}
 

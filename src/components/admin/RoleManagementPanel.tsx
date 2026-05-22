@@ -21,7 +21,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import { deleteAppRoleAction, updateAppRoleAction, updateRoleViewPermissionsAction } from "@/app/(dashboard)/app/admin/permissions/actions";
+import { deleteAppRoleAction, updateAppRoleAction, updateRoleViewPermissionsAction } from "@/app/private/ae-console/permissions/actions";
 import type { UserRole } from "@/types/database";
 
 type RoleRow = {

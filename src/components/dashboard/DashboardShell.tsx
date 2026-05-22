@@ -1,8 +1,6 @@
 "use client";
 
-import MenuIcon from "@mui/icons-material/Menu";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
+import MenuRoundedIcon from "@mui/icons-material/MenuRounded";
 import {
   AppBar,
   Avatar,
@@ -11,9 +9,6 @@ import {
   Divider,
   Drawer,
   IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
   Menu,
   MenuItem,
   Toolbar,
@@ -22,7 +17,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { signOut } from "@/app/actions/auth";
@@ -33,47 +28,23 @@ import {
   markCommunityActivitySeen,
   useCommunityActivity,
 } from "@/components/community/CommunityActivityBadge";
+import { BreadcrumbLabelProvider } from "@/components/dashboard/BreadcrumbLabelContext";
+import { DashboardBreadcrumbs } from "@/components/dashboard/DashboardBreadcrumbs";
+import { DashboardNav } from "@/components/dashboard/DashboardNav";
+import {
+  SIDEBAR_DRAWER_COLLAPSED,
+  SIDEBAR_DRAWER_WIDTH,
+  sidebarAppBarSx,
+  sidebarDrawerPaperSx,
+  sidebarShellBackgroundSx,
+} from "@/components/navigation/sidebarStyles";
+import {
+  OrgInvitationsMenuItems,
+  useOrgInvitations,
+} from "@/components/team/OrgInvitationsBell";
 import type { AppViewKey } from "@/lib/auth/viewPermissions";
+import type { OrgOption } from "@/lib/auth/activeOrgShared";
 import type { UserRole } from "@/types/database";
-
-import { BreadcrumbLabelProvider } from "./BreadcrumbLabelContext";
-import { DashboardBreadcrumbs } from "./DashboardBreadcrumbs";
-
-const drawerWidth = 260;
-
-function normalizePath(path: string) {
-  const p = path.replace(/\/$/, "") || "/";
-  return p === "" ? "/" : p;
-}
-
-/** Dashboard home must match exactly `/app`, otherwise `/app/admin` incorrectly highlights Dashboard. */
-function isNavItemActive(pathname: string, href: string) {
-  const p = normalizePath(pathname);
-  const h = normalizePath(href);
-  if (h === "/app") {
-    return p === "/app";
-  }
-  /** Admin hub is only highlighted on the portal index, not on deeper admin routes (those use Admin tools). */
-  if (h === "/app/admin") {
-    return p === "/app/admin";
-  }
-  return p === h || p.startsWith(`${h}/`);
-}
-
-/** Facility tools that require `public.users.org_id`; Community stays available without an org. */
-const ORG_SCOPED_VIEWS = new Set<AppViewKey>(["maintenance", "support_center", "procurement"]);
-
-const navItems: { label: string; href: string; soon: boolean; viewKey: AppViewKey; roles?: UserRole[] }[] = [
-  { label: "Dashboard", href: "/app", soon: false, viewKey: "dashboard_home" },
-  { label: "Chemical Logs", href: "/app/chemical-logs", soon: false, viewKey: "chemical_logs" },
-  { label: "Maintenance", href: "/app/maintenance", soon: false, viewKey: "maintenance" },
-  { label: "Support Center", href: "/app/support", soon: false, viewKey: "support_center" },
-  { label: "Vendor Directory", href: "/app/vendors", soon: false, viewKey: "vendor_directory" },
-  { label: "Community", href: "/community", soon: false, viewKey: "community" },
-  { label: "Procurement", href: "/app/procurement", soon: false, viewKey: "procurement" },
-  { label: "Training / CPO", href: "/app/training-cpo", soon: false, viewKey: "training_cpo" },
-  { label: "Monitoring", href: "/app/monitoring", soon: false, viewKey: "monitoring" },
-];
 
 export function DashboardShell({
   displayName,
@@ -84,29 +55,48 @@ export function DashboardShell({
   userRole,
   allowedViews,
   hasOrg,
+  superAdminOrgOptions,
+  superAdminActiveOrgId,
   children,
 }: {
   displayName: string;
   avatarUrl?: string | null;
-  /** Own profile URL (community profile page). */
   profileHref?: string | null;
   orgName: string | null;
   planLabel: string;
   userRole: UserRole | null;
   allowedViews: AppViewKey[];
-  /** Set from `public.users.org_id`; facility tools need an org or the server redirects away. */
   hasOrg: boolean;
+  superAdminOrgOptions?: OrgOption[];
+  superAdminActiveOrgId?: string | null;
   children: React.ReactNode;
 }) {
   const theme = useTheme();
   const mdUp = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const section = searchParams.get("section");
   const showCommunityActivity = isCommunityRoute(pathname);
   const { activity, refresh: refreshActivity } = useCommunityActivity(showCommunityActivity);
+  const { invitations, refresh: refreshInvitations } = useOrgInvitations(true);
+  const invitationCount = invitations.length;
+  const totalBadge = (activity?.total ?? 0) + invitationCount;
+
+  const drawerWidth = collapsed ? SIDEBAR_DRAWER_COLLAPSED : SIDEBAR_DRAWER_WIDTH;
+
+  const sidebar = (
+    <DashboardNav
+      allowedViews={allowedViews}
+      hasOrg={hasOrg}
+      superAdminOrgOptions={superAdminOrgOptions}
+      superAdminActiveOrgId={superAdminActiveOrgId}
+      userRole={userRole}
+      collapsed={collapsed && mdUp}
+      onToggleCollapse={mdUp ? () => setCollapsed((c) => !c) : undefined}
+      onNavigate={() => setMobileOpen(false)}
+    />
+  );
 
   const openAccountMenu = (el: HTMLElement) => {
     setAnchorEl(el);
@@ -114,109 +104,47 @@ export function DashboardShell({
       void markCommunityActivitySeen().then(() => refreshActivity());
     }
   };
-  const [adminExpanded, setAdminExpanded] = useState(pathname.startsWith("/app/admin"));
-
-  const allowedViewSet = new Set(allowedViews);
-
-  const drawer = (
-    <Box sx={{ pt: 2 }}>
-      <Typography variant="subtitle2" sx={{ px: 2, pb: 1, color: "text.secondary" }}>
-        Navigation
-      </Typography>
-      <Divider />
-      <List>
-        {navItems
-          .filter((item) => allowedViewSet.has(item.viewKey))
-          .filter((item) => !item.roles || (userRole ? item.roles.includes(userRole) : false))
-          .map((item) => {
-            const href =
-              item.soon || !ORG_SCOPED_VIEWS.has(item.viewKey)
-                ? item.href
-                : hasOrg
-                  ? item.href
-                  : "/app/no-organization";
-            const onNoOrgGate = normalizePath(pathname) === "/app/no-organization";
-            const active =
-              !item.soon && isNavItemActive(pathname, href) && !(onNoOrgGate && href === "/app/no-organization");
-            return (
-              <ListItemButton
-                key={item.label}
-                component={item.soon ? "div" : Link}
-                href={item.soon ? undefined : href}
-                selected={active}
-                disabled={item.soon}
-                onClick={() => setMobileOpen(false)}
-              >
-                <ListItemText primary={item.label} />
-                {item.soon && <Chip label="Soon" size="small" sx={{ ml: 1 }} />}
-              </ListItemButton>
-            );
-          })}
-      </List>
-
-      {userRole === "super_admin" && allowedViewSet.has("admin_portal") ? (
-        <List dense disablePadding sx={{ px: 1, pt: 1 }}>
-          <ListItemButton
-            selected={pathname.startsWith("/app/admin")}
-            onClick={() => {
-              setAdminExpanded((v) => !v);
-              setMobileOpen(false);
-            }}
-            sx={{ borderRadius: 1 }}
-          >
-            <ListItemText primary="Admin" primaryTypographyProps={{ variant: "body2", fontWeight: 600 }} />
-            {adminExpanded ? <RemoveIcon fontSize="small" /> : <AddIcon fontSize="small" />}
-          </ListItemButton>
-          {adminExpanded ? (
-            <List dense disablePadding sx={{ mt: 0.25 }}>
-              <ListItemButton component={Link} href="/app/admin?section=users" selected={pathname === "/app/admin" && (section === "users" || !section)} sx={{ borderRadius: 1, pl: 3 }}>
-                <ListItemText primary="Users" primaryTypographyProps={{ variant: "body2" }} />
-              </ListItemButton>
-              <ListItemButton component={Link} href="/app/admin?section=organizations" selected={pathname === "/app/admin" && section === "organizations"} sx={{ borderRadius: 1, pl: 3 }}>
-                <ListItemText primary="Organizations" primaryTypographyProps={{ variant: "body2" }} />
-              </ListItemButton>
-              <ListItemButton component={Link} href="/app/admin?section=permissions" selected={pathname === "/app/admin" && section === "permissions"} sx={{ borderRadius: 1, pl: 3 }}>
-                <ListItemText primary="Permissions" primaryTypographyProps={{ variant: "body2" }} />
-              </ListItemButton>
-              <ListItemButton component={Link} href="/app/admin?section=billing" selected={pathname === "/app/admin" && section === "billing"} sx={{ borderRadius: 1, pl: 3 }}>
-                <ListItemText primary="Billing" primaryTypographyProps={{ variant: "body2" }} />
-              </ListItemButton>
-            </List>
-          ) : null}
-        </List>
-      ) : null}
-    </Box>
-  );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar
-        position="fixed"
-        color="inherit"
-        elevation={0}
-        sx={{ zIndex: (t) => t.zIndex.drawer + 1, borderBottom: 1, borderColor: "divider" }}
-      >
-        <Toolbar>
-          {!mdUp && (
-            <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(true)} sx={{ mr: 1 }}>
-              <MenuIcon />
+    <Box sx={sidebarShellBackgroundSx}>
+      <AppBar position="fixed" elevation={0} sx={sidebarAppBarSx}>
+        <Toolbar sx={{ gap: 1, minHeight: { xs: 56, md: 64 } }}>
+          {!mdUp ? (
+            <IconButton edge="start" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+              <MenuRoundedIcon />
             </IconButton>
-          )}
+          ) : null}
           <Typography
             variant="h6"
             component={Link}
             href="/app"
-            sx={{ flexGrow: 1, fontWeight: 800, color: "primary.main", textDecoration: "none" }}
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.2,
+              color: "primary.main",
+              textDecoration: "none",
+            }}
           >
             Aquatics Empowered
           </Typography>
-          <Chip label={planLabel} size="small" sx={{ mr: 1, display: { xs: "none", sm: "flex" } }} />
+          <Chip
+            label={planLabel}
+            size="small"
+            sx={{
+              display: { xs: "none", sm: "flex" },
+              borderRadius: 2,
+              fontWeight: 600,
+            }}
+          />
           <IconButton
             onClick={(e) => openAccountMenu(e.currentTarget)}
             size="small"
             aria-label={
-              (activity?.total ?? 0) > 0
-                ? `Account menu, ${activity?.total} community notifications`
+              totalBadge > 0
+                ? `Account menu, ${totalBadge} notification${totalBadge === 1 ? "" : "s"}`
                 : "Account menu"
             }
             sx={{ position: "relative" }}
@@ -224,14 +152,23 @@ export function DashboardShell({
             <Avatar src={avatarUrl ?? undefined} sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
               {displayName?.charAt(0)?.toUpperCase() ?? "U"}
             </Avatar>
-            <CommunityUnreadBadge count={activity?.total ?? 0} />
+            <CommunityUnreadBadge count={totalBadge} />
           </IconButton>
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+            <OrgInvitationsMenuItems
+              invitations={invitations}
+              onResolve={() => {
+                setAnchorEl(null);
+                void refreshInvitations();
+              }}
+            />
             <CommunityActivityMenuItems activity={activity} onNavigate={() => setAnchorEl(null)} />
             <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start" }}>
               <Typography variant="subtitle2">{displayName}</Typography>
               <Typography variant="caption" color="text.secondary">
-                {orgName ?? "No organization linked"}
+                {userRole === "super_admin" && !orgName
+                  ? "Super admin · select org in sidebar"
+                  : (orgName ?? "No organization linked")}
               </Typography>
             </MenuItem>
             {profileHref ? (
@@ -262,19 +199,21 @@ export function DashboardShell({
           onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
           sx={{ display: { xs: "block", md: "none" } }}
+          PaperProps={{ sx: { ...sidebarDrawerPaperSx, width: SIDEBAR_DRAWER_WIDTH } }}
         >
           <Toolbar />
-          {drawer}
+          {sidebar}
         </Drawer>
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth, borderRight: 1, borderColor: "divider" },
+            "& .MuiDrawer-paper": { ...sidebarDrawerPaperSx, width: drawerWidth },
           }}
+          open
         >
           <Toolbar />
-          {drawer}
+          {sidebar}
         </Drawer>
       </Box>
 
@@ -282,9 +221,16 @@ export function DashboardShell({
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, md: 3 },
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: 8,
+          minWidth: 0,
+          mt: { xs: 7, md: 8 },
+          px: { xs: 2, sm: 3, lg: 4 },
+          py: { xs: 2.5, md: 3.5 },
+          pb: 6,
+          transition: theme.transitions.create("width", {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
         }}
       >
         <BreadcrumbLabelProvider>

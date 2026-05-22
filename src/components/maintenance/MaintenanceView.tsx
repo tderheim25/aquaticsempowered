@@ -16,6 +16,7 @@ import { TaskFormDialog } from "./TaskFormDialog";
 type MaintenanceTaskRow = Database["public"]["Tables"]["maintenance_tasks"]["Row"];
 
 type OrgMember = { id: string; full_name: string | null; email: string };
+type PoolOption = { id: string; name: string };
 
 const FLASH: Record<string, { severity: "success" | "error" | "info"; text: string }> = {
   created: { severity: "success", text: "Task created." },
@@ -32,11 +33,13 @@ const FLASH: Record<string, { severity: "success" | "error" | "info"; text: stri
 export function MaintenanceView({
   tasks,
   orgMembers,
+  pools,
   initialView,
   initialFilters,
 }: {
   tasks: MaintenanceTaskRow[];
   orgMembers: OrgMember[];
+  pools: PoolOption[];
   initialView: "list" | "kanban";
   initialFilters: MaintenanceFilterState;
 }) {
@@ -124,7 +127,7 @@ export function MaintenanceView({
           </CardContent>
         </Card>
 
-        <MaintenanceFilters orgMembers={orgMembers} initial={initialFilters} />
+        <MaintenanceFilters orgMembers={orgMembers} pools={pools} initial={initialFilters} />
 
         <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
           <Tabs
@@ -151,6 +154,7 @@ export function MaintenanceView({
           mode={dialogMode}
           task={dialogMode === "edit" ? editingTask : null}
           orgMembers={orgMembers}
+          pools={pools}
           onClose={() => setDialogOpen(false)}
         />
 

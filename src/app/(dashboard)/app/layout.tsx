@@ -1,10 +1,13 @@
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
-import { getUsersRowForAuthUser, requireAuth } from "@/lib/auth/rbac";
+import { getUsersRowWithAdminFallback, requireAuth } from "@/lib/auth/rbac";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
 import { communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanCode } from "@/types/database";
+
+export const dynamic = "force-dynamic";
 
 function planLabel(code: PlanCode) {
   switch (code) {
@@ -28,19 +31,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
     data: { user },
   } = await supabase.auth.getUser();
 
-  const profile = await getUsersRowForAuthUser(user!.id);
+  const profile = await getUsersRowWithAdminFallback(user!.id);
+  const orgCtx = await loadActiveOrgContext(profile);
 
-  let orgName: string | null = null;
-  let planCode: PlanCode = "free";
+  let displayOrgName: string | null = orgCtx.activeOrgName;
+  let planCode: PlanCode = orgCtx.planCode;
 
   if (profile?.org_id) {
-    const { data: org } = await supabase
+    const { data: memberOrg } = await supabase
       .from("organizations")
       .select("name, plan_code")
       .eq("id", profile.org_id)
       .maybeSingle();
-    orgName = org?.name ?? null;
-    planCode = (org?.plan_code as PlanCode) ?? "free";
+    displayOrgName = memberOrg?.name ?? null;
+    planCode = (memberOrg?.plan_code as PlanCode) ?? "free";
   }
 
   const displayName = profile
@@ -61,11 +65,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
       displayName={displayName}
       avatarUrl={avatarUrl}
       profileHref={profile ? communityProfilePath(profile.id) : null}
-      orgName={orgName}
+      orgName={displayOrgName}
       planLabel={planLabel(planCode)}
       userRole={profile?.role ?? null}
       allowedViews={allowedViews}
-      hasOrg={Boolean(profile?.org_id)}
+      hasOrg={orgCtx.hasActiveOrg}
+      superAdminOrgOptions={orgCtx.showOrgSwitcher ? orgCtx.orgOptions : undefined}
+      superAdminActiveOrgId={orgCtx.showOrgSwitcher ? orgCtx.activeOrgId : undefined}
     >
       {children}
     </DashboardShell>

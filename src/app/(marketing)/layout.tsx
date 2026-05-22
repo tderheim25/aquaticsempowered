@@ -1,7 +1,6 @@
 import { Box } from "@mui/material";
 import { Suspense } from "react";
 
-import { AdBanner } from "@/components/marketing/AdBanner";
 import { MarketingPostHog } from "@/components/marketing/MarketingPostHog";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { SiteHeader } from "@/components/marketing/SiteHeader";
@@ -33,9 +32,6 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
   return (
     <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <Box sx={{ px: { xs: 1.5, sm: 2 }, pt: 1.5 }}>
-        <AdBanner variant="compact" />
-      </Box>
       <SiteHeader user={headerUser} />
       <Suspense fallback={null}>
         <MarketingPostHog />

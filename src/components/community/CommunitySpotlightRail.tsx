@@ -9,10 +9,14 @@ import {
   CardContent,
   Chip,
   Divider,
+  Paper,
   Stack,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
+import { Suspense } from "react";
+
+import { CommunitySupportForm } from "./CommunitySupportForm";
 
 export type CommunityVendorSpotlight = {
   id: string;
@@ -156,7 +160,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function CommunitySpotlightRail({ vendors }: { vendors: CommunityVendorSpotlight[] }) {
+export function CommunitySpotlightRail({
+  vendors,
+  showSupportForm = false,
+}: {
+  vendors: CommunityVendorSpotlight[];
+  showSupportForm?: boolean;
+}) {
   const supplierLike = vendors.filter(isSupplierLike);
   const vendorLike = vendors.filter((v) => !isSupplierLike(v));
 
@@ -168,21 +178,7 @@ export function CommunitySpotlightRail({ vendors }: { vendors: CommunityVendorSp
   const showDemoHint = vendors.length === 0;
 
   return (
-    <Box
-      component="aside"
-      aria-label="Partners and groups"
-      sx={{
-        position: { lg: "sticky" },
-        top: { lg: 80 },
-        alignSelf: { lg: "flex-start" },
-        width: "100%",
-        maxHeight: { lg: "calc(100vh - 96px)" },
-        overflowY: { lg: "auto" },
-        overflowX: "hidden",
-        pr: { lg: 0.5 },
-        pb: { xs: 0, lg: 1 },
-      }}
-    >
+    <Box component="aside" aria-label="Partners and groups" sx={{ width: "100%" }}>
       <Stack spacing={2.25}>
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 0.5 }}>
@@ -259,6 +255,17 @@ export function CommunitySpotlightRail({ vendors }: { vendors: CommunityVendorSp
             ))}
           </Stack>
         </Stack>
+
+        {showSupportForm ? (
+          <>
+            <Divider />
+            <Paper variant="outlined" sx={{ p: 2, bgcolor: "background.paper" }}>
+              <Suspense fallback={null}>
+                <CommunitySupportForm />
+              </Suspense>
+            </Paper>
+          </>
+        ) : null}
       </Stack>
     </Box>
   );

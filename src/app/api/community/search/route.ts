@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { getUsersRowForAuthUser, getSessionUser } from "@/lib/auth/rbac";
-import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
+import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
+import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { createClient } from "@/lib/supabase/server";
 
 export type CommunitySearchResult =
@@ -19,14 +19,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const profile = await getUsersRowForAuthUser(user.id);
-  if (!profile) {
+  const profile = await getUsersRowWithAdminFallback(user.id);
+  if (!canUsePublicCommunity(user.id, profile)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const allowed = await getAllowedViewsForProfile({ role: profile.role, app_role_id: profile.app_role_id });
-  if (!allowed.includes("community")) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

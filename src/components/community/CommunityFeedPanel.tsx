@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import type { ReactNode } from "react";
 import Link from "next/link";
-
 import {
   createCommunityPostAction,
   deleteCommunityPostAction,
@@ -109,7 +108,7 @@ export function CommunityFeedPanel({
           gap: { xs: 2, lg: 3 },
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: { lg: "min(100%, 860px)" } }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack spacing={2} sx={{ pb: { xs: 10, md: 12 } }}>
             <div>
               <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>
@@ -362,17 +361,23 @@ export function CommunityFeedPanel({
 
         <Box
           sx={{
-            width: { xs: "100%", lg: 300 },
+            width: { xs: "100%", lg: 320, xl: 360 },
             flexShrink: 0,
-            display: { lg: "flex" },
-            flexDirection: { lg: "column" },
-            alignItems: { lg: "stretch" },
+            alignSelf: { lg: "flex-start" },
+            position: { lg: "sticky" },
+            top: { lg: 80 },
+            maxHeight: { lg: "calc(100vh - 96px)" },
+            overflowY: { lg: "auto" },
+            overflowX: "hidden",
             pl: { lg: 0 },
             pr: { xs: 0, lg: 1 },
-            pb: { xs: 2, lg: 12 },
+            pb: { xs: 2, lg: 1 },
           }}
         >
-          <CommunitySpotlightRail vendors={vendorSpotlights} />
+          <CommunitySpotlightRail
+            vendors={vendorSpotlights}
+            showSupportForm={variant === "full" && canInteract}
+          />
         </Box>
       </Box>
     </ContainerLike>
@@ -383,10 +388,9 @@ function ContainerLike({ children }: { children: ReactNode }) {
   return (
     <Box
       sx={{
-        maxWidth: "xl",
-        mx: "auto",
-        px: { xs: 2, sm: 3 },
         width: "100%",
+        maxWidth: "100%",
+        px: { xs: 2, sm: 3, md: 4 },
       }}
     >
       {children}

@@ -14,16 +14,30 @@ function optionalText(v: FormDataEntryValue | null) {
   return t === "" ? undefined : t;
 }
 
+async function resolvePoolFields(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+  poolIdRaw: string | null | undefined
+) {
+  const poolId = poolIdRaw?.trim() || null;
+  if (!poolId) return { pool_id: null as string | null, pool_label: null as string | null };
+  const { data: pool } = await supabase.from("pools").select("id, name").eq("id", poolId).eq("org_id", orgId).maybeSingle();
+  if (!pool) return { pool_id: null, pool_label: null };
+  return { pool_id: pool.id, pool_label: pool.name };
+}
+
 export async function createTaskAction(formData: FormData) {
   await requireViewAccess("maintenance");
   const profile = await requireOrg();
 
+  const poolIdRaw = optionalText(formData.get("pool_id"));
   const raw = {
     title: String(formData.get("title") ?? ""),
     description: optionalText(formData.get("description")),
     status: String(formData.get("status") ?? "open"),
     priority: String(formData.get("priority") ?? "medium"),
     category: String(formData.get("category") ?? "other"),
+    pool_id: poolIdRaw ?? null,
     pool_label: optionalText(formData.get("pool_label")),
     assigned_to: optionalText(formData.get("assigned_to")) ?? null,
     due_date: optionalText(formData.get("due_date")) ?? null,
@@ -35,6 +49,7 @@ export async function createTaskAction(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const poolFields = await resolvePoolFields(supabase, profile.org_id!, parsed.data.pool_id);
   const { error } = await supabase.from("maintenance_tasks").insert({
     org_id: profile.org_id!,
     title: parsed.data.title,
@@ -42,7 +57,7 @@ export async function createTaskAction(formData: FormData) {
     status: parsed.data.status,
     priority: parsed.data.priority,
     category: parsed.data.category,
-    pool_label: parsed.data.pool_label?.trim() ? parsed.data.pool_label.trim() : null,
+    ...poolFields,
     assigned_to: parsed.data.assigned_to,
     due_date: parsed.data.due_date,
     created_by: profile.id,
@@ -58,7 +73,7 @@ export async function createTaskAction(formData: FormData) {
 
 export async function updateTaskAction(formData: FormData) {
   await requireViewAccess("maintenance");
-  await requireOrg();
+  const profile = await requireOrg();
 
   const idRaw = String(formData.get("taskId") ?? "");
   const idParsed = taskIdSchema.safeParse({ id: idRaw });
@@ -66,12 +81,14 @@ export async function updateTaskAction(formData: FormData) {
     redirect("/app/maintenance?status=error");
   }
 
+  const poolIdRaw = optionalText(formData.get("pool_id"));
   const raw = {
     title: String(formData.get("title") ?? ""),
     description: optionalText(formData.get("description")),
     status: String(formData.get("status") ?? "open"),
     priority: String(formData.get("priority") ?? "medium"),
     category: String(formData.get("category") ?? "other"),
+    pool_id: poolIdRaw ?? null,
     pool_label: optionalText(formData.get("pool_label")),
     assigned_to: optionalText(formData.get("assigned_to")) ?? null,
     due_date: optionalText(formData.get("due_date")) ?? null,
@@ -83,6 +100,7 @@ export async function updateTaskAction(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const poolFields = await resolvePoolFields(supabase, profile.org_id!, parsed.data.pool_id);
   const { error } = await supabase
     .from("maintenance_tasks")
     .update({
@@ -91,7 +109,7 @@ export async function updateTaskAction(formData: FormData) {
       status: parsed.data.status,
       priority: parsed.data.priority,
       category: parsed.data.category,
-      pool_label: parsed.data.pool_label?.trim() ? parsed.data.pool_label.trim() : null,
+      ...poolFields,
       assigned_to: parsed.data.assigned_to,
       due_date: parsed.data.due_date,
     })

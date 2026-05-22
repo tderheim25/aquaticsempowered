@@ -3,12 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireOrg } from "@/lib/auth/rbac";
-import { hasFeature } from "@/lib/auth/plans";
+import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
 import { createClient } from "@/lib/supabase/server";
-import { ticketCreateSchema, ticketIdSchema, ticketUpdateSchema } from "@/lib/validations/support";
-import type { PlanCode } from "@/types/database";
+import { resolveActiveOrgId } from "@/lib/auth/activeOrg";
+import { portalTicketCreateSchema, ticketIdSchema } from "@/lib/validations/support";
 
 function optionalText(v: FormDataEntryValue | null) {
   const s = v == null ? "" : String(v);
@@ -16,43 +15,49 @@ function optionalText(v: FormDataEntryValue | null) {
   return t === "" ? undefined : t;
 }
 
-async function requireSupportPlan() {
-  const profile = await requireOrg();
-  const supabase = await createClient();
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("plan_code")
-    .eq("id", profile.org_id!)
-    .maybeSingle();
-  const plan = (org?.plan_code as PlanCode) ?? "free";
-  if (!hasFeature(plan, "support")) {
-    redirect("/app/support?status=plan");
-  }
-  return profile;
-}
-
-export async function createTicketAction(formData: FormData) {
-  await requireViewAccess("support_center");
-  const profile = await requireSupportPlan();
-
-  const raw = {
+function parsePortalFromFormData(formData: FormData) {
+  return {
+    requester_company_name: String(formData.get("requester_company_name") ?? ""),
+    contact_name: String(formData.get("contact_name") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    address_line1: String(formData.get("address_line1") ?? ""),
+    address_line2: optionalText(formData.get("address_line2")),
+    city: String(formData.get("city") ?? ""),
+    state_code: String(formData.get("state_code") ?? ""),
+    postal_code: String(formData.get("postal_code") ?? ""),
+    country: "US" as const,
     subject: String(formData.get("subject") ?? ""),
-    body: optionalText(formData.get("body")),
+    body: String(formData.get("body") ?? ""),
     priority: String(formData.get("priority") ?? "medium"),
   };
+}
 
-  const parsed = ticketCreateSchema.safeParse(raw);
+export async function createPortalTicketAction(formData: FormData) {
+  const profile = await requireViewAccess("support_center");
+  const parsed = portalTicketCreateSchema.safeParse(parsePortalFromFormData(formData));
   if (!parsed.success) {
     redirect("/app/support?status=error");
   }
 
   const supabase = await createClient();
+  const orgId = profile.org_id ?? (await resolveActiveOrgId(profile));
+
   const { error } = await supabase.from("support_tickets").insert({
-    org_id: profile.org_id!,
+    org_id: orgId,
+    source: "portal",
     subject: parsed.data.subject.trim(),
-    body: parsed.data.body?.trim() ? parsed.data.body.trim() : null,
+    body: parsed.data.body.trim(),
     priority: parsed.data.priority,
     created_by: profile.id,
+    requester_company_name: parsed.data.requester_company_name.trim(),
+    contact_name: parsed.data.contact_name.trim(),
+    phone: parsed.data.phone.trim(),
+    address_line1: parsed.data.address_line1.trim(),
+    address_line2: parsed.data.address_line2?.trim() ?? null,
+    city: parsed.data.city.trim(),
+    state_code: parsed.data.state_code,
+    postal_code: parsed.data.postal_code.trim(),
+    country: "US",
   });
 
   if (error) {
@@ -65,7 +70,7 @@ export async function createTicketAction(formData: FormData) {
 
 export async function updateTicketAction(formData: FormData) {
   await requireViewAccess("support_center");
-  await requireSupportPlan();
+  const profile = await requireProfileForApp();
 
   const idRaw = String(formData.get("ticketId") ?? "");
   const idParsed = ticketIdSchema.safeParse({ id: idRaw });
@@ -73,14 +78,7 @@ export async function updateTicketAction(formData: FormData) {
     redirect("/app/support?status=error");
   }
 
-  const raw = {
-    subject: String(formData.get("subject") ?? ""),
-    body: optionalText(formData.get("body")),
-    status: String(formData.get("status") ?? "open"),
-    priority: String(formData.get("priority") ?? "medium"),
-  };
-
-  const parsed = ticketUpdateSchema.safeParse(raw);
+  const parsed = portalTicketCreateSchema.safeParse(parsePortalFromFormData(formData));
   if (!parsed.success) {
     redirect("/app/support?status=error");
   }
@@ -90,11 +88,19 @@ export async function updateTicketAction(formData: FormData) {
     .from("support_tickets")
     .update({
       subject: parsed.data.subject.trim(),
-      body: parsed.data.body?.trim() ? parsed.data.body.trim() : null,
-      status: parsed.data.status,
+      body: parsed.data.body.trim(),
       priority: parsed.data.priority,
+      requester_company_name: parsed.data.requester_company_name.trim(),
+      contact_name: parsed.data.contact_name.trim(),
+      phone: parsed.data.phone.trim(),
+      address_line1: parsed.data.address_line1.trim(),
+      address_line2: parsed.data.address_line2?.trim() ?? null,
+      city: parsed.data.city.trim(),
+      state_code: parsed.data.state_code,
+      postal_code: parsed.data.postal_code.trim(),
     })
-    .eq("id", idParsed.data.id);
+    .eq("id", idParsed.data.id)
+    .eq("created_by", profile.id);
 
   if (error) {
     redirect("/app/support?status=error");

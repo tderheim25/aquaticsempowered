@@ -1,0 +1,4 @@
+{"sessionId":"65447e","location":"vendorActions.ts:module-init","message":"vendorActions module loaded","data":{"runId":"post-fix","hypothesisId":"A"},"timestamp":1779390815911}
+{"sessionId":"65447e","location":"(dashboard)/app/page.tsx:DashboardHomePage:enter","message":"DashboardHomePage render started","data":{"runId":"post-fix","hypothesisId":"B"},"timestamp":1779391041234}
+{"sessionId":"65447e","location":"(dashboard)/app/page.tsx:DashboardHomePage:enter","message":"DashboardHomePage render started","data":{"runId":"post-fix","hypothesisId":"B"},"timestamp":1779391047523}
+{"sessionId":"65447e","location":"(dashboard)/app/page.tsx:workspace-card-build","message":"workspace card JSX built (post-fix verification)","data":{"runId":"post-fix","hypothesisId":"B","toolsCount":10},"timestamp":1779391048172}

@@ -1,14 +1,35 @@
 import { Alert, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
+import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/actions/auth";
-import { getSessionUser } from "@/lib/auth/rbac";
+import { completeAccountSetupAction } from "@/app/(dashboard)/app/needs-profile/actions";
+import { getSessionUser, getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
+import { provisionUserProfileFromSession } from "@/lib/auth/provisionProfile";
 
 export const metadata = {
   title: "Finish setup | Aquatics Empowered",
 };
 
-export default async function NeedsProfilePage() {
+export default async function NeedsProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const user = await getSessionUser();
+  const { status } = await searchParams;
+
+  if (user) {
+    let profile = await getUsersRowWithAdminFallback(user.id);
+    if (!profile) {
+      profile = await provisionUserProfileFromSession();
+    }
+    if (profile) {
+      if (profile.role === "super_admin" || profile.role === "support_technician") {
+        redirect(profile.role === "support_technician" ? "/portal/queue" : "/app");
+      }
+      redirect(profile.org_id ? "/app" : "/app/no-organization");
+    }
+  }
 
   return (
     <Container maxWidth="sm">
@@ -18,11 +39,18 @@ export default async function NeedsProfilePage() {
             <Typography variant="h4" sx={{ fontWeight: 800 }}>
               Account setup required
             </Typography>
-            <Alert severity="info">
-              You are signed in, but the app cannot load your row from <strong>public.users</strong> (same UUID as in
-              Authentication → Users). Often this is a <strong>different account</strong> than the one in the table, or a
-              brand‑new signup.
-            </Alert>
+            {status === "failed" ? (
+              <Alert severity="error">
+                We could not finish setup automatically. Try the button below again, or contact support with your user
+                id.
+              </Alert>
+            ) : (
+              <Alert severity="info">
+                You are signed in, but we could not load your existing account profile (this can happen right after a
+                database update). Try <strong>Complete setup</strong> to reload your profile — it will not change your
+                role if you already have an account. New users can also use this to finish signup.
+              </Alert>
+            )}
             {user ? (
               <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
                 Session user id: {user.id}
@@ -34,12 +62,13 @@ export default async function NeedsProfilePage() {
                 No session — try signing out and signing in again.
               </Typography>
             )}
-            <Typography variant="body2" color="text.secondary">
-              In Supabase → Table Editor → <strong>users</strong>, confirm a row whose <strong>id</strong> matches the
-              UUID above. If it is missing, insert one (or sign in with an account that already has a row).
-            </Typography>
+            <form action={completeAccountSetupAction}>
+              <Button type="submit" variant="contained" fullWidth disabled={!user}>
+                Complete setup
+              </Button>
+            </form>
             <form action={signOut}>
-              <Button type="submit" variant="contained" fullWidth>
+              <Button type="submit" variant="outlined" fullWidth>
                 Sign out
               </Button>
             </form>

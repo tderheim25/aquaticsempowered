@@ -1,7 +1,6 @@
 "use client";
 
-import { Chip } from "@mui/material";
-
+import { StatusPill } from "@/components/ui/data-table";
 import type { TaskStatus } from "@/types/database";
 
 const LABELS: Record<TaskStatus, string> = {
@@ -11,8 +10,13 @@ const LABELS: Record<TaskStatus, string> = {
   cancelled: "Cancelled",
 };
 
+const TONE: Record<TaskStatus, "warning" | "info" | "success" | "neutral"> = {
+  open: "warning",
+  in_progress: "info",
+  done: "success",
+  cancelled: "neutral",
+};
+
 export function StatusChip({ status, size = "small" }: { status: TaskStatus; size?: "small" | "medium" }) {
-  const color =
-    status === "done" ? "success" : status === "in_progress" ? "info" : status === "cancelled" ? "default" : "default";
-  return <Chip label={LABELS[status]} color={color} size={size} variant={status === "open" ? "outlined" : "filled"} />;
+  return <StatusPill label={LABELS[status]} tone={TONE[status]} size={size} />;
 }

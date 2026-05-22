@@ -23,7 +23,13 @@ export type OrgTier =
   | "commercial"
   | "therapy";
 
-export type UserRole = "super_admin" | "org_admin" | "manager" | "staff" | "vendor";
+export type UserRole =
+  | "super_admin"
+  | "org_admin"
+  | "manager"
+  | "staff"
+  | "vendor"
+  | "support_technician";
 
 export type PlanCode = "free" | "essential" | "pro" | "enterprise";
 
@@ -53,6 +59,16 @@ export type ProcurementRequestStatus =
 
 export type ProcurementRequestCategory = "chemicals" | "equipment" | "parts" | "services" | "other";
 
+export type PoolType = "chlorine" | "saltwater" | "bromine";
+
+export type PoolStatus = "active" | "seasonal" | "inactive";
+
+export type EquipmentKind = "pump" | "heater" | "filter" | "timer" | "other";
+
+export type TargetRangeBand = { min: number; max: number; ideal?: number };
+
+export type PoolTargetRanges = Record<string, TargetRangeBand>;
+
 export type Database = {
   public: {
     Tables: {
@@ -67,6 +83,13 @@ export type Database = {
           num_pools: number | null;
           current_pain: string | null;
           source: string;
+          website_url: string | null;
+          address: Json;
+          request_type: "founder_account" | "demo";
+          requested_plan_code: PlanCode | null;
+          org_id: string | null;
+          user_id: string | null;
+          notified_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -79,6 +102,13 @@ export type Database = {
           num_pools?: number | null;
           current_pain?: string | null;
           source?: string;
+          website_url?: string | null;
+          address?: Json;
+          request_type?: "founder_account" | "demo";
+          requested_plan_code?: PlanCode | null;
+          org_id?: string | null;
+          user_id?: string | null;
+          notified_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -91,6 +121,187 @@ export type Database = {
           num_pools?: number | null;
           current_pain?: string | null;
           source?: string;
+          website_url?: string | null;
+          address?: Json;
+          request_type?: "founder_account" | "demo";
+          requested_plan_code?: PlanCode | null;
+          org_id?: string | null;
+          user_id?: string | null;
+          notified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      pools: {
+        Row: {
+          id: string;
+          org_id: string;
+          name: string;
+          pool_type: PoolType;
+          volume_gallons: number | null;
+          location_label: string | null;
+          notes: string | null;
+          status: PoolStatus;
+          target_ranges: Json;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          name: string;
+          pool_type?: PoolType;
+          volume_gallons?: number | null;
+          location_label?: string | null;
+          notes?: string | null;
+          status?: PoolStatus;
+          target_ranges?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          name?: string;
+          pool_type?: PoolType;
+          volume_gallons?: number | null;
+          location_label?: string | null;
+          notes?: string | null;
+          status?: PoolStatus;
+          target_ranges?: Json;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      pool_equipment: {
+        Row: {
+          id: string;
+          org_id: string;
+          pool_id: string;
+          kind: EquipmentKind;
+          model: string | null;
+          installed_on: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          pool_id: string;
+          kind?: EquipmentKind;
+          model?: string | null;
+          installed_on?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          pool_id?: string;
+          kind?: EquipmentKind;
+          model?: string | null;
+          installed_on?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      cleaning_logs: {
+        Row: {
+          id: string;
+          org_id: string;
+          pool_id: string;
+          cleaned_at: string;
+          brush: boolean;
+          net: boolean;
+          vacuum: boolean;
+          skimmer_basket: boolean;
+          pump_basket: boolean;
+          pump_filter: boolean;
+          deck: boolean;
+          notes: string | null;
+          logged_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          pool_id: string;
+          cleaned_at?: string;
+          brush?: boolean;
+          net?: boolean;
+          vacuum?: boolean;
+          skimmer_basket?: boolean;
+          pump_basket?: boolean;
+          pump_filter?: boolean;
+          deck?: boolean;
+          notes?: string | null;
+          logged_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          pool_id?: string;
+          cleaned_at?: string;
+          brush?: boolean;
+          net?: boolean;
+          vacuum?: boolean;
+          skimmer_basket?: boolean;
+          pump_basket?: boolean;
+          pump_filter?: boolean;
+          deck?: boolean;
+          notes?: string | null;
+          logged_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      inspection_logs: {
+        Row: {
+          id: string;
+          org_id: string;
+          pool_id: string;
+          inspected_at: string;
+          template_key: string;
+          checklist: Json;
+          passed: boolean | null;
+          notes: string | null;
+          operator_initials: string | null;
+          logged_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          pool_id: string;
+          inspected_at?: string;
+          template_key: string;
+          checklist?: Json;
+          passed?: boolean | null;
+          notes?: string | null;
+          operator_initials?: string | null;
+          logged_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          pool_id?: string;
+          inspected_at?: string;
+          template_key?: string;
+          checklist?: Json;
+          passed?: boolean | null;
+          notes?: string | null;
+          operator_initials?: string | null;
+          logged_by?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -99,6 +310,7 @@ export type Database = {
         Row: {
           id: string;
           org_id: string;
+          pool_id: string | null;
           pool_label: string | null;
           ph: number | null;
           free_chlorine: number | null;
@@ -107,6 +319,11 @@ export type Database = {
           temp_f: number | null;
           calcium_hardness: number | null;
           tds_ppm: number | null;
+          cyanuric_acid_ppm: number | null;
+          filter_psi: number | null;
+          flow_gpm: number | null;
+          notes: string | null;
+          operator_initials: string | null;
           langelier_saturation_index: number | null;
           logged_by: string | null;
           logged_at: string;
@@ -114,6 +331,7 @@ export type Database = {
         Insert: {
           id?: string;
           org_id: string;
+          pool_id?: string | null;
           pool_label?: string | null;
           ph?: number | null;
           free_chlorine?: number | null;
@@ -122,6 +340,11 @@ export type Database = {
           temp_f?: number | null;
           calcium_hardness?: number | null;
           tds_ppm?: number | null;
+          cyanuric_acid_ppm?: number | null;
+          filter_psi?: number | null;
+          flow_gpm?: number | null;
+          notes?: string | null;
+          operator_initials?: string | null;
           langelier_saturation_index?: number | null;
           logged_by?: string | null;
           logged_at?: string;
@@ -129,6 +352,7 @@ export type Database = {
         Update: {
           id?: string;
           org_id?: string;
+          pool_id?: string | null;
           pool_label?: string | null;
           ph?: number | null;
           free_chlorine?: number | null;
@@ -137,6 +361,11 @@ export type Database = {
           temp_f?: number | null;
           calcium_hardness?: number | null;
           tds_ppm?: number | null;
+          cyanuric_acid_ppm?: number | null;
+          filter_psi?: number | null;
+          flow_gpm?: number | null;
+          notes?: string | null;
+          operator_initials?: string | null;
           langelier_saturation_index?: number | null;
           logged_by?: string | null;
           logged_at?: string;
@@ -149,6 +378,7 @@ export type Database = {
           org_id: string | null;
           role: UserRole;
           app_role_id: string | null;
+          support_provider_id: string | null;
           email: string;
           full_name: string | null;
           first_name: string | null;
@@ -161,6 +391,7 @@ export type Database = {
           org_id?: string | null;
           role?: UserRole;
           app_role_id?: string | null;
+          support_provider_id?: string | null;
           email: string;
           full_name?: string | null;
           first_name?: string | null;
@@ -173,11 +404,57 @@ export type Database = {
           org_id?: string | null;
           role?: UserRole;
           app_role_id?: string | null;
+          support_provider_id?: string | null;
           email?: string;
           full_name?: string | null;
           first_name?: string | null;
           last_name?: string | null;
           avatar_path?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      support_providers: {
+        Row: {
+          id: string;
+          name: string;
+          phone: string | null;
+          contact_name: string | null;
+          address_line1: string;
+          address_line2: string | null;
+          city: string;
+          state_code: string;
+          postal_code: string;
+          country: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          phone?: string | null;
+          contact_name?: string | null;
+          address_line1: string;
+          address_line2?: string | null;
+          city: string;
+          state_code: string;
+          postal_code: string;
+          country?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          phone?: string | null;
+          contact_name?: string | null;
+          address_line1?: string;
+          address_line2?: string | null;
+          city?: string;
+          state_code?: string;
+          postal_code?: string;
+          country?: string;
+          is_active?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -241,6 +518,8 @@ export type Database = {
           address: Json;
           plan_code: PlanCode;
           founder: boolean;
+          website_url: string | null;
+          phone: string | null;
           created_at: string;
         };
         Insert: {
@@ -250,6 +529,8 @@ export type Database = {
           address?: Json;
           plan_code?: PlanCode;
           founder?: boolean;
+          website_url?: string | null;
+          phone?: string | null;
           created_at?: string;
         };
         Update: {
@@ -259,7 +540,84 @@ export type Database = {
           address?: Json;
           plan_code?: PlanCode;
           founder?: boolean;
+          website_url?: string | null;
+          phone?: string | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      org_invitations: {
+        Row: {
+          id: string;
+          org_id: string;
+          email: string;
+          full_name: string | null;
+          role: UserRole;
+          app_role_id: string | null;
+          token: string;
+          status: "pending" | "accepted" | "declined" | "cancelled" | "expired";
+          invited_by: string | null;
+          invited_user_id: string | null;
+          message: string | null;
+          created_at: string;
+          responded_at: string | null;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          email: string;
+          full_name?: string | null;
+          role?: UserRole;
+          app_role_id?: string | null;
+          token: string;
+          status?: "pending" | "accepted" | "declined" | "cancelled" | "expired";
+          invited_by?: string | null;
+          invited_user_id?: string | null;
+          message?: string | null;
+          created_at?: string;
+          responded_at?: string | null;
+          expires_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          email?: string;
+          full_name?: string | null;
+          role?: UserRole;
+          app_role_id?: string | null;
+          token?: string;
+          status?: "pending" | "accepted" | "declined" | "cancelled" | "expired";
+          invited_by?: string | null;
+          invited_user_id?: string | null;
+          message?: string | null;
+          created_at?: string;
+          responded_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      platform_settings: {
+        Row: {
+          key: string;
+          value: Json;
+          description: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          key: string;
+          value?: Json;
+          description?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          description?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
         };
         Relationships: [];
       };
@@ -272,6 +630,7 @@ export type Database = {
           status: TaskStatus;
           priority: TaskPriority;
           category: TaskCategory;
+          pool_id: string | null;
           pool_label: string | null;
           assigned_to: string | null;
           created_by: string | null;
@@ -288,6 +647,7 @@ export type Database = {
           status?: TaskStatus;
           priority?: TaskPriority;
           category?: TaskCategory;
+          pool_id?: string | null;
           pool_label?: string | null;
           assigned_to?: string | null;
           created_by?: string | null;
@@ -304,6 +664,7 @@ export type Database = {
           status?: TaskStatus;
           priority?: TaskPriority;
           category?: TaskCategory;
+          pool_id?: string | null;
           pool_label?: string | null;
           assigned_to?: string | null;
           created_by?: string | null;
@@ -317,35 +678,305 @@ export type Database = {
       support_tickets: {
         Row: {
           id: string;
-          org_id: string;
+          org_id: string | null;
           subject: string;
           body: string | null;
           status: TicketStatus;
           priority: TaskPriority;
           assigned_to: string | null;
+          assigned_support_provider_id: string | null;
+          accepted_at: string | null;
           created_by: string | null;
+          source: string;
+          requester_company_name: string | null;
+          contact_name: string | null;
+          phone: string | null;
+          address_line1: string | null;
+          address_line2: string | null;
+          city: string | null;
+          state_code: string | null;
+          postal_code: string | null;
+          country: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
-          org_id: string;
+          org_id?: string | null;
           subject: string;
           body?: string | null;
           status?: TicketStatus;
           priority?: TaskPriority;
           assigned_to?: string | null;
+          assigned_support_provider_id?: string | null;
+          accepted_at?: string | null;
           created_by?: string | null;
+          source?: string;
+          requester_company_name?: string | null;
+          contact_name?: string | null;
+          phone?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          city?: string | null;
+          state_code?: string | null;
+          postal_code?: string | null;
+          country?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
-          org_id?: string;
+          org_id?: string | null;
           subject?: string;
           body?: string | null;
           status?: TicketStatus;
           priority?: TaskPriority;
           assigned_to?: string | null;
+          assigned_support_provider_id?: string | null;
+          accepted_at?: string | null;
           created_by?: string | null;
+          source?: string;
+          requester_company_name?: string | null;
+          contact_name?: string | null;
+          phone?: string | null;
+          address_line1?: string | null;
+          address_line2?: string | null;
+          city?: string | null;
+          state_code?: string | null;
+          postal_code?: string | null;
+          country?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          org_id: string;
+          plan_code: PlanCode;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          status: string;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id: string;
+          plan_code: PlanCode;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          status?: string;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string;
+          plan_code?: PlanCode;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          status?: string;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      vendor_applications: {
+        Row: {
+          id: string;
+          company_name: string;
+          contact_name: string;
+          email: string;
+          phone: string | null;
+          website_url: string | null;
+          category: string | null;
+          message: string;
+          status: string;
+          review_note: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          vendor_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          company_name: string;
+          contact_name?: string;
+          email: string;
+          phone?: string | null;
+          website_url?: string | null;
+          category?: string | null;
+          message?: string;
+          status?: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          vendor_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          company_name?: string;
+          contact_name?: string;
+          email?: string;
+          phone?: string | null;
+          website_url?: string | null;
+          category?: string | null;
+          message?: string;
+          status?: string;
+          review_note?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          vendor_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      vendor_products: {
+        Row: {
+          id: string;
+          vendor_id: string;
+          name: string;
+          description: string;
+          image_url: string | null;
+          product_url: string | null;
+          sort_order: number;
+          is_visible: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          vendor_id: string;
+          name: string;
+          description?: string;
+          image_url?: string | null;
+          product_url?: string | null;
+          sort_order?: number;
+          is_visible?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          vendor_id?: string;
+          name?: string;
+          description?: string;
+          image_url?: string | null;
+          product_url?: string | null;
+          sort_order?: number;
+          is_visible?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      training_courses: {
+        Row: {
+          id: string;
+          title: string;
+          slug: string;
+          description: string;
+          category: string;
+          is_published: boolean;
+          sort_order: number;
+          published_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          slug: string;
+          description?: string;
+          category?: string;
+          is_published?: boolean;
+          sort_order?: number;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          slug?: string;
+          description?: string;
+          category?: string;
+          is_published?: boolean;
+          sort_order?: number;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      training_course_videos: {
+        Row: {
+          id: string;
+          course_id: string;
+          title: string;
+          video_url: string | null;
+          storage_path: string | null;
+          duration_seconds: number | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          course_id: string;
+          title: string;
+          video_url?: string | null;
+          storage_path?: string | null;
+          duration_seconds?: number | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          course_id?: string;
+          title?: string;
+          video_url?: string | null;
+          storage_path?: string | null;
+          duration_seconds?: number | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ad_placements: {
+        Row: {
+          id: string;
+          slot_key: string;
+          title: string;
+          image_url: string | null;
+          target_url: string | null;
+          is_active: boolean;
+          sort_order: number;
+          starts_at: string;
+          ends_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          slot_key: string;
+          title?: string;
+          image_url?: string | null;
+          target_url?: string | null;
+          is_active?: boolean;
+          sort_order?: number;
+          starts_at?: string;
+          ends_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          slot_key?: string;
+          title?: string;
+          image_url?: string | null;
+          target_url?: string | null;
+          is_active?: boolean;
+          sort_order?: number;
+          starts_at?: string;
+          ends_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -377,6 +1008,10 @@ export type Database = {
           org_id: string | null;
           author_id: string;
           body: string;
+          moderation_status: string;
+          moderated_at: string | null;
+          moderated_by: string | null;
+          moderation_note: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -410,6 +1045,8 @@ export type Database = {
           description: string;
           apply_url: string | null;
           contact_email: string | null;
+          status: string;
+          is_promoted: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -473,6 +1110,10 @@ export type Database = {
           post_id: string;
           author_id: string;
           body: string;
+          moderation_status: string;
+          moderated_at: string | null;
+          moderated_by: string | null;
+          moderation_note: string | null;
           created_at: string;
         };
         Insert: {
@@ -624,6 +1265,12 @@ export type Database = {
           certified_at: string | null;
           contact: Json | null;
           listing_visible: boolean;
+          slug: string | null;
+          logo_url: string | null;
+          tagline: string | null;
+          website_url: string | null;
+          is_partner: boolean;
+          description: string;
         };
         Insert: {
           id?: string;

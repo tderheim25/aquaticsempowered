@@ -30,13 +30,18 @@ export type MaintenanceFilterState = {
   category: TaskCategory | "";
   assignee: string;
   mine: boolean;
+  pool: string;
 };
+
+type PoolOption = { id: string; name: string };
 
 export function MaintenanceFilters({
   orgMembers,
+  pools,
   initial,
 }: {
   orgMembers: OrgMember[];
+  pools: PoolOption[];
   initial: MaintenanceFilterState;
 }) {
   const router = useRouter();
@@ -145,6 +150,30 @@ export function MaintenanceFilters({
           ))}
         </Select>
       </FormControl>
+      {pools.length > 0 ? (
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="flt-pool">Pool</InputLabel>
+          <Select
+            labelId="flt-pool"
+            label="Pool"
+            value={initial.pool}
+            onChange={(e) => {
+              const v = e.target.value;
+              pushParams((p) => {
+                if (v) p.set("pool", v);
+                else p.delete("pool");
+              });
+            }}
+          >
+            <MenuItem value="">All pools</MenuItem>
+            {pools.map((p) => (
+              <MenuItem key={p.id} value={p.id}>
+                {p.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      ) : null}
       <FormControl size="small" sx={{ minWidth: 200 }}>
         <InputLabel id="flt-assignee">Assignee</InputLabel>
         <Select

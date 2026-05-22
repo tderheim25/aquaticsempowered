@@ -4,89 +4,36 @@ import {
   Button,
   Card,
   CardContent,
-  Chip,
   Container,
   Grid,
   Link as MuiLink,
-  MenuItem,
-  Paper,
   Stack,
-  TextField,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
 
-import { requireProfileForApp } from "@/lib/auth/rbac";
+import { LsiGauge } from "@/components/pool-ops/LsiGauge";
+import { PoolOpsPageShell } from "@/components/pool-ops/PoolOpsPageShell";
+import { PoolOpsSectionCard } from "@/components/pool-ops/PoolOpsSectionCard";
+import { StatusChip } from "@/components/pool-ops/StatusChip";
+import { SelectOrgSidebarHint } from "@/components/dashboard/SelectOrgSidebarHint";
+import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { hasFeature } from "@/lib/auth/plans";
+import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { evaluateChemicalAttention } from "@/lib/water/evaluateReading";
 import { createClient } from "@/lib/supabase/server";
-import type { PlanCode } from "@/types/database";
 
-export const metadata = {
-  title: "Monitoring | Aquatics Empowered",
-};
+export const metadata = { title: "Monitoring | Aquatics Empowered" };
 
-type ChemicalLogRow = {
-  id: string;
-  pool_label: string | null;
+type LatestLog = {
+  pool_id: string;
   ph: number | null;
   free_chlorine: number | null;
   total_chlorine: number | null;
-  alkalinity: number | null;
-  temp_f: number | null;
   langelier_saturation_index: number | null;
   logged_at: string;
 };
-
-type AttentionReason = "ph" | "free_chlorine" | "combined_chlorine" | "lsi";
-
-function evaluateReading(log: ChemicalLogRow): { attention: boolean; reasons: AttentionReason[] } {
-  const reasons: AttentionReason[] = [];
-
-  if (log.ph != null && (log.ph < 7.2 || log.ph > 7.8)) {
-    reasons.push("ph");
-  }
-
-  if (log.free_chlorine != null && (log.free_chlorine < 1 || log.free_chlorine > 5)) {
-    reasons.push("free_chlorine");
-  }
-
-  if (
-    log.free_chlorine != null &&
-    log.total_chlorine != null &&
-    log.total_chlorine >= log.free_chlorine &&
-    log.total_chlorine - log.free_chlorine > 0.5
-  ) {
-    reasons.push("combined_chlorine");
-  }
-
-  if (log.langelier_saturation_index != null && (log.langelier_saturation_index < -0.5 || log.langelier_saturation_index > 0.5)) {
-    reasons.push("lsi");
-  }
-
-  return { attention: reasons.length > 0, reasons };
-}
-
-function reasonLabel(r: AttentionReason) {
-  switch (r) {
-    case "ph":
-      return "pH";
-    case "free_chlorine":
-      return "Free chlorine";
-    case "combined_chlorine":
-      return "Combined chlorine";
-    case "lsi":
-      return "LSI";
-    default:
-      return r;
-  }
-}
 
 export default async function MonitoringPage({
   searchParams,
@@ -96,78 +43,18 @@ export default async function MonitoringPage({
   await requireViewAccess("monitoring");
   const profile = await requireProfileForApp();
   const { org } = await searchParams;
-  const isSuperAdmin = profile.role === "super_admin";
+  const orgCtx = await loadActiveOrgContext(profile, org);
+  const activeOrgId = orgCtx.activeOrgId;
+  const monitoringUnlocked = hasFeature(orgCtx.planCode, "monitoring", profile.role);
 
   const supabase = await createClient();
-  const admin = createAdminClient();
-  const { data: orgOptions } =
-    isSuperAdmin && !profile.org_id
-      ? await admin.from("organizations").select("id, name").order("name", { ascending: true }).limit(200)
-      : { data: [] as { id: string; name: string }[] };
-
-  const activeOrgId = profile.org_id ?? (isSuperAdmin ? (org?.trim() || orgOptions?.[0]?.id || null) : null);
-
-  let planCode: PlanCode = "free";
-  if (profile.org_id) {
-    const { data: orgRow } = await supabase.from("organizations").select("plan_code").eq("id", profile.org_id).maybeSingle();
-    planCode = (orgRow?.plan_code as PlanCode) ?? "free";
-  } else if (activeOrgId) {
-    const { data: orgRow } = await admin.from("organizations").select("plan_code").eq("id", activeOrgId).maybeSingle();
-    planCode = (orgRow?.plan_code as PlanCode) ?? "free";
-  }
-
-  const monitoringUnlocked = hasFeature(planCode, "monitoring");
 
   if (!activeOrgId) {
-    const hasOrgOptions = Boolean(orgOptions && orgOptions.length > 0);
     return (
       <Container maxWidth="lg">
-        <Stack spacing={2}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-              Monitoring
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Water-quality attention summary based on your organization&apos;s chemical logs. Choose an organization to
-              review recent readings.
-            </Typography>
-          </Box>
-          {!monitoringUnlocked ? (
-            <Alert severity="info">
-              Live monitoring dashboards and alerting are included on the Enterprise plan.{" "}
-              <Button component={Link} href="/pricing" size="small" sx={{ ml: 1 }}>
-                View plans
-              </Button>
-            </Alert>
-          ) : null}
-          <Alert severity="warning">
-            {isSuperAdmin
-              ? "Pick an organization to load monitoring data."
-              : "Your account is not linked to an organization yet."}
-          </Alert>
-          {isSuperAdmin && hasOrgOptions ? (
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack component="form" direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-end" }}>
-                <TextField name="org" label="Organization" select size="small" defaultValue="" sx={{ minWidth: 260 }}>
-                  <MenuItem value="">
-                    <em>Select…</em>
-                  </MenuItem>
-                  {(orgOptions ?? []).map((option) => (
-                    <MenuItem key={option.id} value={option.id}>
-                      {option.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-                <Button type="submit" variant="outlined">
-                  Open monitoring
-                </Button>
-              </Stack>
-            </Paper>
-          ) : null}
-          {isSuperAdmin && !hasOrgOptions ? (
-            <Alert severity="info">No organizations exist yet. Create an organization first.</Alert>
-          ) : null}
-        </Stack>
+        <PoolOpsPageShell title="Monitoring" subtitle="Org-wide water-quality status board." accent="monitoring">
+          <SelectOrgSidebarHint superAdmin={profile.role === "super_admin"} />
+        </PoolOpsPageShell>
       </Container>
     );
   }
@@ -175,301 +62,167 @@ export default async function MonitoringPage({
   if (!monitoringUnlocked) {
     return (
       <Container maxWidth="lg">
-        <Stack spacing={2}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-              Monitoring
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Enterprise includes prioritized views of chemistry trends, out-of-range readings, and support for future
-              integrations (sensors, ticketing, and scheduled digests).
-            </Typography>
-          </Box>
+        <PoolOpsPageShell title="Monitoring" subtitle="Org-wide water-quality status board." accent="monitoring">
           <Alert severity="info">
-            Your current plan does not include the monitoring workspace. Upgrade to Enterprise for org-wide water-quality
-            oversight.{" "}
+            Monitoring is not enabled for this organization&apos;s plan.{" "}
             <Button component={Link} href="/pricing" size="small" sx={{ ml: 1 }}>
               View plans
             </Button>
           </Alert>
-          <Card variant="outlined">
-            <CardContent>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                What you get on Enterprise
-              </Typography>
-              <Stack component="ul" spacing={0.75} sx={{ m: 0, pl: 2.5 }}>
-                <Typography component="li" variant="body2" color="text.secondary">
-                  Attention panel for pH, sanitizer, combined chlorine, and Langelier Saturation Index thresholds.
-                </Typography>
-                <Typography component="li" variant="body2" color="text.secondary">
-                  Rolling history tied to{" "}
-                  <MuiLink component={Link} href="/app/chemical-logs">
-                    Chemical Logs
-                  </MuiLink>{" "}
-                  — no duplicate data entry.
-                </Typography>
-                <Typography component="li" variant="body2" color="text.secondary">
-                  Roadmap: email or in-app alerts, per-venue targets, and exportable audit trails.
-                </Typography>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Stack>
+        </PoolOpsPageShell>
       </Container>
     );
   }
 
-  const since = new Date();
-  since.setDate(since.getDate() - 30);
-  const sinceIso = since.toISOString();
-
-  const { data: logs, error: logsError } = await supabase
-    .from("chemical_logs")
-    .select(
-      "id, pool_label, ph, free_chlorine, total_chlorine, alkalinity, temp_f, langelier_saturation_index, logged_at"
-    )
+  const { data: pools } = await supabase
+    .from("pools")
+    .select("id, name, target_ranges, status")
     .eq("org_id", activeOrgId)
-    .gte("logged_at", sinceIso)
-    .order("logged_at", { ascending: false })
-    .limit(400);
+    .order("name");
 
-  const rows = (logs ?? []) as ChemicalLogRow[];
-  const evaluated = rows.map((log) => ({ log, ...evaluateReading(log) }));
-  const attentionRows = evaluated.filter((e) => e.attention);
-  const poolKeys = new Set(rows.map((r) => r.pool_label?.trim() || "Unlabeled pool"));
-  const lastReadingByPool = new Map<string, ChemicalLogRow>();
-  for (const log of rows) {
-    const key = log.pool_label?.trim() || "Unlabeled pool";
-    if (!lastReadingByPool.has(key)) {
-      lastReadingByPool.set(key, log);
+  const poolList = pools ?? [];
+  const poolIds = poolList.map((p) => p.id);
+
+  const latestByPool = new Map<string, LatestLog>();
+  if (poolIds.length > 0) {
+    const { data: logs } = await supabase
+      .from("chemical_logs")
+      .select("pool_id, ph, free_chlorine, total_chlorine, langelier_saturation_index, logged_at")
+      .eq("org_id", activeOrgId)
+      .in("pool_id", poolIds)
+      .order("logged_at", { ascending: false })
+      .limit(500);
+
+    for (const log of logs ?? []) {
+      if (log.pool_id && !latestByPool.has(log.pool_id)) {
+        latestByPool.set(log.pool_id, log as LatestLog);
+      }
     }
   }
-  let venuesLatestNeedReview = 0;
-  for (const log of lastReadingByPool.values()) {
-    if (evaluateReading(log).attention) venuesLatestNeedReview += 1;
+
+  const { data: openTasks } = await supabase
+    .from("maintenance_tasks")
+    .select("pool_id")
+    .eq("org_id", activeOrgId)
+    .in("status", ["open", "in_progress"])
+    .not("pool_id", "is", null);
+
+  const openCountByPool = new Map<string, number>();
+  for (const t of openTasks ?? []) {
+    if (!t.pool_id) continue;
+    openCountByPool.set(t.pool_id, (openCountByPool.get(t.pool_id) ?? 0) + 1);
   }
+
+  let attentionCount = 0;
 
   return (
     <Container maxWidth="lg">
-      <Stack spacing={2}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-            Monitoring
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Last 30 days of chemical logs, highlighted when readings fall outside common operating bands (pH 7.2–7.8,
-            free chlorine 1–5 ppm, combined chlorine &gt; 0.5 ppm, LSI outside −0.5 to +0.5). Adjust targets with your
-            local health authority and facility SOPs.
-          </Typography>
-        </Box>
-
-        {isSuperAdmin && !profile.org_id && orgOptions && orgOptions.length > 0 ? (
-          <Paper variant="outlined" sx={{ p: 2 }}>
-            <Stack component="form" direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "flex-end" }}>
-              <TextField
-                name="org"
-                label="View as organization"
-                select
-                size="small"
-                defaultValue={activeOrgId ?? ""}
-                sx={{ minWidth: 260 }}
-              >
-                {(orgOptions ?? []).map((option) => (
-                  <MenuItem key={option.id} value={option.id}>
-                    {option.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button type="submit" variant="outlined">
-                Apply
+      <PoolOpsPageShell
+        title="Monitoring"
+        subtitle="Status board per pool — latest chemistry, LSI, and open maintenance work."
+        accent="monitoring"
+        actions={
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Button component={Link} href="/app/monitoring/alerts" size="small" variant="outlined">
+              Alerts
+            </Button>
+            {hasFeature(orgCtx.planCode, "sensors", profile.role) ? (
+              <Button component={Link} href="/app/monitoring/sensors" size="small" variant="outlined">
+                Sensors
               </Button>
-            </Stack>
-          </Paper>
-        ) : null}
-
-        {logsError ? (
-          <Alert severity="error">Unable to load chemical logs. Check your connection and try again.</Alert>
-        ) : null}
-
-        <Grid container spacing={1.5}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent>
-                <Typography variant="overline" color="text.secondary">
-                  Pools / venues
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                  {poolKeys.size}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Distinct labels in the window
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent>
-                <Typography variant="overline" color="text.secondary">
-                  Readings (30 d)
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                  {rows.length}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Up to 400 most recent
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent>
-                <Typography variant="overline" color="text.secondary">
-                  Attention events
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: attentionRows.length ? "warning.main" : "text.primary" }}>
-                  {attentionRows.length}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Log rows with one or more flags
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent>
-                <Typography variant="overline" color="text.secondary">
-                  Venues needing review
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 800, color: venuesLatestNeedReview ? "warning.main" : "text.primary" }}>
-                  {venuesLatestNeedReview}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Latest log per venue matches attention rules
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-              Latest reading per venue
-            </Typography>
-            {lastReadingByPool.size === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No chemical logs in the last 30 days.{" "}
-                <MuiLink component={Link} href="/app/chemical-logs">
-                  Add readings in Chemical Logs
-                </MuiLink>{" "}
-                to populate monitoring.
-              </Typography>
-            ) : (
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Venue</TableCell>
-                    <TableCell align="right">pH</TableCell>
-                    <TableCell align="right">FC (ppm)</TableCell>
-                    <TableCell align="right">LSI</TableCell>
-                    <TableCell>Logged</TableCell>
-                    <TableCell>Status</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {[...lastReadingByPool.entries()]
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .map(([pool, log]) => {
-                      const { attention, reasons } = evaluateReading(log);
-                      return (
-                        <TableRow key={pool}>
-                          <TableCell>{pool}</TableCell>
-                          <TableCell align="right">{log.ph ?? "—"}</TableCell>
-                          <TableCell align="right">{log.free_chlorine ?? "—"}</TableCell>
-                          <TableCell align="right">{log.langelier_saturation_index ?? "—"}</TableCell>
-                          <TableCell>{new Date(log.logged_at).toLocaleString()}</TableCell>
-                          <TableCell>
-                            {attention ? (
-                              <Chip size="small" label="Review" color="warning" variant="outlined" />
-                            ) : (
-                              <Chip size="small" label="OK" variant="outlined" />
-                            )}
-                            {attention ? (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                                {reasons.map(reasonLabel).join(", ")}
-                              </Typography>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" gap={1}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Attention log (recent first)
-              </Typography>
-              <Button component={Link} href="/app/chemical-logs" size="small" variant="outlined">
-                Open chemical logs
-              </Button>
-            </Stack>
-            {attentionRows.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No flagged readings in this window. Thresholds are a starting point — tune them for your jurisdiction and
-                water type.
-              </Typography>
-            ) : (
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Venue</TableCell>
-                    <TableCell align="right">pH</TableCell>
-                    <TableCell align="right">FC</TableCell>
-                    <TableCell align="right">TC</TableCell>
-                    <TableCell align="right">LSI</TableCell>
-                    <TableCell>Logged</TableCell>
-                    <TableCell>Flags</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {attentionRows.slice(0, 50).map(({ log, reasons }) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{log.pool_label?.trim() || "Unlabeled pool"}</TableCell>
-                      <TableCell align="right">{log.ph ?? "—"}</TableCell>
-                      <TableCell align="right">{log.free_chlorine ?? "—"}</TableCell>
-                      <TableCell align="right">{log.total_chlorine ?? "—"}</TableCell>
-                      <TableCell align="right">{log.langelier_saturation_index ?? "—"}</TableCell>
-                      <TableCell>{new Date(log.logged_at).toLocaleString()}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" gap={0.5} flexWrap="wrap">
-                          {reasons.map((r) => (
-                            <Chip key={r} size="small" label={reasonLabel(r)} variant="outlined" />
-                          ))}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-            {attentionRows.length > 50 ? (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-                Showing 50 of {attentionRows.length} flagged rows. Narrow the date range in Chemical Logs exports when
-                you need a full history.
-              </Typography>
             ) : null}
-          </CardContent>
-        </Card>
-      </Stack>
+            <Button component={Link} href="/app/chemical-logs" size="small" variant="outlined">
+              Chemical logs
+            </Button>
+          </Stack>
+        }
+      >
+        {poolList.length === 0 ? (
+          <Alert severity="info">
+            No pools registered.{" "}
+            <MuiLink component={Link} href="/app/pools?add=1">
+              Add a pool
+            </MuiLink>{" "}
+            to populate monitoring.
+          </Alert>
+        ) : (
+          <Grid container spacing={2}>
+            {poolList.map((pool, index) => {
+              const log = latestByPool.get(pool.id);
+              const reasons = log
+                ? evaluateChemicalAttention({ ...log, target_ranges: pool.target_ranges })
+                : [];
+              const needsAttention = reasons.length > 0;
+              if (needsAttention) attentionCount += 1;
+              const openTasksCount = openCountByPool.get(pool.id) ?? 0;
+
+              return (
+                <Grid key={pool.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                  <PoolOpsSectionCard accent="monitoring" index={index}>
+                    <Stack spacing={1.5}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            {pool.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {pool.status}
+                          </Typography>
+                        </Box>
+                        {needsAttention ? <StatusChip status="high" label="Review" /> : <StatusChip status="in_range" label="OK" />}
+                      </Stack>
+
+                      <Box sx={{ display: "flex", justifyContent: "center" }}>
+                        <LsiGauge lsi={log?.langelier_saturation_index ?? null} size={96} />
+                      </Box>
+
+                      {log ? (
+                        <Typography variant="body2" color="text.secondary">
+                          pH {log.ph ?? "—"} · FC {log.free_chlorine ?? "—"} ppm
+                          <br />
+                          Last log {new Date(log.logged_at).toLocaleString()}
+                        </Typography>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No readings yet
+                        </Typography>
+                      )}
+
+                      <Typography variant="body2">
+                        Open tasks: <strong>{openTasksCount}</strong>
+                      </Typography>
+
+                      {needsAttention ? (
+                        <Typography variant="caption" color="warning.main">
+                          {reasons.join(", ")}
+                        </Typography>
+                      ) : null}
+
+                      <Button component={Link} href={`/app/chemical-logs?pool_id=${pool.id}`} size="small" variant="text">
+                        View logs
+                      </Button>
+                    </Stack>
+                  </PoolOpsSectionCard>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+
+        {poolList.length > 0 ? (
+          <Card variant="outlined" sx={{ mt: 2 }}>
+            <CardContent>
+              <Typography variant="body2" color="text.secondary">
+                {attentionCount} of {poolList.length} pools flagged on latest reading. See{" "}
+                <MuiLink component={Link} href="/app/monitoring/alerts">
+                  alerts
+                </MuiLink>{" "}
+                for detail.
+              </Typography>
+            </CardContent>
+          </Card>
+        ) : null}
+      </PoolOpsPageShell>
     </Container>
   );
 }

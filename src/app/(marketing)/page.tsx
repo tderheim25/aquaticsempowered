@@ -1,18 +1,23 @@
+import { Container } from "@mui/material";
+
 import { AdBanner } from "@/components/marketing/AdBanner";
 import { FounderCTA } from "@/components/marketing/FounderCTA";
 import { Hero } from "@/components/marketing/Hero";
+import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { PricingTeaser } from "@/components/marketing/PricingTeaser";
+import { SocialProof } from "@/components/marketing/SocialProof";
 import { ValueProps } from "@/components/marketing/ValueProps";
-import { Container } from "@mui/material";
 
 export default function HomePage() {
   return (
     <>
       <Hero />
-      <Container maxWidth="lg" sx={{ py: 2 }}>
+      <ValueProps />
+      <HowItWorks />
+      <Container maxWidth="lg" sx={{ py: { xs: 2, md: 3 } }}>
         <AdBanner variant="inline" />
       </Container>
-      <ValueProps />
+      <SocialProof />
       <PricingTeaser />
       <FounderCTA />
     </>

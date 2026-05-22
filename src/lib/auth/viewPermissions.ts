@@ -4,13 +4,22 @@ import { redirect } from "next/navigation";
 import type { UserRole } from "@/types/database";
 
 /** Built-in enum roles (JWT / RLS). Custom roles use `app_roles` + `permissions_base`. */
-export const ALL_ROLES: UserRole[] = ["super_admin", "org_admin", "manager", "staff", "vendor"];
+export const ALL_ROLES: UserRole[] = [
+  "super_admin",
+  "org_admin",
+  "manager",
+  "staff",
+  "vendor",
+  "support_technician",
+];
 
 export const VIEW_DEFINITIONS = [
   { key: "dashboard_home", label: "Dashboard" },
+  { key: "pools", label: "Pools" },
   { key: "chemical_logs", label: "Chemical Logs" },
   { key: "maintenance", label: "Maintenance" },
   { key: "support_center", label: "Support Center" },
+  { key: "support_portal", label: "Support Portal" },
   { key: "vendor_directory", label: "Vendor Directory" },
   { key: "community", label: "Community" },
   { key: "procurement", label: "Procurement" },
@@ -32,6 +41,7 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
   super_admin: ALL_VIEW_KEYS,
   org_admin: [
     "dashboard_home",
+    "pools",
     "chemical_logs",
     "maintenance",
     "support_center",
@@ -43,6 +53,7 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
   ],
   manager: [
     "dashboard_home",
+    "pools",
     "chemical_logs",
     "maintenance",
     "support_center",
@@ -51,8 +62,9 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
     "community",
     "training_cpo",
   ],
-  staff: ["dashboard_home", "chemical_logs", "maintenance", "support_center", "vendor_directory", "procurement", "training_cpo"],
+  staff: ["dashboard_home", "pools", "chemical_logs", "maintenance", "support_center", "vendor_directory", "procurement", "training_cpo"],
   vendor: ["dashboard_home", "vendor_directory", "support_center"],
+  support_technician: ["support_portal"],
 };
 
 export function getDefaultAllowedViews(role: UserRole | null): AppViewKey[] {
@@ -93,7 +105,8 @@ export async function getAllowedViewsForProfile(profile: ProfileForViews | null)
     .map((row) => row.view_key)
     .filter((key): key is AppViewKey => ALL_VIEW_KEYS.includes(key as AppViewKey));
 
-  return allowed.length > 0 ? allowed : ["dashboard_home"];
+  if (allowed.length > 0) return allowed;
+  return getDefaultAllowedViews(profile.role);
 }
 
 /** @deprecated Use getAllowedViewsForProfile — kept for compatibility */

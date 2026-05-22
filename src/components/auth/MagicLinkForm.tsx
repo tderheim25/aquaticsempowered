@@ -60,7 +60,6 @@ export function MagicLinkForm({ mode, nextPath = "/app" }: { mode: Mode; nextPat
           fullWidth
           required
           margin="normal"
-          autoComplete="name"
         />
       )}
       <TextField
@@ -72,7 +71,6 @@ export function MagicLinkForm({ mode, nextPath = "/app" }: { mode: Mode; nextPat
         fullWidth
         required
         margin="normal"
-        autoComplete="email"
       />
       <Button type="submit" variant="contained" color="primary" fullWidth size="large" disabled={status === "loading"} sx={{ mt: 2 }}>
         {status === "loading" ? "Sending..." : mode === "forgot" ? "Send reset link" : "Send sign-in link"}

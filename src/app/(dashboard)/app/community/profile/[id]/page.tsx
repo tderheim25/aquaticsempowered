@@ -1,5 +1,4 @@
 import {
-  Alert,
   Avatar,
   Box,
   Button,
@@ -16,6 +15,7 @@ import { notFound } from "next/navigation";
 
 import { CommunityProfileSelfCard } from "@/components/community/CommunityProfileSelfCard";
 import { SetBreadcrumbLastLabel } from "@/components/dashboard/BreadcrumbLabelContext";
+import { StatusToast, type StatusToastMessages } from "@/components/ui/StatusToast";
 import { requireProfileForApp } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
@@ -61,65 +61,44 @@ function initials(u: {
   return displayName(u).slice(0, 2).toUpperCase();
 }
 
-function profileStatusMessage(status?: string) {
-  switch (status) {
-    case "bio_saved":
-      return { severity: "success" as const, text: "Bio saved." };
-    case "saved":
-      return { severity: "success" as const, text: "Name saved." };
-    case "avatar_saved":
-      return { severity: "success" as const, text: "Profile photo updated." };
-    case "avatar_removed":
-      return { severity: "success" as const, text: "Profile photo removed." };
-    case "invalid_file":
-      return { severity: "error" as const, text: "Choose a JPEG, PNG, WebP, or GIF image (max 2 MB)." };
-    case "file_too_large":
-      return { severity: "error" as const, text: "Image must be 2 MB or smaller." };
-    case "upload_error":
-      return {
-        severity: "error" as const,
-        text: "Could not upload photo. Apply migration 0014_user_profile_fields.sql in Supabase if you have not yet.",
-      };
-    case "error":
-      return { severity: "error" as const, text: "Could not save profile." };
-    case "comment_invalid":
-      return { severity: "error" as const, text: "Add a comment before submitting." };
-    case "comment_error":
-      return { severity: "error" as const, text: "Could not save that comment. Try again." };
-    case "network_sent":
-      return { severity: "success" as const, text: "Network connection request sent." };
-    case "network_accepted":
-      return { severity: "success" as const, text: "You are now connected in each other's network." };
-    case "network_declined":
-      return { severity: "info" as const, text: "Connection request declined." };
-    case "network_cancelled":
-      return { severity: "info" as const, text: "Connection request withdrawn." };
-    case "network_error":
-      return {
-        severity: "error" as const,
-        text: "That network action could not be completed. Try again, or contact support if it keeps happening.",
-      };
-    case "network_schema":
-      return {
-        severity: "error" as const,
-        text:
-          "Network tables are missing on the server. In Supabase → SQL Editor, run the full script from migration file 0010_community_network_and_feed.sql (community requests + edges + RLS), then try again.",
-      };
-    case "network_rls":
-      return {
-        severity: "error" as const,
-        text:
-          "Your session does not match this community (org) in the database. Sign out and sign back in, or confirm both accounts belong to the same organization or the same global community.",
-      };
-    case "network_blocked":
-      return {
-        severity: "info" as const,
-        text: "No request sent — you may already be connected, already have a pending request with this person, or they are outside your community.",
-      };
-    default:
-      return null;
-  }
-}
+const COMMUNITY_PROFILE_TOAST_MESSAGES: StatusToastMessages = {
+  bio_saved: { severity: "success", text: "Bio saved." },
+  saved: { severity: "success", text: "Name saved." },
+  avatar_saved: { severity: "success", text: "Profile photo updated." },
+  avatar_removed: { severity: "success", text: "Profile photo removed." },
+  invalid_file: { severity: "error", text: "Choose a JPEG, PNG, WebP, or GIF image (max 2 MB)." },
+  file_too_large: { severity: "error", text: "Image must be 2 MB or smaller." },
+  upload_error: {
+    severity: "error",
+    text: "Could not upload photo. Apply migration 0014_user_profile_fields.sql in Supabase if you have not yet.",
+  },
+  error: { severity: "error", text: "Could not save profile." },
+  comment_invalid: { severity: "error", text: "Add a comment before submitting." },
+  comment_error: { severity: "error", text: "Could not save that comment. Try again." },
+  network_sent: { severity: "success", text: "Network connection request sent." },
+  network_accepted: {
+    severity: "success",
+    text: "You are now connected in each other's network.",
+  },
+  network_declined: { severity: "info", text: "Connection request declined." },
+  network_cancelled: { severity: "info", text: "Connection request withdrawn." },
+  network_error: {
+    severity: "error",
+    text: "That network action could not be completed. Try again, or contact support if it keeps happening.",
+  },
+  network_schema: {
+    severity: "error",
+    text: "Network tables are missing on the server. In Supabase → SQL Editor, run the full script from migration file 0010_community_network_and_feed.sql (community requests + edges + RLS), then try again.",
+  },
+  network_rls: {
+    severity: "error",
+    text: "Your session does not match this community (org) in the database. Sign out and sign back in, or confirm both accounts belong to the same organization or the same global community.",
+  },
+  network_blocked: {
+    severity: "info",
+    text: "No request sent — you may already be connected, already have a pending request with this person, or they are outside your community.",
+  },
+};
 
 function sortPeople(a: ProfileTabPerson, b: ProfileTabPerson) {
   const la = (a.full_name?.trim() || a.email).toLowerCase();
@@ -138,8 +117,6 @@ export default async function CommunityProfilePage({
   const { status, tab: tabParam, edit: editParam } = await searchParams;
   const profileInitialTab = tabParam === "connections" ? 1 : 0;
   const openEditOnLoad = editParam === "1";
-  const flash = profileStatusMessage(status);
-
   await requireViewAccess("community");
   const me = await requireProfileForApp();
 
@@ -387,7 +364,7 @@ export default async function CommunityProfilePage({
         ← Back to feed
       </Button>
 
-      {flash ? <Alert severity={flash.severity}>{flash.text}</Alert> : null}
+      <StatusToast status={status} messages={COMMUNITY_PROFILE_TOAST_MESSAGES} />
 
       <Paper variant="outlined" sx={{ p: 2 }}>
         {isSelf ? (

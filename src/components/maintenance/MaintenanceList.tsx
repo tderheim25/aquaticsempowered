@@ -3,21 +3,18 @@
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
+import { Box, Button, IconButton, Paper, Tooltip, Typography } from "@mui/material";
+
 import {
-  Box,
-  Button,
-  IconButton,
-  Paper,
-  Table,
+  DataTable,
   TableBody,
   TableCell,
-  TableContainer,
+  TableDateTimeCell,
   TableHead,
+  TablePrimaryCell,
   TableRow,
   TableSortLabel,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+} from "@/components/ui/data-table";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 
@@ -137,8 +134,7 @@ export function MaintenanceList({
 
   return (
     <>
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
+      <DataTable>
           <TableHead>
             <TableRow>
               <TableCell sortDirection={orderBy === "title" ? order : false}>
@@ -187,14 +183,7 @@ export function MaintenanceList({
               return (
                 <TableRow key={task.id} hover>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {task.title}
-                    </Typography>
-                    {task.pool_label ? (
-                      <Typography variant="caption" color="text.secondary">
-                        {task.pool_label}
-                      </Typography>
-                    ) : null}
+                    <TablePrimaryCell primary={task.title} secondary={task.pool_label ?? undefined} />
                   </TableCell>
                   <TableCell>
                     <StatusChip status={task.status} />
@@ -216,9 +205,7 @@ export function MaintenanceList({
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(task.updated_at).toLocaleString()}
-                    </Typography>
+                    <TableDateTimeCell iso={task.updated_at} />
                   </TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 0.25 }}>
@@ -247,8 +234,7 @@ export function MaintenanceList({
               );
             })}
           </TableBody>
-        </Table>
-      </TableContainer>
+      </DataTable>
 
       {confirmDeleteId ? (
         <Paper variant="outlined" sx={{ mt: 2, p: 2 }}>
