@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 
 import LogoLoop, { type LogoItem } from "@/components/marketing/LogoLoop/LogoLoop";
 import type { MarketplaceVendor } from "@/lib/vendors/loadVendorMarketplace";
@@ -44,6 +44,8 @@ function VendorNameMark({ name }: { name: string }) {
 }
 
 export function VendorLogoLoop({ vendors }: { vendors: MarketplaceVendor[] }) {
+  const theme = useTheme();
+
   if (vendors.length === 0) return null;
 
   const logos: LogoItem[] = vendors.map((v) => {
@@ -67,17 +69,17 @@ export function VendorLogoLoop({ vendors }: { vendors: MarketplaceVendor[] }) {
       >
         Certified partners
       </Typography>
-      <Box sx={{ height: 72, position: "relative", overflow: "hidden" }}>
+      <Box sx={{ height: 80, position: "relative", overflow: "hidden" }}>
         <LogoLoop
           logos={logos}
           speed={90}
           direction="left"
-          logoHeight={48}
-          gap={48}
+          logoHeight={56}
+          gap={56}
           hoverSpeed={20}
           scaleOnHover
           fadeOut
-          fadeOutColor="#f5f7fa"
+          fadeOutColor={theme.palette.background.paper}
           ariaLabel="Vendor partners"
         />
       </Box>

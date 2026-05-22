@@ -1,5 +1,3 @@
-import { Alert, Box } from "@mui/material";
-
 import { CommunityFeedPanel } from "@/components/community/CommunityFeedPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
@@ -132,30 +130,17 @@ export default async function MarketingCommunityPage({
   }
 
   return (
-    <Box sx={{ pt: 2 }}>
-      {user && !profile ? (
-        <Box sx={{ width: "100%", px: { xs: 2, sm: 3, md: 4 }, mb: 2 }}>
-          <Alert severity="warning">
-            You&apos;re signed in, but we couldn&apos;t load your account profile. Open{" "}
-            <Box component="a" href="/app/needs-profile" sx={{ fontWeight: 600 }}>
-              your portal
-            </Box>{" "}
-            to finish setup, or sign out and sign back in.
-          </Alert>
-        </Box>
-      ) : null}
-
-      <CommunityFeedPanel
-        variant={canInteract ? "full" : "preview"}
-        activeTab={activeTab}
-        viewer={viewer}
-        canInteract={canInteract}
-        feed={serializeLoadedCommunityFeed(feed)}
-        jobsFeed={jobsFeed}
-        marketplace={marketplace}
-        flash={flash}
-        subtitle={canInteract ? undefined : ""}
-      />
-    </Box>
+    <CommunityFeedPanel
+      variant={canInteract ? "full" : "preview"}
+      activeTab={activeTab}
+      viewer={viewer}
+      canInteract={canInteract}
+      feed={serializeLoadedCommunityFeed(feed)}
+      jobsFeed={jobsFeed}
+      marketplace={marketplace}
+      flash={flash}
+      subtitle={canInteract ? undefined : ""}
+      showProfileWarning={Boolean(user && !profile)}
+    />
   );
 }

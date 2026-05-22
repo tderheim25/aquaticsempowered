@@ -1,7 +1,5 @@
-import { Typography } from "@mui/material";
-import Link from "next/link";
-
 import { AuthLayout } from "@/components/auth/AuthLayout";
+import { CheckEmailPageContent } from "@/components/auth/CheckEmailPageContent";
 
 export const metadata = {
   title: "Check your email | Aquatics Empowered",
@@ -16,16 +14,7 @@ export default async function CheckEmailPage({
 
   return (
     <AuthLayout title="Check your email" subtitle="We sent a secure email link. It may take a minute to arrive.">
-      {email ? (
-        <Typography variant="body2" color="text.secondary">
-          Sent to <strong>{decodeURIComponent(email)}</strong>
-        </Typography>
-      ) : null}
-      <Typography variant="body2" sx={{ mt: 2 }}>
-        <Link href="/login" style={{ fontWeight: 600 }}>
-          Use a different email
-        </Link>
-      </Typography>
+      <CheckEmailPageContent email={email ? decodeURIComponent(email) : undefined} />
     </AuthLayout>
   );
 }

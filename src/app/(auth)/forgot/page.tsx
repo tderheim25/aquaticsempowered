@@ -1,8 +1,5 @@
-import { Typography } from "@mui/material";
-import Link from "next/link";
-
 import { AuthLayout } from "@/components/auth/AuthLayout";
-import { MagicLinkForm } from "@/components/auth/MagicLinkForm";
+import { ForgotPageContent } from "@/components/auth/ForgotPageContent";
 
 export const metadata = {
   title: "Forgot access | Aquatics Empowered",
@@ -21,12 +18,7 @@ export default async function ForgotPage({
       title="Forgot access"
       subtitle="If you already have an account, we’ll email you a secure access link."
     >
-      <MagicLinkForm mode="forgot" nextPath={nextPath} />
-      <Typography variant="body2" sx={{ mt: 2, textAlign: "center" }}>
-        <Link href="/login" style={{ fontWeight: 600 }}>
-          Back to sign in
-        </Link>
-      </Typography>
+      <ForgotPageContent nextPath={nextPath} />
     </AuthLayout>
   );
 }

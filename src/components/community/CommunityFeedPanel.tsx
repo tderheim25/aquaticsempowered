@@ -46,6 +46,8 @@ export type CommunityFeedPanelProps = {
    * Pass "" to hide the line (e.g. public preview uses its own “highlights” copy below).
    */
   subtitle?: string | null;
+  /** Signed in but profile row missing — show setup warning above the feed. */
+  showProfileWarning?: boolean;
 };
 
 export function CommunityFeedPanel({
@@ -59,6 +61,7 @@ export function CommunityFeedPanel({
   marketplace,
   flash,
   subtitle,
+  showProfileWarning = false,
 }: CommunityFeedPanelProps) {
   const {
     posts: postList,
@@ -83,6 +86,17 @@ export function CommunityFeedPanel({
 
   return (
     <CommunityPageContainer>
+      {showProfileWarning ? (
+        <Box sx={{ width: "100%", mb: 2 }}>
+          <Alert severity="warning">
+            You&apos;re signed in, but we couldn&apos;t load your account profile. Open{" "}
+            <Box component="a" href="/app/needs-profile" sx={{ fontWeight: 600 }}>
+              your portal
+            </Box>{" "}
+            to finish setup, or sign out and sign back in.
+          </Alert>
+        </Box>
+      ) : null}
       <Box
         sx={{
           display: "flex",
