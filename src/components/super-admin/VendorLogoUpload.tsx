@@ -3,7 +3,7 @@
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import { Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
 import Image from "next/image";
-import { useRef, useState, useTransition } from "react";
+import { useRef, useTransition } from "react";
 
 import { updateVendorLogoAction } from "@/app/private/ae-console/platform/vendorActions";
 import { resolveVendorImageUrl } from "@/lib/vendors/publicMediaUrl";

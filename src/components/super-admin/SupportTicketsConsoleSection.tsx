@@ -29,7 +29,6 @@ import {
   StatusPill,
   TableBody,
   TableCell,
-  TableDateTimeCell,
   TableHead,
   TablePrimaryCell,
   TableRow,

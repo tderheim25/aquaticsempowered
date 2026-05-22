@@ -17,7 +17,6 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TablePrimaryCell,
   TableRow,
 } from "@/components/ui/data-table";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";

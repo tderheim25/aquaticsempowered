@@ -5,7 +5,6 @@ import {
   Alert,
   Button,
   Checkbox,
-  Chip,
   Container,
   FormControl,
   FormControlLabel,
@@ -60,14 +59,6 @@ const FLASH: Record<string, { severity: "success" | "error" | "info"; text: stri
 function memberLabel(m: OrgMember | undefined) {
   if (!m) return "—";
   return m.full_name?.trim() || m.email;
-}
-
-function formatDate(iso: string) {
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
-  } catch {
-    return iso;
-  }
 }
 
 function labelCategory(c: ProcurementRequestCategory) {

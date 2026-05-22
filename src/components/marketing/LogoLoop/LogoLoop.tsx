@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   memo,
   useCallback,
@@ -304,17 +305,16 @@ export const LogoLoop = memo(function LogoLoop({
           {item.node}
         </span>
       ) : (
-        <img
+        <Image
           src={item.src}
-          srcSet={item.srcSet}
-          sizes={item.sizes}
-          width={item.width}
-          height={item.height}
           alt={item.alt ?? ""}
           title={item.title}
+          width={item.width ?? logoHeight}
+          height={item.height ?? logoHeight}
+          sizes={item.sizes}
           loading="lazy"
-          decoding="async"
           draggable={false}
+          className="logoloop__img"
         />
       );
       const itemAriaLabel = isNodeItem ? (item.ariaLabel ?? item.title) : (item.alt ?? item.title);
@@ -337,7 +337,7 @@ export const LogoLoop = memo(function LogoLoop({
         </li>
       );
     },
-    [renderItem],
+    [logoHeight, renderItem],
   );
 
   const logoLists = useMemo(

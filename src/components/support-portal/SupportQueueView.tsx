@@ -20,7 +20,6 @@ import { acceptTicketAction } from "@/app/(support-portal)/portal/actions";
 import { PriorityChip } from "@/components/maintenance/PriorityChip";
 import {
   DataTable,
-  StatusPill,
   TableBody,
   TableCell,
   TableDateTimeCell,

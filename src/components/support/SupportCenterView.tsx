@@ -73,7 +73,6 @@ function formatLocation(t: SupportTicketRow) {
 
 export function SupportCenterView({
   tickets,
-  orgMembers: _orgMembers,
   canSeeOrgTickets,
   hasMaintenanceView,
   formDefaults,

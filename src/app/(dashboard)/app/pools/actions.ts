@@ -95,7 +95,7 @@ export async function updatePoolAction(formData: FormData) {
   if (!parsed.success) redirect(`/app/pools/${idParsed.data.id}?status=invalid`);
 
   const supabase = await createClient();
-  let query = supabase
+  const { error } = await supabase
     .from("pools")
     .update({
       name: parsed.data.name,
@@ -107,7 +107,6 @@ export async function updatePoolAction(formData: FormData) {
     })
     .eq("id", idParsed.data.id)
     .eq("org_id", existing.org_id);
-  const { error } = await query;
 
   if (error) redirect(`/app/pools/${idParsed.data.id}?status=error`);
   revalidatePath("/app/pools");

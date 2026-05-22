@@ -14,7 +14,6 @@ import {
 import { sendSupportTechnicianInvitationEmail } from "@/lib/resend";
 import { captureException } from "@/lib/sentry";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SUPPORT_TECHNICIAN_ROLE_LABEL } from "@/lib/supportTechnicianInvitations";
 
 /**
  * Super admin invites a support technician by email. New users receive a signup link;

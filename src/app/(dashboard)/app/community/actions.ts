@@ -24,14 +24,6 @@ function effectiveMime(file: File) {
   return file.type;
 }
 
-function extFromMime(mime: string) {
-  if (mime === "image/jpeg") return "jpg";
-  if (mime === "image/png") return "png";
-  if (mime === "image/webp") return "webp";
-  if (mime === "image/gif") return "gif";
-  return "bin";
-}
-
 export async function createCommunityPostAction(formData: FormData) {
   await requireViewAccess("community");
   const profile = await requireProfileForApp();
