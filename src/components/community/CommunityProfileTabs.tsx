@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { ResolvedPostComment } from "@/components/community/CommunityPostCommentsBlock";
+import { CommunityPostImages } from "@/components/community/CommunityPostImages";
 import { CommunityProfilePostsLive } from "@/components/community/CommunityProfilePostsLive";
 import {
   acceptNetworkRequestAction,
@@ -393,32 +394,14 @@ export function CommunityProfileTabs({
             No photos in posts yet.
           </Typography>
         ) : (
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-              gap: 1.25,
-            }}
-          >
-            {photos.map((ph) => (
-              <Box
-                key={ph.storage_path}
-                component="img"
-                src={ph.signedUrl}
-                alt=""
-                sx={{
-                  width: "100%",
-                  aspectRatio: "1",
-                  objectFit: "cover",
-                  borderRadius: 2,
-                  display: "block",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  boxShadow: "0 4px 16px -10px rgba(15, 23, 42, 0.12)",
-                }}
-              />
-            ))}
-          </Box>
+          <CommunityPostImages
+            layout="gallery"
+            images={photos.map((ph) => ({
+              id: ph.storage_path,
+              src: ph.signedUrl,
+              alt: "Profile photo",
+            }))}
+          />
         )}
       </TabPanel>
 
