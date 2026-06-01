@@ -33,6 +33,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   procurement: "Procurement",
   "training-cpo": "Training / CPO",
   monitoring: "Monitoring",
+  billing: "Subscription",
   "no-organization": "Organization required",
 };
 

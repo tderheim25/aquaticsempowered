@@ -3,27 +3,14 @@ import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { getUsersRowWithAdminFallback, requireAuth } from "@/lib/auth/rbac";
 import { getVendorForUser } from "@/lib/auth/vendorPortal";
+import { loadOrgSubscriptionSummary } from "@/lib/billing/loadOrgSubscriptionSummary";
+import { planLabelFromCode } from "@/lib/billing/subscriptionSummary";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
 import { communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanCode } from "@/types/database";
 
 export const dynamic = "force-dynamic";
-
-function planLabel(code: PlanCode) {
-  switch (code) {
-    case "free":
-      return "Free";
-    case "essential":
-      return "Essential";
-    case "pro":
-      return "Professional";
-    case "enterprise":
-      return "Enterprise";
-    default:
-      return "Free";
-  }
-}
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   await requireAuth();
@@ -65,13 +52,29 @@ export default async function DashboardLayout({ children }: { children: React.Re
     profile ? { role: profile.role, app_role_id: profile.app_role_id } : null
   );
 
+  const canViewOrgBilling =
+    Boolean(orgCtx.activeOrgId) &&
+    profile?.role !== "vendor" &&
+    (profile?.role === "org_admin" || profile?.role === "super_admin");
+
+  const subscriptionSummary =
+    canViewOrgBilling && orgCtx.activeOrgId
+      ? await loadOrgSubscriptionSummary(
+          supabase,
+          orgCtx.activeOrgId,
+          planCode,
+          profile?.role === "org_admin" || profile?.role === "super_admin",
+        )
+      : null;
+
   return (
     <DashboardShell
       displayName={displayName}
       avatarUrl={avatarUrl}
       profileHref={profile ? communityProfilePath(profile.id) : null}
       orgName={displayOrgName}
-      planLabel={planLabel(planCode)}
+      planLabel={planLabelFromCode(planCode)}
+      subscriptionSummary={subscriptionSummary}
       userRole={profile?.role ?? null}
       allowedViews={allowedViews}
       hasOrg={orgCtx.hasActiveOrg}

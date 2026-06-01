@@ -4,6 +4,14 @@ import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
 import type { ElementType } from "react";
 
+import {
+  ESSENTIAL_ANNUAL_PER_MONTH_USD,
+  ESSENTIAL_MONTHLY_USD,
+  PRO_ANNUAL_PER_MONTH_USD,
+  PRO_MONTHLY_USD,
+  TIER_MONTHLY_USD,
+} from "@/lib/marketing/publicPricing";
+
 export type BillingCadence = "monthly" | "annual";
 
 export type Tier = {
@@ -30,12 +38,12 @@ export const tiers: Tier[] = [
     name: "Free Community",
     tagline: "Join the conversation",
     icon: ForumRoundedIcon,
-    monthly: 0,
+    monthly: TIER_MONTHLY_USD.community,
     annual: 0,
     priceSuffix: "forever",
     priceNote: "No credit card required",
     ctaLabel: "Join free",
-    ctaHref: "/sign-up",
+    ctaHref: "/signup",
     ctaEventName: "cta_click_pricing_community",
     highlights: [
       "Public operator forum",
@@ -49,8 +57,8 @@ export const tiers: Tier[] = [
     name: "Essential",
     tagline: "Run a single facility",
     icon: StarRoundedIcon,
-    monthly: 149,
-    annual: 124,
+    monthly: ESSENTIAL_MONTHLY_USD,
+    annual: ESSENTIAL_ANNUAL_PER_MONTH_USD,
     priceSuffix: "/mo",
     priceNote: "Per facility · billed monthly",
     annualNote: "Per facility · billed annually",
@@ -69,8 +77,8 @@ export const tiers: Tier[] = [
     name: "Professional",
     tagline: "Multi-facility operations",
     icon: RocketLaunchRoundedIcon,
-    monthly: 499,
-    annual: 415,
+    monthly: PRO_MONTHLY_USD,
+    annual: PRO_ANNUAL_PER_MONTH_USD,
     priceSuffix: "/mo",
     priceNote: "Up to 5 facilities · monthly",
     annualNote: "Up to 5 facilities · annual",

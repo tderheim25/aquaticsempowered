@@ -1,14 +1,25 @@
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
+import PaymentRoundedIcon from "@mui/icons-material/PaymentRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import { Avatar, Box, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
 import Link from "next/link";
+
+import { parsePlanCode } from "@/lib/stripe/prices";
+import { syncCheckoutSessionCompleted } from "@/lib/stripe/syncSubscription";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 export const metadata = {
   title: "Thank you | Aquatics Empowered",
 };
 
-type SearchParams = { type?: string; plan?: string; confirm?: string };
+type SearchParams = {
+  type?: string;
+  plan?: string;
+  confirm?: string;
+  checkout?: string;
+  session_id?: string;
+};
 
 const PLAN_LABELS: Record<string, string> = {
   essential: "Essential",
@@ -21,10 +32,28 @@ export default async function FoundersThanksPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const { type, plan, confirm } = (await searchParams) ?? {};
-  const mode = type === "demo" ? "demo" : "account";
+  const { type, plan, confirm, checkout, session_id: sessionId } = (await searchParams) ?? {};
+  const paidCheckout = checkout === "success";
+  const mode = type === "demo" ? "demo" : paidCheckout ? "paid" : "account";
   const planLabel = plan ? PLAN_LABELS[plan] ?? plan : null;
   const requiresEmailConfirm = confirm === "1";
+
+  let checkoutPlanLabel: string | null = planLabel;
+  if (paidCheckout && sessionId && isStripeConfigured()) {
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session.payment_status === "paid") {
+        await syncCheckoutSessionCompleted(session);
+      }
+      const planCode = parsePlanCode(session.metadata?.plan_code ?? null);
+      if (planCode) {
+        checkoutPlanLabel = PLAN_LABELS[planCode] ?? planCode;
+      }
+    } catch {
+      // Webhook may still sync; generic copy is fine if retrieve/sync fails.
+    }
+  }
 
   return (
     <Box
@@ -49,6 +78,8 @@ export default async function FoundersThanksPage({
               >
                 {mode === "demo" ? (
                   <EventAvailableRoundedIcon sx={{ fontSize: 36 }} />
+                ) : mode === "paid" ? (
+                  <PaymentRoundedIcon sx={{ fontSize: 36 }} />
                 ) : (
                   <RocketLaunchRoundedIcon sx={{ fontSize: 36 }} />
                 )}
@@ -64,6 +95,22 @@ export default async function FoundersThanksPage({
                     your personalized walkthrough and discuss founder pricing.
                   </Typography>
                 </>
+              ) : mode === "paid" ? (
+                <>
+                  <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                    Founder payment confirmed
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    {checkoutPlanLabel ? (
+                      <>
+                        Your founder membership on the <strong>{checkoutPlanLabel}</strong> plan is
+                        active. We&apos;re syncing your workspace — you can open the dashboard now.
+                      </>
+                    ) : (
+                      "Your founder membership payment succeeded. We're syncing your workspace now."
+                    )}
+                  </Typography>
+                </>
               ) : (
                 <>
                   <Typography variant="h4" sx={{ fontWeight: 800 }}>
@@ -73,11 +120,12 @@ export default async function FoundersThanksPage({
                     {planLabel ? (
                       <>
                         Your facility is set up on the <strong>{planLabel}</strong> founder plan.
-                        We&apos;ll follow up with founder pricing and billing — no payment required to
-                        start.
+                        {requiresEmailConfirm
+                          ? " Confirm your email, then sign in to complete annual payment on Stripe Checkout."
+                          : " Sign in and return to the founder flow if you still need to complete payment."}
                       </>
                     ) : (
-                      "Your facility workspace is ready and the founder onboarding team has been notified."
+                      "Your facility workspace is ready. Sign in to complete founder checkout when you're ready."
                     )}
                   </Typography>
                   {requiresEmailConfirm && (
@@ -95,11 +143,11 @@ export default async function FoundersThanksPage({
                       <CheckCircleRoundedIcon sx={{ color: "secondary.main", mt: "2px" }} />
                       <Box>
                         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                          One quick step — confirm your email
+                          Confirm your email, then complete payment
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          We sent a confirmation link to verify your address. After confirming you can
-                          sign in to your founder workspace.
+                          We sent a confirmation link. After verifying, sign in and finish checkout from
+                          the founder page or pricing — your plan is saved to your organization.
                         </Typography>
                       </Box>
                     </Stack>
@@ -120,6 +168,10 @@ export default async function FoundersThanksPage({
                     size="large"
                   >
                     {requiresEmailConfirm ? "Check your inbox" : "Open dashboard"}
+                  </Button>
+                ) : mode === "paid" ? (
+                  <Button component={Link} href="/app" variant="contained" color="primary" size="large">
+                    Open dashboard
                   </Button>
                 ) : (
                   <Button component={Link} href="/pricing" variant="contained" color="primary" size="large">

@@ -1,11 +1,13 @@
 import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
+import LocalOfferRoundedIcon from "@mui/icons-material/LocalOfferRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import { Avatar, Box, Card, CardContent, Chip, Container, Stack, Typography } from "@mui/material";
 
 import { FounderApplyWizard } from "@/components/marketing/FounderApplyWizard";
 import { getUsersRowForAuthUser } from "@/lib/auth/rbac";
+import { PROMO } from "@/lib/marketing/promo";
 import { buildDisplayName } from "@/lib/profile/avatar";
 import { createClient } from "@/lib/supabase/server";
 
@@ -99,6 +101,46 @@ export default async function FoundersPage() {
             today or book a personalized demo with our team. Either way, you&apos;re joining the operators
             shaping the playbook.
           </Typography>
+
+          {PROMO.active ? (
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{
+                mt: 1,
+                px: 2.5,
+                py: 1.5,
+                borderRadius: 3,
+                background: "linear-gradient(135deg, rgba(0,59,111,0.06), rgba(46,165,160,0.1))",
+                border: "1px solid rgba(46,165,160,0.3)",
+              }}
+            >
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                  bgcolor: "secondary.main",
+                  color: "common.white",
+                  boxShadow: "0 8px 20px rgba(46,165,160,0.4)",
+                }}
+              >
+                <LocalOfferRoundedIcon fontSize="small" />
+              </Box>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2, color: "primary.dark" }}>
+                  {PROMO.headline}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {PROMO.description}
+                </Typography>
+              </Box>
+            </Stack>
+          ) : null}
         </Stack>
 
         <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 3, md: 4 }} alignItems="flex-start">

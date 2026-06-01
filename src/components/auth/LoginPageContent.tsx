@@ -40,6 +40,17 @@ export function LoginPageContent({
           </Link>
         </Typography>
       </Stack>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", textAlign: "center", mt: 2.5, lineHeight: 1.5 }}
+      >
+        By signing in, you agree to our{" "}
+        <Link href="/privacy" style={{ fontWeight: 600 }}>
+          Privacy Policy
+        </Link>
+        .
+      </Typography>
     </>
   );
 }

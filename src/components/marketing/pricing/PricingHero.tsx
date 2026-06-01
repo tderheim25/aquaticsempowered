@@ -12,6 +12,10 @@ import {
   useMediaQuery,
 } from "@mui/material";
 
+import LocalOfferRoundedIcon from "@mui/icons-material/LocalOfferRounded";
+
+import { PROMO } from "@/lib/marketing/promo";
+
 import type { BillingCadence } from "./pricingData";
 
 const float = keyframes`
@@ -143,6 +147,48 @@ export function PricingHero({ cadence, onCadenceChange }: Props) {
             From free community access to enterprise-grade monitoring and advisory.
             Switch tiers anytime — founders lock in preferred pricing for life.
           </Typography>
+
+          {PROMO.active ? (
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{
+                px: 2.5,
+                py: 1.5,
+                borderRadius: 3,
+                bgcolor: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.3)",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+                animation: reduceMotion ? "none" : `${fadeUp} 700ms ease 200ms both`,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  flexShrink: 0,
+                  bgcolor: "secondary.main",
+                  color: "common.white",
+                  boxShadow: "0 8px 20px rgba(46,165,160,0.5)",
+                }}
+              >
+                <LocalOfferRoundedIcon fontSize="small" />
+              </Box>
+              <Box sx={{ textAlign: "left" }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                  {PROMO.headline}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  {PROMO.description}
+                </Typography>
+              </Box>
+            </Stack>
+          ) : null}
 
           <Stack
             direction="row"

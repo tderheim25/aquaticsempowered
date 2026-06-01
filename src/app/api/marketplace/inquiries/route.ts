@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 
 import { getSessionUser, getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
+import { enforceRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_MESSAGE = 4000;
 
 export async function POST(req: Request) {
+  // Public, unauthenticated endpoint — strict per-IP limit to deter spam/abuse.
+  const limited = await enforceRateLimit(`marketplace-inquiry:${getClientIp(req)}`, {
+    limit: 5,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
+
   let body: {
     productId?: string;
     message?: string;

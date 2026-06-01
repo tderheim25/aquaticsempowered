@@ -8,6 +8,7 @@ import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import HandymanOutlinedIcon from "@mui/icons-material/HandymanOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
@@ -52,6 +53,13 @@ export const DASHBOARD_TOP_NAV: {
 }[] = [
   { label: "Dashboard", href: "/app", viewKey: "dashboard_home", icon: DashboardOutlinedIcon },
   { label: "Team", href: "/app/team", viewKey: "dashboard_home", icon: GroupsOutlinedIcon, roles: ["org_admin"] },
+  {
+    label: "Subscription",
+    href: "/app/billing",
+    viewKey: "billing",
+    icon: CreditCardOutlinedIcon,
+    roles: ["org_admin", "super_admin"],
+  },
 ];
 
 export const DASHBOARD_POOL_OPS_GROUPS: DashboardNavGroup[] = [

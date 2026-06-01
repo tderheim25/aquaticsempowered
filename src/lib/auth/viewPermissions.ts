@@ -27,6 +27,7 @@ export const VIEW_DEFINITIONS = [
   { key: "training_cpo", label: "Training / CPO" },
   { key: "monitoring", label: "Monitoring" },
   { key: "energy_audits", label: "Energy Audits" },
+  { key: "billing", label: "Subscription" },
   { key: "admin_portal", label: "Admin Portal" },
 ] as const;
 
@@ -52,6 +53,7 @@ const DEFAULT_ROLE_VIEWS: Record<UserRole, AppViewKey[]> = {
     "procurement",
     "training_cpo",
     "monitoring",
+    "billing",
   ],
   manager: [
     "dashboard_home",

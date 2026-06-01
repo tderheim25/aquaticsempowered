@@ -37,12 +37,14 @@ import {
   sidebarDrawerPaperSx,
   sidebarShellBackgroundSx,
 } from "@/components/navigation/sidebarStyles";
+import { AccountSubscriptionMenuSection } from "@/components/dashboard/AccountSubscriptionMenuSection";
 import {
   OrgInvitationsMenuItems,
   useOrgInvitations,
 } from "@/components/team/OrgInvitationsBell";
 import type { AppViewKey } from "@/lib/auth/viewPermissions";
 import type { OrgOption } from "@/lib/auth/activeOrgShared";
+import type { OrgSubscriptionSummary } from "@/lib/billing/subscriptionSummary";
 import type { UserRole } from "@/types/database";
 
 export function DashboardShell({
@@ -51,6 +53,7 @@ export function DashboardShell({
   profileHref,
   orgName,
   planLabel,
+  subscriptionSummary,
   userRole,
   allowedViews,
   hasOrg,
@@ -63,6 +66,7 @@ export function DashboardShell({
   profileHref?: string | null;
   orgName: string | null;
   planLabel: string;
+  subscriptionSummary?: OrgSubscriptionSummary | null;
   userRole: UserRole | null;
   allowedViews: AppViewKey[];
   hasOrg: boolean;
@@ -156,7 +160,12 @@ export function DashboardShell({
             />
             <CommunityUnreadBadge count={invitationCount} />
           </IconButton>
-          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            slotProps={{ paper: { sx: { minWidth: 280 } } }}
+          >
             <OrgInvitationsMenuItems
               invitations={invitations}
               onResolve={() => {
@@ -164,7 +173,7 @@ export function DashboardShell({
                 void refreshInvitations();
               }}
             />
-            <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start" }}>
+            <MenuItem disabled sx={{ flexDirection: "column", alignItems: "flex-start", opacity: 1 }}>
               <Typography variant="subtitle2">{displayName}</Typography>
               <Typography variant="caption" color="text.secondary">
                 {userRole === "super_admin" && !orgName
@@ -172,6 +181,14 @@ export function DashboardShell({
                   : (orgName ?? "No organization linked")}
               </Typography>
             </MenuItem>
+            {subscriptionSummary ? (
+              <AccountSubscriptionMenuSection
+                summary={subscriptionSummary}
+                onNavigate={() => setAnchorEl(null)}
+              />
+            ) : (
+              <Divider />
+            )}
             {profileHref ? (
               <MenuItem component={Link} href={profileHref} onClick={() => setAnchorEl(null)}>
                 View profile

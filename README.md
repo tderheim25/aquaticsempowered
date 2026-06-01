@@ -28,7 +28,7 @@ Copy [`.env.example`](./.env.example) → `.env.local`. **Required for local dev
 | `RESEND_API_KEY` | [Resend](https://resend.com) API key |
 | `RESEND_FROM_EMAIL` | Verified sender domain |
 
-Optional: PostHog, Sentry, Stripe (see `.env.example`).
+Optional: PostHog, Sentry, Stripe — see [`.env.example`](.env.example) and [Stripe checkout setup](docs/stripe-checkout.md).
 
 ## Supabase setup
 

@@ -123,15 +123,14 @@ export function EnergyAuditView({
             <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: "-0.02em" }}>
               Energy audits
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 560 }}>
-              Document pump, heater, and schedule reviews for board and capital planning.
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" sx={{ mt: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 560 }}>
+                Document pump, heater, and schedule reviews for board and capital planning.
+              </Typography>
               {isEnergyAuditBetaOpen() ? (
-                <>
-                  {" "}
-                  <Chip size="small" label="Beta" color="primary" sx={{ ml: 0.5, verticalAlign: "middle" }} />
-                </>
+                <Chip size="small" label="Beta" color="primary" />
               ) : null}
-            </Typography>
+            </Stack>
           </Box>
           <Button
             variant="contained"

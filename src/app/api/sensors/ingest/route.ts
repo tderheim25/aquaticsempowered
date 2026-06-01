@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { enforceRateLimit, getClientIp } from "@/lib/security/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type IngestBody = {
@@ -13,6 +14,13 @@ type IngestBody = {
 };
 
 export async function POST(request: Request) {
+  // Per-IP cap to throttle brute-forcing the bearer secret and ingest floods.
+  const limited = await enforceRateLimit(`sensor-ingest:${getClientIp(request)}`, {
+    limit: 120,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
+
   const secret = process.env.SENSOR_INGEST_SECRET;
   const auth = request.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";

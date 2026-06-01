@@ -12,12 +12,12 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import Link from "next/link";
 
-import { TrackedButton } from "@/components/marketing/TrackedButton";
-
+import { PricingCheckoutButton } from "./PricingCheckoutButton";
 import type { BillingCadence, Tier } from "./pricingData";
 import { tiers } from "./pricingData";
+import { tierIdToPlanCode } from "@/lib/stripe/prices";
+import { applyPromoDiscount, PROMO, promoAppliesToTier } from "@/lib/marketing/promo";
 import { useReveal } from "./useReveal";
 
 const priceSwap = keyframes`
@@ -87,10 +87,15 @@ function TierCard({
 }) {
   const { ref, visible } = useReveal<HTMLDivElement>();
   const Icon = tier.icon;
-  const price = formatPrice(tier, cadence);
+  const rawValue = cadence === "monthly" ? tier.monthly : tier.annual;
+  const showPromo = promoAppliesToTier(tier.id) && typeof rawValue === "number" && rawValue > 0;
+  const promoValue = showPromo ? applyPromoDiscount(rawValue as number) : null;
+  const price = showPromo ? `$${(promoValue as number).toLocaleString()}` : formatPrice(tier, cadence);
+  const originalPrice = showPromo ? formatPrice(tier, cadence) : null;
   const note =
     cadence === "annual" && tier.annualNote ? tier.annualNote : tier.priceNote;
   const show = visible || reduceMotion;
+  const planCode = tierIdToPlanCode(tier.id);
 
   return (
     <Box
@@ -204,7 +209,36 @@ function TierCard({
               ) : null}
             </Stack>
 
-            <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ mt: 2.5 }}>
+            {showPromo ? (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2.5, mb: 0.5 }}>
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600, textDecoration: "line-through" }}
+                >
+                  {originalPrice}
+                </Typography>
+                <Chip
+                  label={PROMO.badge}
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
+                    bgcolor: "secondary.main",
+                    color: "common.white",
+                    boxShadow: "0 6px 16px rgba(46,165,160,0.4)",
+                  }}
+                />
+              </Stack>
+            ) : null}
+
+            <Stack
+              direction="row"
+              alignItems="baseline"
+              spacing={0.75}
+              sx={{ mt: showPromo ? 0 : 2.5 }}
+            >
               <Typography
                 key={`${tier.id}-${cadence}`}
                 variant="h3"
@@ -274,15 +308,16 @@ function TierCard({
               ))}
             </Stack>
 
-            <TrackedButton
-              component={Link}
-              href={tier.ctaHref}
+            <PricingCheckoutButton
+              tierId={tier.id}
+              planCode={planCode}
+              cadence={cadence}
+              ctaHref={tier.ctaHref}
+              eventName={tier.ctaEventName}
               variant={tier.featured ? "contained" : "outlined"}
               color={tier.featured ? "secondary" : "primary"}
               fullWidth
               size="large"
-              eventName={tier.ctaEventName}
-              eventProps={{ location: "pricing_tier_card", cadence, tier: tier.id }}
               sx={{
                 mt: 3,
                 fontWeight: 700,
@@ -301,7 +336,7 @@ function TierCard({
               }}
             >
               {tier.ctaLabel}
-            </TrackedButton>
+            </PricingCheckoutButton>
           </CardContent>
         </Card>
       </Box>

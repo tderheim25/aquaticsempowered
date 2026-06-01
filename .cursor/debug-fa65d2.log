@@ -1,0 +1,2 @@
+{"sessionId":"fa65d2","hypothesisId":"A","location":"FounderApplyWizard.tsx:render","message":"wizard render env","data":{"isServer":true,"isMobile":false,"stepHelperRendered":true,"activeStep":0,"wizardRenderId":"_R_akql9bn5rjl5rllb_","viewportWidth":null},"timestamp":1780328782767}
+{"sessionId":"fa65d2","hypothesisId":"C","location":"OrganizationStep.tsx:render","message":"organization step render","data":{"isServer":true,"orgStepRenderId":"_R_16eqkql9bn5rjl5rllb_","region":"","hasSelectedState":false,"cityDisabled":true},"timestamp":1780328782870}
