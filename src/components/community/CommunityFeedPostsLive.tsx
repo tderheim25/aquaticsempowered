@@ -18,6 +18,7 @@ import { useCommunityPostEngagement } from "@/lib/community/useCommunityPostEnga
 
 import { CommunityAvatar } from "./CommunityAvatar";
 import { CommunityPostCommentsBlock } from "./CommunityPostCommentsBlock";
+import { CommunityPostImages } from "./CommunityPostImages";
 import { CommunityPostLikeButton } from "./CommunityPostLikeButton";
 
 const COMMUNITY_FEED_PATH = "/community";
@@ -136,21 +137,15 @@ export function CommunityFeedPostsLive({
                   ) : null}
 
                   {media.length > 0 ? (
-                    <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.5 }}>
-                      {media.map((m) => {
-                        const src = signedByPath[m.storage_path];
-                        if (!src) return null;
-                        return (
-                          <Box
-                            key={m.storage_path}
-                            component="img"
-                            src={src}
-                            alt=""
-                            sx={{ maxWidth: 280, maxHeight: 220, borderRadius: 1, objectFit: "cover" }}
-                          />
-                        );
-                      })}
-                    </Stack>
+                    <CommunityPostImages
+                      images={media
+                        .map((m) => {
+                          const src = signedByPath[m.storage_path];
+                          if (!src) return null;
+                          return { id: m.storage_path, src, alt: "Post image" };
+                        })
+                        .filter((item): item is { id: string; src: string; alt: string } => item !== null)}
+                    />
                   ) : null}
 
                   <Divider sx={{ my: 1.5 }} />
