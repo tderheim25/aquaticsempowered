@@ -4,6 +4,7 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
@@ -109,6 +110,7 @@ export const DASHBOARD_FACILITY_NAV: {
   { label: "Vendor Directory", href: "/app/vendors", viewKey: "vendor_directory", icon: StorefrontOutlinedIcon },
   { label: "Community", href: "/community", viewKey: "community", icon: ForumOutlinedIcon },
   { label: "Procurement", href: "/app/procurement", viewKey: "procurement", icon: ShoppingCartOutlinedIcon },
+  { label: "Energy Audits", href: "/app/energy-audits", viewKey: "energy_audits", icon: BoltOutlinedIcon },
   { label: "Training / CPO", href: "/app/training-cpo", viewKey: "training_cpo", icon: SchoolOutlinedIcon },
 ];
 
