@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { communityFeedTabButtonSx } from "./communityUi";
 
-export type CommunityFeedTab = "feed" | "jobs" | "marketplace";
+export type CommunityFeedTab = "feed" | "jobs" | "marketplace" | "programs";
 
 export function CommunityFeedTabLinks({
   activeTab,
@@ -54,6 +54,15 @@ export function CommunityFeedTabLinks({
             ({marketplaceProductCount})
           </Typography>
         ) : null}
+      </Button>
+      <Button
+        component={Link}
+        href="/community?tab=programs"
+        size="small"
+        variant={activeTab === "programs" ? "contained" : "outlined"}
+        sx={communityFeedTabButtonSx(activeTab === "programs")}
+      >
+        Programs
       </Button>
     </Stack>
   );
