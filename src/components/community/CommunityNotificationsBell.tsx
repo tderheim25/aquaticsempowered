@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import type { CommunityActivityItem, CommunityActivitySummary } from "@/lib/community/loadCommunityActivity";
@@ -28,7 +28,7 @@ const ACTIVITY_REFRESH_EVENT = "community-activity-refresh";
 /** Routes where the community notifications bell is shown. */
 export function isCommunityRoute(pathname: string) {
   const p = pathname.replace(/\/$/, "") || "/";
-  return p === "/community" || p.startsWith("/app/community");
+  return p === "/community" || p.startsWith("/community/profile") || p.startsWith("/app/community");
 }
 
 export function CommunityUnreadBadge({ count }: { count: number }) {
@@ -69,6 +69,8 @@ export function markCommunityActivitySeen() {
 
 export function useCommunityActivity(enabled: boolean) {
   const [activity, setActivity] = useState<CommunityActivitySummary | null>(null);
+  const instanceId = useId();
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -87,62 +89,68 @@ export function useCommunityActivity(enabled: boolean) {
     }
   }, [enabled]);
 
+  refreshRef.current = refresh;
+
   useEffect(() => {
     if (!enabled) return;
 
-    void refresh();
-    const pollId = window.setInterval(() => void refresh(), POLL_MS);
+    const runRefresh = () => void refreshRef.current();
 
-    const onFocus = () => void refresh();
+    runRefresh();
+    const pollId = window.setInterval(runRefresh, POLL_MS);
+
+    const onFocus = () => runRefresh();
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") runRefresh();
     };
-    const onEngagement = () => void refresh();
+    const onEngagement = () => runRefresh();
 
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener(ACTIVITY_REFRESH_EVENT, onEngagement);
 
     const supabase = createClient();
+    // Unique per hook instance — SiteHeader mounts desktop + mobile bells at once.
+    const channelName = `community-notifications${instanceId.replace(/:/g, "")}`;
     const channel = supabase
-      .channel("community-notifications")
+      .channel(channelName)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_network_requests" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "community_network_requests" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_follows" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_post_comments" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "community_post_comments" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "community_likes" },
-        () => void refresh()
+        runRefresh
       )
       .on(
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "community_likes" },
-        () => void refresh()
+        runRefresh
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") void refresh();
+        if (status === "SUBSCRIBED") runRefresh();
       });
 
     return () => {
@@ -152,7 +160,7 @@ export function useCommunityActivity(enabled: boolean) {
       window.removeEventListener(ACTIVITY_REFRESH_EVENT, onEngagement);
       void supabase.removeChannel(channel);
     };
-  }, [enabled, refresh]);
+  }, [enabled, instanceId]);
 
   return { activity, refresh };
 }

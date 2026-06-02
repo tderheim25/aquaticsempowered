@@ -1,19 +1,17 @@
 import { redirect } from "next/navigation";
 
-import { requireProfileForApp } from "@/lib/auth/rbac";
-import { communityProfilePath } from "@/lib/profile/paths";
+import { accountSettingsPath } from "@/lib/profile/paths";
 
 export const metadata = {
-  title: "Profile | Aquatics Empowered",
+  title: "Account settings | Aquatics Empowered",
 };
 
-/** Legacy route — profile lives on the community profile page. */
-export default async function AccountProfileRedirect({
+/** Legacy URL — account settings live at `/app/account`. */
+export default async function LegacyProfileRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const profile = await requireProfileForApp();
   const { status } = await searchParams;
-  redirect(communityProfilePath(profile.id, status));
+  redirect(accountSettingsPath(status));
 }

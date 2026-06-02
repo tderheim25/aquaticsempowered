@@ -6,7 +6,9 @@ import VerifiedRoundedIcon from "@mui/icons-material/VerifiedRounded";
 import { Avatar, Box, Card, CardContent, Chip, Container, Stack, Typography } from "@mui/material";
 
 import { FounderApplyWizard } from "@/components/marketing/FounderApplyWizard";
-import { getUsersRowForAuthUser } from "@/lib/auth/rbac";
+import { FounderProgramStatusCard } from "@/components/marketing/FounderProgramStatusCard";
+import { getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
+import { resolveFounderProgramGate, type FounderProgramGate } from "@/lib/founders/founderProgramGate";
 import { PROMO } from "@/lib/marketing/promo";
 import { buildDisplayName } from "@/lib/profile/avatar";
 import { createClient } from "@/lib/supabase/server";
@@ -45,8 +47,11 @@ export default async function FoundersPage() {
   } = await supabase.auth.getUser();
 
   let currentUser: { id: string; email: string; displayName: string | null } | null = null;
+  let founderGate: FounderProgramGate = { eligible: true };
+
   if (user) {
-    const profile = await getUsersRowForAuthUser(user.id);
+    const profile = await getUsersRowWithAdminFallback(user.id);
+    founderGate = profile ? await resolveFounderProgramGate(profile) : { eligible: true };
     currentUser = {
       id: user.id,
       email: user.email ?? profile?.email ?? "",
@@ -153,7 +158,11 @@ export default async function FoundersPage() {
               }}
             >
               <CardContent sx={{ p: { xs: 2, sm: 3.5 } }}>
-                <FounderApplyWizard currentUser={currentUser} />
+                {founderGate.eligible ? (
+                  <FounderApplyWizard currentUser={currentUser} />
+                ) : (
+                  <FounderProgramStatusCard status={founderGate} />
+                )}
               </CardContent>
             </Card>
           </Box>

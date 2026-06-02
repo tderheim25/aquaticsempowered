@@ -11,12 +11,16 @@ export async function resolveCommunityViewer(profile: UsersRow): Promise<Communi
   return { id: profile.id, org_id };
 }
 
+/**
+ * Whether two users share a community partition for profile/DM visibility.
+ * Matches feed rules: facility members also see the global (org-less) partition.
+ */
 export function isSameCommunityPartition(
   viewerOrgId: string | null,
   targetOrgId: string | null
 ): boolean {
-  if (viewerOrgId && targetOrgId) return viewerOrgId === targetOrgId;
-  if (!viewerOrgId && !targetOrgId) return true;
+  if (viewerOrgId === targetOrgId) return true;
+  if (viewerOrgId != null && targetOrgId == null) return true;
   return false;
 }
 

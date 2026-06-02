@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
 import { resolveCommunityViewer } from "@/lib/community/communityPartition";
+import { communityProfilePath } from "@/lib/profile/paths";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
 import { enforceRateLimit } from "@/lib/security/rateLimit";
 import { createClient } from "@/lib/supabase/server";
@@ -91,7 +92,7 @@ export async function GET(request: Request) {
       id: u.id,
       label,
       subtitle: u.email,
-      href: `/app/community/profile/${u.id}`,
+      href: communityProfilePath(u.id),
     });
   }
 

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { communityProfilePath } from "@/lib/profile/paths";
+
 export type CommunityActivityItem =
   | {
       kind: "connection_request";
@@ -69,7 +71,7 @@ export async function loadCommunityActivitySummary(
   supabase: SupabaseClient,
   profileId: string
 ): Promise<CommunityActivitySummary> {
-  const connectionsHref = `/app/community/profile/${profileId}?tab=connections`;
+  const connectionsHref = `${communityProfilePath(profileId)}?tab=connections`;
   const communityFeedHref = "/community";
 
   const { data: prof } = await supabase

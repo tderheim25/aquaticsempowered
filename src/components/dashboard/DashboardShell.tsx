@@ -50,7 +50,8 @@ import type { UserRole } from "@/types/database";
 export function DashboardShell({
   displayName,
   avatarUrl,
-  profileHref,
+  accountSettingsHref,
+  communityProfileHref,
   orgName,
   planLabel,
   subscriptionSummary,
@@ -63,7 +64,8 @@ export function DashboardShell({
 }: {
   displayName: string;
   avatarUrl?: string | null;
-  profileHref?: string | null;
+  accountSettingsHref?: string | null;
+  communityProfileHref?: string | null;
   orgName: string | null;
   planLabel: string;
   subscriptionSummary?: OrgSubscriptionSummary | null;
@@ -189,9 +191,14 @@ export function DashboardShell({
             ) : (
               <Divider />
             )}
-            {profileHref ? (
-              <MenuItem component={Link} href={profileHref} onClick={() => setAnchorEl(null)}>
-                View profile
+            {accountSettingsHref ? (
+              <MenuItem component={Link} href={accountSettingsHref} onClick={() => setAnchorEl(null)}>
+                Account settings
+              </MenuItem>
+            ) : null}
+            {communityProfileHref ? (
+              <MenuItem component={Link} href={communityProfileHref} onClick={() => setAnchorEl(null)}>
+                Community profile
               </MenuItem>
             ) : null}
             <MenuItem component={Link} href="/" onClick={() => setAnchorEl(null)}>

@@ -6,7 +6,7 @@ import { getVendorForUser } from "@/lib/auth/vendorPortal";
 import { loadOrgSubscriptionSummary } from "@/lib/billing/loadOrgSubscriptionSummary";
 import { planLabelFromCode } from "@/lib/billing/subscriptionSummary";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
-import { communityProfilePath } from "@/lib/profile/paths";
+import { accountSettingsPath, communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
 import type { PlanCode } from "@/types/database";
 
@@ -71,7 +71,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <DashboardShell
       displayName={displayName}
       avatarUrl={avatarUrl}
-      profileHref={profile ? communityProfilePath(profile.id) : null}
+      accountSettingsHref={profile ? accountSettingsPath() : null}
+      communityProfileHref={
+        profile && allowedViews.includes("community") ? communityProfilePath(profile.id) : null
+      }
       orgName={displayOrgName}
       planLabel={planLabelFromCode(planCode)}
       subscriptionSummary={subscriptionSummary}

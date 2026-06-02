@@ -14,6 +14,7 @@ export function isVendorAllowedAppPath(pathname: string): boolean {
   if (p === "/app/support" || p.startsWith("/app/support/")) return true;
   if (p === "/app/needs-profile" || p.startsWith("/app/needs-profile/")) return true;
   if (p === "/app/forbidden") return true;
+  if (p === "/app/account" || p.startsWith("/app/account/")) return true;
   if (p.startsWith("/app/invitations")) return true;
   return false;
 }
@@ -25,6 +26,7 @@ export function isSupportTechnicianAllowedAppPath(pathname: string): boolean {
   if (p === "/app/support") return true;
   if (p === "/app/needs-profile") return true;
   if (p === "/app/forbidden") return true;
+  if (p === "/app/account" || p.startsWith("/app/account/")) return true;
   if (p.startsWith("/app/invitations")) return true;
   return false;
 }

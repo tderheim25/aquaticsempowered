@@ -13,6 +13,7 @@ import Link from "next/link";
 
 import { deleteCommunityPostAction } from "@/app/(dashboard)/app/community/actions";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
+import { communityProfilePath } from "@/lib/profile/paths";
 import type { SerializedFeedEngagement } from "@/lib/community/serializeFeedEngagement";
 import { useCommunityPostEngagement } from "@/lib/community/useCommunityPostEngagement";
 
@@ -72,7 +73,7 @@ export function CommunityFeedPostsLive({
     setLikeState,
   } = useCommunityPostEngagement(Boolean(live), postIds, engagement, live ? viewer!.id : null);
 
-  const profileHrefForAuthor = (authorId: string) => `/app/community/profile/${authorId}`;
+  const profileHrefForAuthor = (authorId: string) => communityProfilePath(authorId);
   const loginForProfileHref = (authorId: string) =>
     `/login?next=${encodeURIComponent(profileHrefForAuthor(authorId))}`;
 

@@ -30,6 +30,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (pathname.startsWith("/app/community/profile/")) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace("/app/community/profile/", "/community/profile/");
+    return NextResponse.redirect(url);
+  }
+
   if (pathname.startsWith("/app") || pathname.startsWith("/private") || pathname.startsWith("/portal")) {
     if (!user) {
       const url = request.nextUrl.clone();

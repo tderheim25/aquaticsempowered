@@ -5,12 +5,21 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireProfileForApp } from "@/lib/auth/rbac";
-import { communityProfilePath } from "@/lib/profile/paths";
+import { accountSettingsPath, communityProfilePath, normalizeCommunityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
 
-function revalidateSelfProfile(userId: string) {
-  revalidatePath(communityProfilePath(userId));
+function revalidateAccount(userId: string) {
+  revalidatePath(accountSettingsPath());
   revalidatePath("/app");
+  revalidatePath(communityProfilePath(userId));
+}
+
+function redirectAfterAccountAction(userId: string, redirectTo: string | null | undefined, status: string) {
+  const normalized = normalizeCommunityProfilePath(String(redirectTo ?? "").split("?")[0]);
+  if (normalized) {
+    redirect(`${normalized}?status=${encodeURIComponent(status)}`);
+  }
+  redirect(accountSettingsPath(status));
 }
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -36,6 +45,7 @@ function effectiveMime(file: File) {
 
 export async function updateUserProfileAction(formData: FormData) {
   const profile = await requireProfileForApp();
+  const redirectTo = String(formData.get("redirectTo") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim().slice(0, 80);
   const lastName = String(formData.get("lastName") ?? "").trim().slice(0, 80);
   const fullName = `${firstName} ${lastName}`.trim();
@@ -54,7 +64,7 @@ export async function updateUserProfileAction(formData: FormData) {
     if (process.env.NODE_ENV === "development") {
       console.error("[updateUserProfileAction]", error.message, error);
     }
-    redirect(communityProfilePath(profile.id, "error"));
+    redirectAfterAccountAction(profile.id, redirectTo, "error");
   }
 
   await supabase.auth.updateUser({
@@ -65,22 +75,49 @@ export async function updateUserProfileAction(formData: FormData) {
     },
   });
 
-  revalidateSelfProfile(profile.id);
-  redirect(communityProfilePath(profile.id, "saved"));
+  revalidateAccount(profile.id);
+  redirectAfterAccountAction(profile.id, redirectTo, "saved");
+}
+
+export async function changePasswordAction(formData: FormData) {
+  const profile = await requireProfileForApp();
+  const newPassword = String(formData.get("newPassword") ?? "");
+  const confirmPassword = String(formData.get("confirmPassword") ?? "");
+
+  if (newPassword.length < 8) {
+    redirect(accountSettingsPath("password_too_short"));
+  }
+  if (newPassword !== confirmPassword) {
+    redirect(accountSettingsPath("password_mismatch"));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+  if (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.error("[changePasswordAction]", error.message);
+    }
+    redirect(accountSettingsPath("password_error"));
+  }
+
+  revalidateAccount(profile.id);
+  redirect(accountSettingsPath("password_saved"));
 }
 
 export async function uploadUserAvatarAction(formData: FormData) {
   const profile = await requireProfileForApp();
+  const redirectTo = String(formData.get("redirectTo") ?? "");
   const file = formData.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
-    redirect(communityProfilePath(profile.id, "invalid_file"));
+    redirectAfterAccountAction(profile.id, redirectTo, "invalid_file");
   }
   if (file.size > MAX_AVATAR_BYTES) {
-    redirect(communityProfilePath(profile.id, "file_too_large"));
+    redirectAfterAccountAction(profile.id, redirectTo, "file_too_large");
   }
   const mime = effectiveMime(file);
   if (!ALLOWED_MIME.has(mime)) {
-    redirect(communityProfilePath(profile.id, "invalid_file"));
+    redirectAfterAccountAction(profile.id, redirectTo, "invalid_file");
   }
 
   const supabase = await createClient();
@@ -99,31 +136,32 @@ export async function uploadUserAvatarAction(formData: FormData) {
     if (process.env.NODE_ENV === "development") {
       console.error("[uploadUserAvatarAction] upload", uErr.message, uErr);
     }
-    redirect(communityProfilePath(profile.id, "upload_error"));
+    redirectAfterAccountAction(profile.id, redirectTo, "upload_error");
   }
 
   const { error: dbErr } = await supabase.from("users").update({ avatar_path: path }).eq("id", profile.id);
   if (dbErr) {
     await supabase.storage.from("avatars").remove([path]);
-    redirect(communityProfilePath(profile.id, "error"));
+    redirectAfterAccountAction(profile.id, redirectTo, "error");
   }
 
   if (oldPath && oldPath !== path) {
     await supabase.storage.from("avatars").remove([oldPath]);
   }
 
-  revalidateSelfProfile(profile.id);
-  redirect(communityProfilePath(profile.id, "avatar_saved"));
+  revalidateAccount(profile.id);
+  redirectAfterAccountAction(profile.id, redirectTo, "avatar_saved");
 }
 
-export async function removeUserAvatarAction() {
+export async function removeUserAvatarAction(formData: FormData) {
   const profile = await requireProfileForApp();
+  const redirectTo = String(formData.get("redirectTo") ?? "");
   const supabase = await createClient();
   const { data: row } = await supabase.from("users").select("avatar_path").eq("id", profile.id).maybeSingle();
   if (row?.avatar_path) {
     await supabase.storage.from("avatars").remove([row.avatar_path]);
   }
   await supabase.from("users").update({ avatar_path: null }).eq("id", profile.id);
-  revalidateSelfProfile(profile.id);
-  redirect(communityProfilePath(profile.id, "avatar_removed"));
+  revalidateAccount(profile.id);
+  redirectAfterAccountAction(profile.id, redirectTo, "avatar_removed");
 }

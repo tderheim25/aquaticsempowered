@@ -21,6 +21,7 @@ import {
 } from "@/app/(dashboard)/app/community/actions";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
 import type { CommunityJobRow, LoadedCommunityJobs } from "@/lib/community/loadCommunityJobsData";
+import { communityProfilePath } from "@/lib/profile/paths";
 
 import { CommunityAvatar } from "./CommunityAvatar";
 import {
@@ -60,7 +61,7 @@ function truncateText(text: string, max: number) {
 }
 
 function profileHrefForAuthor(authorId: string) {
-  return `/app/community/profile/${authorId}`;
+  return communityProfilePath(authorId);
 }
 
 function loginForProfileHref(authorId: string) {

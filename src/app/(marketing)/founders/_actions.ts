@@ -10,6 +10,7 @@ import {
   type FounderOnboardingPayload,
 } from "@/lib/validations/founderOnboarding";
 import { founderSchema as legacyFounderSchema } from "@/lib/validations/founder";
+import { getFounderWizardBlockReason, founderProgramBlockedError } from "@/lib/founders/founderProgramGate";
 import type { Json, PlanCode } from "@/types/database";
 
 export type SubmitFounderResult =
@@ -121,6 +122,17 @@ export async function submitFounderWizard(input: unknown): Promise<FounderWizard
       error: first?.message || "Invalid form data",
       field: first?.path?.join("."),
     };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user: sessionUser },
+  } = await supabase.auth.getUser();
+  if (sessionUser) {
+    const blockReason = await getFounderWizardBlockReason(sessionUser.id);
+    if (blockReason) {
+      return { ok: false, error: blockReason };
+    }
   }
 
   const { organization, choice } = parsed.data;
@@ -250,6 +262,23 @@ async function submitAccountPath(
 
     if (!userId) {
       return { ok: false, error: "Could not resolve a user account." };
+    }
+
+    const { data: existingProfile } = await admin
+      .from("users")
+      .select("org_id, role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (existingProfile?.org_id) {
+      const { data: existingOrg } = await admin
+        .from("organizations")
+        .select("name")
+        .eq("id", existingProfile.org_id)
+        .maybeSingle();
+      return {
+        ok: false,
+        error: founderProgramBlockedError(existingProfile, existingOrg?.name ?? null),
+      };
     }
 
     const orgInsert = {

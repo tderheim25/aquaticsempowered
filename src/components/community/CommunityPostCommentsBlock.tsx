@@ -15,6 +15,7 @@ import {
   deleteCommunityCommentAction,
 } from "@/app/(dashboard)/app/community/actions";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
+import { communityProfilePath } from "@/lib/profile/paths";
 
 import { communityContainedButtonSx } from "./communityUi";
 
@@ -106,7 +107,7 @@ export function CommunityPostCommentsBlock({
                   <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: 0.5 }}>
                     <Typography
                       component={Link}
-                      href={`/app/community/profile/${c.author_id}`}
+                      href={communityProfilePath(c.author_id)}
                       variant="caption"
                       sx={{ fontWeight: 700, color: "text.primary", textDecoration: "none" }}
                     >

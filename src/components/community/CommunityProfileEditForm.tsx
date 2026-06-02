@@ -16,6 +16,7 @@ import {
 import { updateCommunityBioAction } from "@/app/(dashboard)/app/community/actions";
 import { AvatarUploadButton } from "@/components/profile/AvatarUploadButton";
 import { buildDisplayName } from "@/lib/profile/avatar";
+import { communityProfilePath } from "@/lib/profile/paths";
 
 import { CommunityAvatar } from "./CommunityAvatar";
 import { communityContainedButtonSx, communityOutlinedButtonSx, communitySectionTitleSx } from "./communityUi";
@@ -47,6 +48,8 @@ export function CommunityProfileEditForm({
     email: user.email,
   });
 
+  const redirectTo = communityProfilePath(user.id);
+
   return (
     <Stack spacing={2.5} sx={{ pt: 0.5 }}>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -56,9 +59,10 @@ export function CommunityProfileEditForm({
           size={56}
         />
         <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
-          <AvatarUploadButton />
+          <AvatarUploadButton redirectTo={redirectTo} />
           {user.avatar_path ? (
             <Box component="form" action={removeUserAvatarAction}>
+              <input type="hidden" name="redirectTo" value={redirectTo} />
               <Button type="submit" size="small" color="inherit">
                 Remove photo
               </Button>
@@ -68,6 +72,7 @@ export function CommunityProfileEditForm({
       </Stack>
 
       <Box component="form" action={updateUserProfileAction}>
+        <input type="hidden" name="redirectTo" value={redirectTo} />
         <Stack spacing={1.5}>
           <Typography variant="subtitle2" sx={communitySectionTitleSx}>
             Your name

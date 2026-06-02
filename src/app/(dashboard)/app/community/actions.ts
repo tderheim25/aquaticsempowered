@@ -4,8 +4,14 @@ import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireProfileForApp, type UsersRow } from "@/lib/auth/rbac";
+import { getUsersRowWithAdminFallback, requireProfileForApp, type UsersRow } from "@/lib/auth/rbac";
 import { requireViewAccess } from "@/lib/auth/viewPermissions";
+import {
+  canViewCommunityProfile,
+  resolveCommunityViewer,
+} from "@/lib/community/communityPartition";
+import { insertCommunityFollow, isFollowingCommunityUser } from "@/lib/community/communityFollows";
+import { communityProfilePath, normalizeCommunityProfilePath } from "@/lib/profile/paths";
 import { optimizeUploadImage } from "@/lib/images/optimizeUploadImage";
 import { createClient } from "@/lib/supabase/server";
 
@@ -214,22 +220,25 @@ export async function followUserAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { data: followee } = await supabase.from("users").select("org_id").eq("id", followeeId).maybeSingle();
-  const samePartition =
-    (Boolean(profile.org_id) && followee?.org_id === profile.org_id) ||
-    (!profile.org_id && followee && followee.org_id === null);
-  if (!samePartition) {
+  const viewer = await resolveCommunityViewer(profile);
+  const followeeUser = await getUsersRowWithAdminFallback(followeeId);
+  if (!followeeUser) {
     redirect("/community?status=invalid");
   }
+  const mayFollow = await canViewCommunityProfile(supabase, viewer, followeeUser);
+  if (!mayFollow) {
+    redirect(communityProfilePath(followeeId, "follow_blocked"));
+  }
 
-  const { data: already } = await supabase
-    .from("community_follows")
-    .select("follower_id")
-    .eq("follower_id", profile.id)
-    .eq("followee_id", followeeId)
-    .maybeSingle();
+  const already = await isFollowingCommunityUser(supabase, profile.id, followeeId);
   if (!already) {
-    await supabase.from("community_follows").insert({ follower_id: profile.id, followee_id: followeeId });
+    const inserted = await insertCommunityFollow(supabase, profile.id, followeeId);
+    if (!inserted.ok) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[followUserAction] insert", inserted.code, inserted.message);
+      }
+      redirect(communityProfilePath(followeeId, "follow_error"));
+    }
   }
 
   if (String(formData.get("alsoNetwork") ?? "") === "1") {
@@ -237,8 +246,8 @@ export async function followUserAction(formData: FormData) {
   }
 
   revalidatePath("/community");
-  revalidatePath(`/app/community/profile/${followeeId}`);
-  redirect(`/app/community/profile/${followeeId}`);
+  revalidatePath(communityProfilePath(followeeId));
+  redirect(communityProfilePath(followeeId));
 }
 
 export async function unfollowUserAction(formData: FormData) {
@@ -253,15 +262,8 @@ export async function unfollowUserAction(formData: FormData) {
   await supabase.from("community_follows").delete().eq("follower_id", profile.id).eq("followee_id", followeeId);
 
   revalidatePath("/community");
-  revalidatePath(`/app/community/profile/${followeeId}`);
-  redirect(`/app/community/profile/${followeeId}`);
-}
-
-function sameCommunityPartition(profile: { org_id: string | null }, peerOrgId: string | null | undefined) {
-  return (
-    (Boolean(profile.org_id) && peerOrgId === profile.org_id) ||
-    (!profile.org_id && peerOrgId === null)
-  );
+  revalidatePath(communityProfilePath(followeeId));
+  redirect(communityProfilePath(followeeId));
 }
 
 type NetworkInsertResult =
@@ -275,14 +277,16 @@ async function tryInsertNetworkRequest(
 ): Promise<NetworkInsertResult> {
   if (addresseeId === profile.id) return { ok: false, status: "network_blocked" };
 
-  const { data: peer, error: peerErr } = await supabase.from("users").select("org_id").eq("id", addresseeId).maybeSingle();
-  if (peerErr || !peer) {
+  const peer = await getUsersRowWithAdminFallback(addresseeId);
+  if (!peer) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[tryInsertNetworkRequest] peer load failed", peerErr?.message);
+      console.warn("[tryInsertNetworkRequest] peer not found");
     }
     return { ok: false, status: "network_error" };
   }
-  if (!sameCommunityPartition(profile, peer.org_id ?? null)) {
+  const viewer = await resolveCommunityViewer(profile);
+  const mayConnect = await canViewCommunityProfile(supabase, viewer, peer);
+  if (!mayConnect) {
     return { ok: false, status: "network_blocked" };
   }
 
@@ -349,7 +353,7 @@ export async function sendNetworkRequestAction(formData: FormData) {
   await requireViewAccess("community");
   const profile = await requireProfileForApp();
   const addresseeId = String(formData.get("addresseeId") ?? "");
-  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), `/app/community/profile/${addresseeId}`);
+  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), communityProfilePath(addresseeId));
   if (!addresseeId || addresseeId === profile.id) {
     redirect(`${redirectTo}?status=network_error`);
   }
@@ -361,8 +365,8 @@ export async function sendNetworkRequestAction(formData: FormData) {
   }
 
   revalidatePath("/community");
-  revalidatePath(`/app/community/profile/${addresseeId}`);
-  revalidatePath(`/app/community/profile/${profile.id}`);
+  revalidatePath(communityProfilePath(addresseeId));
+  revalidatePath(communityProfilePath(profile.id));
   redirect(`${redirectTo}?status=network_sent`);
 }
 
@@ -370,7 +374,7 @@ export async function acceptNetworkRequestAction(formData: FormData) {
   await requireViewAccess("community");
   const profile = await requireProfileForApp();
   const requestId = String(formData.get("requestId") ?? "");
-  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), `/app/community/profile/${profile.id}`);
+  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), communityProfilePath(profile.id));
   if (!requestId) {
     redirect(`${redirectTo}?status=network_error`);
   }
@@ -391,8 +395,8 @@ export async function acceptNetworkRequestAction(formData: FormData) {
   }
 
   revalidatePath("/community");
-  revalidatePath(`/app/community/profile/${row.requester_id}`);
-  revalidatePath(`/app/community/profile/${profile.id}`);
+  revalidatePath(communityProfilePath(row.requester_id));
+  revalidatePath(communityProfilePath(profile.id));
   redirect(`${redirectTo}?status=network_accepted`);
 }
 
@@ -400,7 +404,7 @@ export async function declineNetworkRequestAction(formData: FormData) {
   await requireViewAccess("community");
   const profile = await requireProfileForApp();
   const requestId = String(formData.get("requestId") ?? "");
-  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), `/app/community/profile/${profile.id}`);
+  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), communityProfilePath(profile.id));
   if (!requestId) {
     redirect(`${redirectTo}?status=network_error`);
   }
@@ -417,7 +421,7 @@ export async function declineNetworkRequestAction(formData: FormData) {
 
   await supabase.from("community_network_requests").update({ status: "declined" }).eq("id", requestId);
 
-  revalidatePath(`/app/community/profile/${profile.id}`);
+  revalidatePath(communityProfilePath(profile.id));
   redirect(`${redirectTo}?status=network_declined`);
 }
 
@@ -425,7 +429,7 @@ export async function cancelNetworkRequestAction(formData: FormData) {
   await requireViewAccess("community");
   const profile = await requireProfileForApp();
   const requestId = String(formData.get("requestId") ?? "");
-  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), `/app/community/profile/${profile.id}`);
+  const redirectTo = safeCommunityRedirect(String(formData.get("redirectTo") ?? ""), communityProfilePath(profile.id));
   if (!requestId) {
     redirect(`${redirectTo}?status=network_error`);
   }
@@ -450,8 +454,8 @@ export async function cancelNetworkRequestAction(formData: FormData) {
   }
 
   revalidatePath("/community");
-  revalidatePath(`/app/community/profile/${profile.id}`);
-  revalidatePath(`/app/community/profile/${row.addressee_id}`);
+  revalidatePath(communityProfilePath(profile.id));
+  revalidatePath(communityProfilePath(row.addressee_id));
   redirect(`${redirectTo}?status=network_cancelled`);
 }
 
@@ -477,11 +481,11 @@ export async function updateCommunityBioAction(formData: FormData) {
   );
 
   if (error) {
-    redirect("/app/community/profile/" + profile.id + "?status=error");
+    redirect(communityProfilePath(profile.id, "error"));
   }
 
-  revalidatePath(`/app/community/profile/${profile.id}`);
-  redirect("/app/community/profile/" + profile.id + "?status=bio_saved");
+  revalidatePath(communityProfilePath(profile.id));
+  redirect(communityProfilePath(profile.id, "bio_saved"));
 }
 
 /** Call when the profile owner opens the Connections tab so follower / request badges clear. */
@@ -503,7 +507,7 @@ export async function markCommunityConnectionsSeenAction() {
   if (error && process.env.NODE_ENV === "development") {
     console.error("[markCommunityConnectionsSeenAction]", error.message, error);
   }
-  revalidatePath(`/app/community/profile/${profile.id}`);
+  revalidatePath(communityProfilePath(profile.id));
 }
 
 export async function deleteCommunityPostAction(formData: FormData) {
@@ -538,8 +542,15 @@ function safeCommunityRedirect(raw: string | null | undefined, fallback: string)
     .split("?")[0]
     .split("#")[0];
   if (path === "/community" || path === "/app/community") return "/community";
-  if (/^\/app\/community\/profile\/[^/]+$/.test(path) && path.length < 200) return path;
+  const normalized = normalizeCommunityProfilePath(path);
+  if (normalized && normalized.length < 200) return normalized;
   return fallback;
+}
+
+function revalidateCommunityProfileFromRedirect(redirectTo: string) {
+  revalidatePath("/community");
+  const profilePath = normalizeCommunityProfilePath(redirectTo.split("?")[0]);
+  if (profilePath) revalidatePath(profilePath);
 }
 
 export async function createCommunityCommentAction(formData: FormData) {
@@ -570,11 +581,7 @@ export async function createCommunityCommentAction(formData: FormData) {
     redirect(`${redirectTo}?status=comment_error`);
   }
 
-  revalidatePath("/community");
-  if (redirectTo.startsWith("/app/community/profile/")) {
-    const seg = redirectTo.replace("/app/community/profile/", "").split("/")[0];
-    if (seg) revalidatePath(`/app/community/profile/${seg}`);
-  }
+  revalidateCommunityProfileFromRedirect(redirectTo);
   redirect(redirectTo);
 }
 
@@ -602,10 +609,6 @@ export async function deleteCommunityCommentAction(formData: FormData) {
     redirect(`${redirectTo}?status=comment_error`);
   }
 
-  revalidatePath("/community");
-  if (redirectTo.startsWith("/app/community/profile/")) {
-    const seg = redirectTo.replace("/app/community/profile/", "").split("/")[0];
-    if (seg) revalidatePath(`/app/community/profile/${seg}`);
-  }
+  revalidateCommunityProfileFromRedirect(redirectTo);
   redirect(redirectTo);
 }

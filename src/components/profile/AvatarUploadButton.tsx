@@ -6,12 +6,13 @@ import { useRef, useTransition } from "react";
 
 import { uploadUserAvatarAction } from "@/app/(dashboard)/app/profile/actions";
 
-export function AvatarUploadButton() {
+export function AvatarUploadButton({ redirectTo }: { redirectTo?: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
 
   return (
     <form ref={formRef} action={uploadUserAvatarAction}>
+      {redirectTo ? <input type="hidden" name="redirectTo" value={redirectTo} /> : null}
       <Button
         variant="outlined"
         component="label"

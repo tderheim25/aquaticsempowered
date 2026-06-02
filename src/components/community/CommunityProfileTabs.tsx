@@ -27,6 +27,7 @@ import {
   declineNetworkRequestAction,
   markCommunityConnectionsSeenAction,
 } from "@/app/(dashboard)/app/community/actions";
+import { communityProfilePath } from "@/lib/profile/paths";
 
 import { CommunityAvatar } from "./CommunityAvatar";
 import {
@@ -288,7 +289,7 @@ export function CommunityProfileTabs({
                 {networkPeers.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/app/community/profile/${p.id}`}
+                    href={communityProfilePath(p.id)}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>
@@ -323,7 +324,7 @@ export function CommunityProfileTabs({
                 {followers.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/app/community/profile/${p.id}`}
+                    href={communityProfilePath(p.id)}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>
@@ -363,7 +364,7 @@ export function CommunityProfileTabs({
                 {following.map((p) => (
                   <Link
                     key={p.id}
-                    href={`/app/community/profile/${p.id}`}
+                    href={communityProfilePath(p.id)}
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <Stack direction="row" spacing={1.5} alignItems="center" sx={{ py: 0.5 }}>

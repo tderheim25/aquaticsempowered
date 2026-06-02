@@ -39,8 +39,8 @@ const nav = [
 export type MarketingHeaderUser = {
   displayName: string;
   avatarUrl: string | null;
-  /** Community profile page for the signed-in user. */
-  profileHref: string;
+  accountSettingsHref: string;
+  communityProfileHref: string;
 };
 
 function isActive(pathname: string | null, href: string) {
@@ -234,8 +234,11 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
                     </Typography>
                   </MenuItem>
                   <Divider />
-                  <MenuItem component={Link} href={user.profileHref} onClick={() => setAnchorEl(null)}>
-                    View profile
+                  <MenuItem component={Link} href={user.accountSettingsHref} onClick={() => setAnchorEl(null)}>
+                    Account settings
+                  </MenuItem>
+                  <MenuItem component={Link} href={user.communityProfileHref} onClick={() => setAnchorEl(null)}>
+                    Community profile
                   </MenuItem>
                   <MenuItem
                     onClick={async () => {
@@ -403,11 +406,19 @@ export function SiteHeader({ user }: { user?: MarketingHeaderUser | null }) {
               </ListItemButton>
               <ListItemButton
                 component={Link}
-                href={user.profileHref}
+                href={user.accountSettingsHref}
                 onClick={() => setOpen(false)}
                 sx={{ borderRadius: 2, mb: 0.5 }}
               >
-                <ListItemText primary="View profile" primaryTypographyProps={{ fontWeight: 600 }} />
+                <ListItemText primary="Account settings" primaryTypographyProps={{ fontWeight: 600 }} />
+              </ListItemButton>
+              <ListItemButton
+                component={Link}
+                href={user.communityProfileHref}
+                onClick={() => setOpen(false)}
+                sx={{ borderRadius: 2, mb: 0.5 }}
+              >
+                <ListItemText primary="Community profile" primaryTypographyProps={{ fontWeight: 600 }} />
               </ListItemButton>
               <ListItemButton
                 onClick={async () => {
