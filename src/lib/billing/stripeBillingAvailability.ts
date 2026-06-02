@@ -2,8 +2,6 @@ import "server-only";
 
 import { getStripePriceId, type BillingCadence } from "@/lib/stripe/prices";
 import { isStripeConfigured } from "@/lib/stripe/server";
-import type { PlanCode } from "@/types/database";
-
 export type SelfServeBillingAvailability = {
   stripeConfigured: boolean;
   essential: Record<BillingCadence, boolean>;
@@ -11,7 +9,6 @@ export type SelfServeBillingAvailability = {
 };
 
 export function getSelfServeBillingAvailability(): SelfServeBillingAvailability {
-  const plans: Array<Extract<PlanCode, "essential" | "pro">> = ["essential", "pro"];
   const cadences: BillingCadence[] = ["monthly", "annual"];
 
   const essential = { monthly: false, annual: false };

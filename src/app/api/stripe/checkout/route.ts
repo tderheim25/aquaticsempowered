@@ -6,7 +6,13 @@ import { getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
 import { enforceRateLimit } from "@/lib/security/rateLimit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { getStripePriceId, type BillingCadence, type CheckoutFlow } from "@/lib/stripe/prices";
+import { PROMO } from "@/lib/marketing/promo";
+import {
+  getStripePriceId,
+  getStripePromoCouponId,
+  type BillingCadence,
+  type CheckoutFlow,
+} from "@/lib/stripe/prices";
 import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe/server";
 import { captureException } from "@/lib/sentry";
 import type { PlanCode } from "@/types/database";
@@ -120,11 +126,18 @@ export async function POST(request: Request) {
     const siteUrl = getSiteUrl();
     const stripeCustomerId = await getOrCreateStripeCustomer(orgId, user.email);
 
+    const promoCouponId = getStripePromoCouponId();
+    const applyPromo =
+      PROMO.active &&
+      promoCouponId &&
+      PROMO.planCodes.includes(planCode);
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
       client_reference_id: orgId,
       line_items: [{ price: priceId, quantity: 1 }],
+      ...(applyPromo ? { discounts: [{ coupon: promoCouponId }] } : {}),
       metadata: {
         org_id: orgId,
         plan_code: planCode,

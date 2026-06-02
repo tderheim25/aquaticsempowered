@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "stripe:sync-catalog": "node --env-file=.env.local scripts/sync-stripe-catalog.mjs",
+    "stripe:sync-catalog:apply": "node --env-file=.env.local scripts/sync-stripe-catalog.mjs --apply"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

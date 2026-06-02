@@ -25,6 +25,9 @@ export function SiteFooter() {
             <MuiLink component={Link} href="/founders" color="inherit" underline="hover">
               Founders
             </MuiLink>
+            <MuiLink component={Link} href="/terms" color="inherit" underline="hover">
+              Terms
+            </MuiLink>
             <MuiLink component={Link} href="/privacy" color="inherit" underline="hover">
               Privacy
             </MuiLink>

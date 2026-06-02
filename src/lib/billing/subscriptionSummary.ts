@@ -100,6 +100,7 @@ export function buildOrgSubscriptionSummary(input: {
     status: string;
     current_period_end: string | null;
     stripe_customer_id: string | null;
+    stripe_subscription_id: string | null;
   } | null;
   canManageBilling: boolean;
   /** Latest founder wizard lead for this org, if any. */

@@ -131,6 +131,22 @@ export function SignupPageContent({
           Sign in
         </Link>
       </Typography>
+
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", textAlign: "center", lineHeight: 1.5 }}
+      >
+        By creating an account, you agree to our{" "}
+        <Link href="/terms" style={{ fontWeight: 600 }}>
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" style={{ fontWeight: 600 }}>
+          Privacy Policy
+        </Link>
+        .
+      </Typography>
     </Stack>
   );
 }

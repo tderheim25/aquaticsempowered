@@ -60,6 +60,11 @@ export function isFounderPriceId(priceId: string | null | undefined): boolean {
   return Boolean(founderPrice && priceId === founderPrice);
 }
 
+/** Stripe Coupon id for the active site-wide promo (e.g. 50% off list price). */
+export function getStripePromoCouponId(): string | null {
+  return envPrice("STRIPE_PROMO_COUPON_ID");
+}
+
 export function parsePlanCode(value: string | null | undefined): PlanCode | null {
   if (!value) return null;
   return PLAN_CODES.includes(value as PlanCode) ? (value as PlanCode) : null;

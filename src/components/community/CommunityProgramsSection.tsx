@@ -48,7 +48,6 @@ export type CommunityProgramsSectionProps = {
 export function CommunityProgramsSection({
   variant,
   canInteract,
-  planCode: _planCode,
   hasActiveOrg,
   orgName,
 }: CommunityProgramsSectionProps) {
