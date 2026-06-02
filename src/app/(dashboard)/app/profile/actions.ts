@@ -14,7 +14,7 @@ function revalidateAccount(userId: string) {
   revalidatePath(communityProfilePath(userId));
 }
 
-function redirectAfterAccountAction(userId: string, redirectTo: string | null | undefined, status: string) {
+function redirectAfterAccountAction(userId: string, redirectTo: string | null | undefined, status: string): never {
   const normalized = normalizeCommunityProfilePath(String(redirectTo ?? "").split("?")[0]);
   if (normalized) {
     redirect(`${normalized}?status=${encodeURIComponent(status)}`);
@@ -108,10 +108,11 @@ export async function changePasswordAction(formData: FormData) {
 export async function uploadUserAvatarAction(formData: FormData) {
   const profile = await requireProfileForApp();
   const redirectTo = String(formData.get("redirectTo") ?? "");
-  const file = formData.get("avatar");
-  if (!(file instanceof File) || file.size === 0) {
+  const fileEntry = formData.get("avatar");
+  if (!(fileEntry instanceof File) || fileEntry.size === 0) {
     redirectAfterAccountAction(profile.id, redirectTo, "invalid_file");
   }
+  const file = fileEntry;
   if (file.size > MAX_AVATAR_BYTES) {
     redirectAfterAccountAction(profile.id, redirectTo, "file_too_large");
   }

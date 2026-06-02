@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 
 import { AccountSettingsPanel } from "@/components/account/AccountSettingsPanel";
 import { StatusToast, type StatusToastMessages } from "@/components/ui/StatusToast";
-import { getUsersRowWithAdminFallback, requireProfileForApp } from "@/lib/auth/rbac";
+import { requireProfileForApp } from "@/lib/auth/rbac";
 import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { communityProfilePath } from "@/lib/profile/paths";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
