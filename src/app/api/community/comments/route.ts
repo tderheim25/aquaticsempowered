@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
+import { enforceRateLimit } from "@/lib/security/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_COMMENT_CHARS = 2000;
@@ -11,6 +12,12 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  const limited = await enforceRateLimit(`community-comment:${user.id}`, {
+    limit: 20,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
 
   const profile = await getUsersRowWithAdminFallback(user.id);
   if (!canUsePublicCommunity(user.id, profile)) {

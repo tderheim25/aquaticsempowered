@@ -297,7 +297,7 @@ async function submitAccountPath(
     const { error: subErr } = await admin.from("subscriptions").insert({
       org_id: org.id,
       plan_code: planCode,
-      status: "founder_pending",
+      status: "incomplete",
     });
     if (subErr) {
       captureException(subErr, { step: "founder_subscription_insert" });

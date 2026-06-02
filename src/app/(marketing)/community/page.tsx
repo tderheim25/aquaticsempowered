@@ -1,5 +1,6 @@
 import { CommunityFeedPanel } from "@/components/community/CommunityFeedPanel";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
 import { resolveCommunityViewer } from "@/lib/community/communityPartition";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
@@ -83,7 +84,13 @@ export default async function MarketingCommunityPage({
 }) {
   const { status, tab } = await searchParams;
   const activeTab =
-    tab === "jobs" ? "jobs" : tab === "marketplace" ? "marketplace" : "feed";
+    tab === "jobs"
+      ? "jobs"
+      : tab === "marketplace"
+        ? "marketplace"
+        : tab === "programs"
+          ? "programs"
+          : "feed";
   const flash = statusMessage(status);
 
   const user = await getSessionUser();
@@ -92,6 +99,7 @@ export default async function MarketingCommunityPage({
   const canInteract = canUsePublicCommunity(user?.id, profile);
 
   const viewer = profile ? await resolveCommunityViewer(profile) : null;
+  const orgCtx = profile ? await loadActiveOrgContext(profile) : null;
 
   // Prefer service-role reads so the feed loads reliably (RLS + JWT org_id can block session queries).
   const feedClient = createAdminClientIfConfigured() ?? sessionSupabase;
@@ -141,6 +149,9 @@ export default async function MarketingCommunityPage({
       flash={flash}
       subtitle={canInteract ? undefined : ""}
       showProfileWarning={Boolean(user && !profile)}
+      planCode={orgCtx?.planCode ?? "free"}
+      hasActiveOrg={orgCtx?.hasActiveOrg ?? false}
+      orgName={orgCtx?.activeOrgName ?? null}
     />
   );
 }

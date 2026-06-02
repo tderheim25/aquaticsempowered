@@ -14,6 +14,7 @@ import { useCommunityPostEngagement } from "@/lib/community/useCommunityPostEnga
 
 import { CommunityAvatar } from "./CommunityAvatar";
 import { CommunityPostCommentsBlock } from "./CommunityPostCommentsBlock";
+import { CommunityPostImages } from "./CommunityPostImages";
 import type { ProfileTabPost, ProfileOwner } from "./CommunityProfileTabs";
 import { formatCommunityTimestamp } from "@/lib/community/formatCommunityTimestamp";
 
@@ -63,22 +64,13 @@ export function CommunityProfilePostsLive({
                     </Typography>
                   ) : null}
                   {post.images.length > 0 ? (
-                    <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.5 }}>
-                      {post.images.map((img) => (
-                        <Box
-                          key={img.storage_path}
-                          component="img"
-                          src={img.signedUrl}
-                          alt=""
-                          sx={{
-                            maxWidth: 280,
-                            maxHeight: 220,
-                            borderRadius: 1,
-                            objectFit: "cover",
-                          }}
-                        />
-                      ))}
-                    </Stack>
+                    <CommunityPostImages
+                      images={post.images.map((img) => ({
+                        id: img.storage_path,
+                        src: img.signedUrl,
+                        alt: "Post image",
+                      }))}
+                    />
                   ) : null}
 
                   <Divider sx={{ my: 1.5 }} />

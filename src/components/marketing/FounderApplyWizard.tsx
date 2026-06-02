@@ -7,9 +7,13 @@ import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
+import PaymentRoundedIcon from "@mui/icons-material/PaymentRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import { UsCityAutocomplete } from "@/components/forms/UsCityAutocomplete";
+import { UsStateAutocomplete } from "@/components/forms/UsStateAutocomplete";
+import { resolveUsState } from "@/lib/geo/resolveUsState";
 import {
   Alert,
   Avatar,
@@ -49,6 +53,7 @@ import { useMemo, useState } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 
 import { submitFounderWizard } from "@/app/(marketing)/founders/_actions";
+import { applyPromoDiscount, PROMO, promoAppliesToPlan } from "@/lib/marketing/promo";
 import {
   choiceStepSchema,
   founderStepSchema,
@@ -134,7 +139,7 @@ function WizardStepIcon(props: StepIconProps) {
 export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser | null }) {
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
 
   const [activeStep, setActiveStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -227,13 +232,54 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
       return;
     }
 
-    const params = new URLSearchParams({
-      type: "account",
-      plan: res.planCode,
-    });
-    if (res.requiresEmailConfirm) params.set("confirm", "1");
-    router.push(`/founders/thanks?${params.toString()}`);
-    router.refresh();
+    if (res.requiresEmailConfirm) {
+      const params = new URLSearchParams({
+        type: "account",
+        plan: res.planCode,
+        confirm: "1",
+      });
+      router.push(`/founders/thanks?${params.toString()}`);
+      router.refresh();
+      return;
+    }
+
+    try {
+      const checkoutRes = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planCode: res.planCode,
+          cadence: "annual",
+          flow: "founder",
+        }),
+      });
+
+      const checkoutData = (await checkoutRes.json()) as { url?: string; error?: string };
+
+      if (checkoutRes.ok && checkoutData.url) {
+        window.location.href = checkoutData.url;
+        return;
+      }
+
+      if (checkoutRes.status === 503) {
+        setSubmitError(
+          "Payment is not configured yet. Add Stripe keys to the server environment, or choose Request a demo.",
+        );
+      } else if (res.planCode === "enterprise") {
+        setSubmitError(
+          "Enterprise founder billing is arranged with our team. Switch to Essential or Professional, or choose Request a demo.",
+        );
+      } else {
+        setSubmitError(
+          checkoutData.error ??
+            "Could not start secure checkout. Verify Stripe price IDs in your environment and try again.",
+        );
+      }
+    } catch {
+      setSubmitError("Could not reach the payment service. Check your connection and try again.");
+    }
+
+    setSubmitting(false);
   };
 
   const progress = useMemo(() => ((activeStep + 1) / STEPS.length) * 100, [activeStep]);
@@ -367,7 +413,7 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
               ? "Submitting…"
               : choiceValues.request_type === "demo"
                 ? "Request demo"
-                : "Create founder account"}
+                : "Continue to secure checkout"}
           </Button>
         )}
       </Stack>
@@ -379,8 +425,13 @@ function OrganizationStep({ form }: { form: ReturnType<typeof useForm<Organizati
   const {
     register,
     control,
+    watch,
+    setValue,
     formState: { errors },
   } = form;
+  const region = watch("region");
+  const selectedState = resolveUsState(region);
+
   return (
     <Stack spacing={2.5}>
       <SectionHeader
@@ -458,31 +509,39 @@ function OrganizationStep({ form }: { form: ReturnType<typeof useForm<Organizati
         error={Boolean(errors.address_line2)}
         helperText={errors.address_line2?.message}
       />
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-        <TextField
-          label="City"
-          required
-          fullWidth
-          {...register("city")}
-          error={Boolean(errors.city)}
-          helperText={errors.city?.message}
-        />
-        <TextField
-          label="State / region"
-          required
-          fullWidth
-          {...register("region")}
-          error={Boolean(errors.region)}
-          helperText={errors.region?.message}
-        />
-        <TextField
-          label="Postal code"
-          required
-          fullWidth
-          {...register("postal_code")}
-          error={Boolean(errors.postal_code)}
-          helperText={errors.postal_code?.message}
-        />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%" }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <UsCityAutocomplete
+            control={control}
+            name="city"
+            stateCode={selectedState?.code ?? ""}
+            label="City"
+            required
+            error={Boolean(errors.city)}
+            helperText={errors.city?.message}
+          />
+        </Box>
+        <Box sx={{ flex: 1, minWidth: { sm: 200 } }}>
+          <UsStateAutocomplete
+            control={control}
+            name="region"
+            label="State / region"
+            required
+            error={Boolean(errors.region)}
+            helperText={errors.region?.message}
+            onStateChange={() => setValue("city", "", { shouldValidate: true })}
+          />
+        </Box>
+        <Box sx={{ flex: { xs: 1, sm: "0 0 148px" }, minWidth: 0 }}>
+          <TextField
+            label="Postal code"
+            required
+            fullWidth
+            {...register("postal_code")}
+            error={Boolean(errors.postal_code)}
+            helperText={errors.postal_code?.message}
+          />
+        </Box>
       </Stack>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <TextField
@@ -687,11 +746,11 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
               icon={<RocketLaunchRoundedIcon />}
               eyebrow="Recommended"
               title="Create your founder account"
-              description="Spin up your workspace today with a founder plan locked in. We'll handle payment setup later."
+              description="Create your workspace, then complete annual billing on Stripe's secure checkout."
               bullets={[
                 "Save your facility & locations",
-                "Upgrade plan now, skip payment for now",
-                "Concierge onboarding kicks off immediately",
+                "Pay annually for your selected founder plan",
+                "Concierge onboarding kicks off after checkout",
               ]}
             />
             <ChoiceCard
@@ -728,7 +787,7 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
           </Stack>
           <Alert
             severity="info"
-            icon={<LockRoundedIcon fontSize="small" />}
+            icon={<PaymentRoundedIcon fontSize="small" />}
             sx={{
               borderRadius: 2,
               backgroundColor: alpha(theme.palette.secondary.main, 0.08),
@@ -736,8 +795,9 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
               border: `1px solid ${alpha(theme.palette.secondary.main, 0.18)}`,
             }}
           >
-            We&apos;ll skip the payment method for now — your account is created with the selected plan and our
-            team will follow up with founder pricing and billing setup.
+            After you submit, you&apos;ll be redirected to <strong>Stripe Checkout</strong> to pay for your
+            founder plan <strong>annually</strong> (card and other methods supported). Your workspace activates
+            once payment succeeds.
           </Alert>
         </Stack>
       </Collapse>
@@ -886,12 +946,24 @@ function PlanCard({
   selected,
   onClick,
 }: {
-  plan: { code: FounderPlanCode; name: string; tagline: string; price: string; features: string[] };
+  plan: {
+    code: FounderPlanCode;
+    name: string;
+    tagline: string;
+    price: string;
+    annual: number | null;
+    pricePeriod: string;
+    features: string[];
+  };
   selected: boolean;
   onClick: () => void;
 }) {
   const theme = useTheme();
   const isFeatured = plan.code === "pro";
+  const showPromo = promoAppliesToPlan(plan.code) && typeof plan.annual === "number";
+  const promoPrice = showPromo
+    ? `$${applyPromoDiscount(plan.annual as number).toLocaleString()}`
+    : null;
   return (
     <Paper
       elevation={0}
@@ -943,15 +1015,49 @@ function PlanCard({
           }}
         />
       )}
+      {showPromo && (
+        <Chip
+          size="small"
+          label={PROMO.badge}
+          sx={{
+            position: "absolute",
+            top: -10,
+            left: 14,
+            fontWeight: 800,
+            letterSpacing: "0.04em",
+            bgcolor: "secondary.main",
+            color: "common.white",
+            boxShadow: `0 6px 16px ${alpha(theme.palette.secondary.main, 0.4)}`,
+          }}
+        />
+      )}
       <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.14em" }}>
         {plan.tagline}
       </Typography>
       <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.25 }}>
         {plan.name}
       </Typography>
-      <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark", mt: 0.5 }}>
-        {plan.price}
-      </Typography>
+      {showPromo ? (
+        <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mt: 0.5, flexWrap: "wrap" }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark" }}>
+            {promoPrice}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {plan.pricePeriod}
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontWeight: 600, textDecoration: "line-through" }}
+          >
+            {plan.price}
+          </Typography>
+        </Stack>
+      ) : (
+        <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark", mt: 0.5 }}>
+          {plan.price}
+        </Typography>
+      )}
       <Stack spacing={0.75} sx={{ mt: 1.5 }}>
         {plan.features.map((f) => (
           <Stack key={f} direction="row" spacing={1} alignItems="flex-start">

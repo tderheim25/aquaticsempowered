@@ -18,10 +18,13 @@ import { CommunityPageContainer } from "./CommunityPageContainer";
 import { CommunityPageHeader } from "./CommunityPageHeader";
 import { CommunityJobsSection } from "./CommunityJobsSection";
 import { CommunityMarketplaceSection } from "./CommunityMarketplaceSection";
+import { CommunityProgramsSection } from "./CommunityProgramsSection";
 import type { LoadedCommunityMarketplace } from "@/lib/community/loadCommunityMarketplaceData";
 import { CommunitySearchBar } from "./CommunitySearchBar";
 import { CommunityFeedPostsLive } from "./CommunityFeedPostsLive";
 import { CommunitySpotlightRail } from "./CommunitySpotlightRail";
+import type { PlanCode } from "@/types/database";
+
 import {
   communityContainedButtonSx,
   communitySectionTitleSx,
@@ -48,6 +51,9 @@ export type CommunityFeedPanelProps = {
   subtitle?: string | null;
   /** Signed in but profile row missing — show setup warning above the feed. */
   showProfileWarning?: boolean;
+  planCode?: PlanCode;
+  hasActiveOrg?: boolean;
+  orgName?: string | null;
 };
 
 export function CommunityFeedPanel({
@@ -62,6 +68,9 @@ export function CommunityFeedPanel({
   flash,
   subtitle,
   showProfileWarning = false,
+  planCode = "free",
+  hasActiveOrg = false,
+  orgName = null,
 }: CommunityFeedPanelProps) {
   const {
     posts: postList,
@@ -132,6 +141,14 @@ export function CommunityFeedPanel({
               />
             ) : activeTab === "marketplace" ? (
               <CommunityMarketplaceSection variant={variant} marketplace={marketplace} signedIn={canInteract} />
+            ) : activeTab === "programs" ? (
+              <CommunityProgramsSection
+                variant={variant}
+                canInteract={canInteract}
+                planCode={planCode}
+                hasActiveOrg={hasActiveOrg}
+                orgName={orgName}
+              />
             ) : (
               <>
             {postsError ? <Alert severity="error">Could not load the feed.</Alert> : null}

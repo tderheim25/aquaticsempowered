@@ -23,6 +23,7 @@ export type FeatureKey =
   | "chemistry_calculator"
   | "chemistry_reports"
   | "sensors"
+  | "energy_audits"
   | "admin";
 
 /** Plan → feature flags (MVP: permissive; tighten per-feature PRs). */
@@ -41,6 +42,7 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     chemistry_calculator: false,
     chemistry_reports: false,
     sensors: false,
+    energy_audits: false,
     admin: false,
   },
   essential: {
@@ -57,6 +59,7 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     chemistry_calculator: false,
     chemistry_reports: false,
     sensors: false,
+    energy_audits: false,
     admin: false,
   },
   pro: {
@@ -73,6 +76,7 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     chemistry_calculator: true,
     chemistry_reports: true,
     sensors: false,
+    energy_audits: true,
     admin: false,
   },
   enterprise: {
@@ -89,6 +93,7 @@ export const PLAN_FEATURES: Record<PlanCode, Record<FeatureKey, boolean>> = {
     chemistry_calculator: true,
     chemistry_reports: true,
     sensors: true,
+    energy_audits: true,
     admin: false,
   },
 };

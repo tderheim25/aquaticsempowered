@@ -48,6 +48,8 @@ export type TaskCategory =
 
 export type TicketStatus = "open" | "pending" | "resolved" | "closed";
 
+export type EnergyAuditStatus = "draft" | "submitted" | "completed";
+
 export type ProcurementRequestStatus =
   | "draft"
   | "submitted"
@@ -1339,6 +1341,87 @@ export type Database = {
         };
         Relationships: [];
       };
+      energy_audits: {
+        Row: {
+          id: string;
+          org_id: string | null;
+          pool_id: string | null;
+          title: string;
+          status: EnergyAuditStatus;
+          facility_name: string | null;
+          facility_type: string | null;
+          body_of_water: string | null;
+          size_notes: string | null;
+          equipment_notes: string | null;
+          schedule_notes: string | null;
+          facility_summary: string | null;
+          pump_notes: string | null;
+          heater_notes: string | null;
+          findings: string | null;
+          recommendations: string | null;
+          estimated_savings_notes: string | null;
+          input_payload: Json | null;
+          ai_report: string | null;
+          is_community_beta: boolean;
+          created_by: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          org_id?: string | null;
+          pool_id?: string | null;
+          title: string;
+          status?: EnergyAuditStatus;
+          facility_name?: string | null;
+          facility_type?: string | null;
+          body_of_water?: string | null;
+          size_notes?: string | null;
+          equipment_notes?: string | null;
+          schedule_notes?: string | null;
+          facility_summary?: string | null;
+          pump_notes?: string | null;
+          heater_notes?: string | null;
+          findings?: string | null;
+          recommendations?: string | null;
+          estimated_savings_notes?: string | null;
+          input_payload?: Json | null;
+          ai_report?: string | null;
+          is_community_beta?: boolean;
+          created_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          org_id?: string | null;
+          pool_id?: string | null;
+          title?: string;
+          status?: EnergyAuditStatus;
+          facility_name?: string | null;
+          facility_type?: string | null;
+          body_of_water?: string | null;
+          size_notes?: string | null;
+          equipment_notes?: string | null;
+          schedule_notes?: string | null;
+          facility_summary?: string | null;
+          pump_notes?: string | null;
+          heater_notes?: string | null;
+          findings?: string | null;
+          recommendations?: string | null;
+          estimated_savings_notes?: string | null;
+          input_payload?: Json | null;
+          ai_report?: string | null;
+          is_community_beta?: boolean;
+          created_by?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       procurement_requests: {
         Row: {
           id: string;
@@ -1428,6 +1511,7 @@ export type Database = {
       task_category: TaskCategory;
       ticket_status: TicketStatus;
       procurement_request_status: ProcurementRequestStatus;
+      energy_audit_status: EnergyAuditStatus;
     };
     CompositeTypes: {
       [_ in never]: never;

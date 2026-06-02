@@ -1,21 +1,11 @@
 "use client";
 
-import {
-  Autocomplete,
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-} from "@mui/material";
-import { useMemo } from "react";
+import { Stack, TextField } from "@mui/material";
 import type { Control, FieldErrors, FieldValues, Path } from "react-hook-form";
 import { Controller } from "react-hook-form";
 
-import { getUsCitiesForState } from "@/lib/geo/usCities";
-import { US_STATES } from "@/lib/geo/usStates";
+import { UsCityAutocomplete } from "@/components/forms/UsCityAutocomplete";
+import { UsStateAutocomplete } from "@/components/forms/UsStateAutocomplete";
 
 type AddressFieldNames = {
   address_line1: string;
@@ -37,9 +27,6 @@ export function UsaAddressFields<T extends FieldValues & AddressFieldNames>({
   stateCode: string;
   disabled?: boolean;
 }) {
-  const cities = useMemo(() => getUsCitiesForState(stateCode), [stateCode]);
-  const cityOptions = useMemo(() => cities.map((c) => c.name), [cities]);
-
   const err = (key: keyof AddressFieldNames) =>
     errors[key as Path<T>] as { message?: string } | undefined;
 
@@ -74,51 +61,25 @@ export function UsaAddressFields<T extends FieldValues & AddressFieldNames>({
           />
         )}
       />
-      <Controller
+      <UsStateAutocomplete
+        control={control}
         name={"state_code" as Path<T>}
-        control={control}
-        render={({ field }) => (
-          <FormControl fullWidth required error={!!err("state_code")} disabled={disabled}>
-            <InputLabel id="usa-state-label">State</InputLabel>
-            <Select labelId="usa-state-label" label="State" {...field}>
-              {US_STATES.map((s) => (
-                <MenuItem key={s.code} value={s.code}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-            {err("state_code")?.message ? (
-              <FormHelperText error>{err("state_code")?.message}</FormHelperText>
-            ) : null}
-          </FormControl>
-        )}
+        label="State"
+        required
+        storeAs="code"
+        disabled={disabled}
+        error={!!err("state_code")}
+        helperText={err("state_code")?.message}
       />
-      <Controller
-        name={"city" as Path<T>}
+      <UsCityAutocomplete
         control={control}
-        render={({ field }) => (
-          <Autocomplete
-            options={cityOptions}
-            value={field.value || null}
-            onChange={(_, v) => field.onChange(v ?? "")}
-            onInputChange={(_, v) => field.onChange(v)}
-            freeSolo
-            disabled={disabled || !stateCode}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="City"
-                required
-                error={!!err("city")}
-                helperText={
-                  !stateCode
-                    ? "Select a state first"
-                    : err("city")?.message ?? "Choose from the list or type your city"
-                }
-              />
-            )}
-          />
-        )}
+        name={"city" as Path<T>}
+        stateCode={stateCode}
+        label="City"
+        required
+        disabled={disabled}
+        error={!!err("city")}
+        helperText={err("city")?.message}
       />
       <Controller
         name={"postal_code" as Path<T>}

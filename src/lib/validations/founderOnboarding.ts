@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import { resolveUsState } from "@/lib/geo/resolveUsState";
+import {
+  ESSENTIAL_ANNUAL_TOTAL_USD,
+  formatUsd,
+  PRO_ANNUAL_TOTAL_USD,
+} from "@/lib/marketing/publicPricing";
 import type { OrgTier } from "@/types/database";
 
 export const ORG_TIERS: OrgTier[] = [
@@ -74,7 +80,13 @@ export const organizationStepSchema = z.object({
   address_line1: z.string().trim().min(2, "Street address is required"),
   address_line2: z.string().trim().max(120).optional().or(z.literal("")),
   city: z.string().trim().min(1, "City is required"),
-  region: z.string().trim().min(1, "State / region is required"),
+  region: z
+    .string()
+    .trim()
+    .min(1, "State is required")
+    .refine((val) => resolveUsState(val) !== null, {
+      message: "Select a valid US state",
+    }),
   postal_code: z.string().trim().min(2, "Postal code is required"),
   country: z.string().trim().min(2, "Country is required"),
   num_pools: z
@@ -123,13 +135,18 @@ export const PLAN_CHOICES: {
   name: string;
   tagline: string;
   price: string;
+  /** Whole-dollar annual amount, or null for custom-priced plans. */
+  annual: number | null;
+  pricePeriod: string;
   features: string[];
 }[] = [
   {
     code: "essential",
     name: "Essential",
     tagline: "For single facilities ready to digitize",
-    price: "$149 / mo",
+    price: `$${formatUsd(ESSENTIAL_ANNUAL_TOTAL_USD)} / yr`,
+    annual: ESSENTIAL_ANNUAL_TOTAL_USD,
+    pricePeriod: "/ yr",
     features: [
       "Chemical & cleaning logs",
       "Operator SOPs and templates",
@@ -140,7 +157,9 @@ export const PLAN_CHOICES: {
     code: "pro",
     name: "Professional",
     tagline: "Most popular for founder facilities",
-    price: "$499 / mo",
+    price: `$${formatUsd(PRO_ANNUAL_TOTAL_USD)} / yr`,
+    annual: PRO_ANNUAL_TOTAL_USD,
+    pricePeriod: "/ yr",
     features: [
       "Everything in Essential",
       "Audits & procurement",
@@ -151,7 +170,9 @@ export const PLAN_CHOICES: {
     code: "enterprise",
     name: "Enterprise",
     tagline: "Multi-site monitoring and advisory",
-    price: "From $1,500 / mo",
+    price: "Custom annual",
+    annual: null,
+    pricePeriod: "",
     features: [
       "Everything in Professional",
       "24/7 monitoring + sensors",

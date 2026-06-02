@@ -6,6 +6,8 @@ import { Box, Button, Chip, Container, Stack, Typography } from "@mui/material";
 import { alpha, keyframes } from "@mui/material/styles";
 import Link from "next/link";
 
+import { ESSENTIAL_MONTHLY_USD, PRO_MONTHLY_USD } from "@/lib/marketing/publicPricing";
+
 const fadeUp = keyframes`
   from { opacity: 0; transform: translate3d(0, 16px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
@@ -31,7 +33,7 @@ const tiers: {
   },
   {
     name: "Essential",
-    price: "$149",
+    price: `$${ESSENTIAL_MONTHLY_USD}`,
     unit: "/mo",
     blurb: "Run daily ops with chemistry, maintenance, and audit-ready logs.",
     highlights: ["Daily chemistry logs", "Maintenance templates", "Support portal", "Up to 2 pools"],
@@ -40,7 +42,7 @@ const tiers: {
   },
   {
     name: "Professional",
-    price: "$499",
+    price: `$${PRO_MONTHLY_USD}`,
     unit: "/mo",
     blurb: "Everything in Essential plus vendor & procurement intelligence.",
     highlights: [

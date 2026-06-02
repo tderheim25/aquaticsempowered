@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getUsersRowWithAdminFallback, getSessionUser } from "@/lib/auth/rbac";
 import { resolveCommunityViewer } from "@/lib/community/communityPartition";
 import { canUsePublicCommunity } from "@/lib/community/publicAccess";
+import { enforceRateLimit } from "@/lib/security/rateLimit";
 import { createClient } from "@/lib/supabase/server";
 
 export type CommunitySearchResult =
@@ -19,6 +20,12 @@ export async function GET(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  const limited = await enforceRateLimit(`community-search:${user.id}`, {
+    limit: 40,
+    windowMs: 60 * 1000,
+  });
+  if (limited) return limited;
 
   const profile = await getUsersRowWithAdminFallback(user.id);
   if (!canUsePublicCommunity(user.id, profile)) {

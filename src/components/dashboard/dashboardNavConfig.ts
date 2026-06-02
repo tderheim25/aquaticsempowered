@@ -4,9 +4,11 @@ import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
 import CleaningServicesOutlinedIcon from "@mui/icons-material/CleaningServicesOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
+import CreditCardOutlinedIcon from "@mui/icons-material/CreditCardOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import HandymanOutlinedIcon from "@mui/icons-material/HandymanOutlined";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
@@ -51,6 +53,13 @@ export const DASHBOARD_TOP_NAV: {
 }[] = [
   { label: "Dashboard", href: "/app", viewKey: "dashboard_home", icon: DashboardOutlinedIcon },
   { label: "Team", href: "/app/team", viewKey: "dashboard_home", icon: GroupsOutlinedIcon, roles: ["org_admin"] },
+  {
+    label: "Subscription",
+    href: "/app/billing",
+    viewKey: "billing",
+    icon: CreditCardOutlinedIcon,
+    roles: ["org_admin", "super_admin"],
+  },
 ];
 
 export const DASHBOARD_POOL_OPS_GROUPS: DashboardNavGroup[] = [
@@ -109,6 +118,7 @@ export const DASHBOARD_FACILITY_NAV: {
   { label: "Vendor Directory", href: "/app/vendors", viewKey: "vendor_directory", icon: StorefrontOutlinedIcon },
   { label: "Community", href: "/community", viewKey: "community", icon: ForumOutlinedIcon },
   { label: "Procurement", href: "/app/procurement", viewKey: "procurement", icon: ShoppingCartOutlinedIcon },
+  { label: "Energy Audits", href: "/app/energy-audits", viewKey: "energy_audits", icon: BoltOutlinedIcon },
   { label: "Training / CPO", href: "/app/training-cpo", viewKey: "training_cpo", icon: SchoolOutlinedIcon },
 ];
 
