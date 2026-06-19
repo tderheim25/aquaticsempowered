@@ -71,6 +71,7 @@ export async function updateUserDetailsAction(formData: FormData) {
   const supportProviderRaw = String(formData.get("supportProviderId") ?? "").trim();
   const support_provider_id =
     !supportProviderRaw || supportProviderRaw === "__none__" ? null : supportProviderRaw;
+  const isFounderRaw = String(formData.get("isFounder") ?? "").trim();
 
   if (ar.slug === "support_technician" && !support_provider_id) {
     redirect(consoleSectionUrl("users", { status: "invalid" }));
@@ -83,6 +84,23 @@ export async function updateUserDetailsAction(formData: FormData) {
     }
   }
 
+  const { data: existingUser } = await admin
+    .from("users")
+    .select("is_founder, founder_enrolled_at")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const nextIsFounder = isFounderRaw === "yes";
+  const founderPatch =
+    nextIsFounder === Boolean(existingUser?.is_founder)
+      ? {}
+      : nextIsFounder
+        ? {
+            is_founder: true,
+            founder_enrolled_at: existingUser?.founder_enrolled_at ?? new Date().toISOString(),
+          }
+        : { is_founder: false, founder_enrolled_at: null };
+
   const { error } = await admin
     .from("users")
     .update({
@@ -91,6 +109,7 @@ export async function updateUserDetailsAction(formData: FormData) {
       role: ar.permissions_base,
       app_role_id: ar.id,
       support_provider_id: ar.slug === "support_technician" ? support_provider_id : null,
+      ...founderPatch,
     })
     .eq("id", userId);
 

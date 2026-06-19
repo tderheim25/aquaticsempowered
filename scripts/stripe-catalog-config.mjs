@@ -27,25 +27,33 @@ export const CATALOG_PRODUCTS = [
       { envKey: "STRIPE_PRICE_PRO_ANNUAL", cadence: "annual", unitAmountCents: 697200 },
     ],
   },
+  {
+    slug: "pool_addon",
+    name: "Aquatics Empowered — Additional Pool",
+    description: "Monthly charge per additional active body of water (first pool included in plan).",
+    prices: [
+      { envKey: "STRIPE_PRICE_POOL_ADDON_MONTHLY", cadence: "monthly", unitAmountCents: 2900 },
+    ],
+  },
 ];
 
 /**
- * Legacy founder product — same annual amount as Professional annual (list price).
- * Checkout prefers STRIPE_PRICE_PRO_ANNUAL when set; this key remains for older envs.
+ * @deprecated Founder program now bills Professional monthly. Kept for legacy envs / subscriptions.
  */
 export const FOUNDER_ANNUAL_ALIAS = {
   slug: "founder_annual",
   name: "Aquatics Empowered — Founder Annual",
-  description: "Founder program annual billing (Professional list price).",
+  description: "Deprecated — founder program uses STRIPE_PRICE_PRO_MONTHLY.",
   envKey: "STRIPE_PRICE_FOUNDER_ANNUAL",
   unitAmountCents: 697200,
 };
 
-/** 50% off — matches src/lib/marketing/promo.ts */
+/** 50% off for 3 years — matches src/lib/founders/founderProgram.ts */
 export const PROMO_COUPON = {
-  id: "ae_founder_launch_50",
-  name: "Founder Launch — 50% off",
+  id: "ae_founder_launch_50_3y",
+  name: "Founder Launch — 50% off for 3 years",
   percentOff: 50,
-  duration: "forever",
+  duration: "repeating",
+  durationInMonths: 36,
   envKey: "STRIPE_PROMO_COUPON_ID",
 };

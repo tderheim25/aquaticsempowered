@@ -14,6 +14,9 @@ export type FounderProgramBlocked = {
   subscriptionLine: string | null;
   dashboardHref: string;
   billingHref: string | null;
+  awaitingPayment: boolean;
+  completePaymentHref: string | null;
+  planCode: PlanCode | null;
 };
 
 export type FounderProgramGate =
@@ -36,7 +39,7 @@ function buildBlockedCopy(
       }
       return {
         title: "You already have an organization",
-        message: `You already administer ${orgName}. Use your dashboard to manage pools, team, and billing.`,
+        message: `You already administer ${orgName}. Use your dashboard to manage pools, team, and billing — or add another facility from the sidebar if you're on Essential or Professional.`,
       };
     case "manager":
     case "staff":
@@ -106,6 +109,9 @@ export async function resolveFounderProgramGate(profile: UsersRow | null): Promi
   const canManageBilling = profile.role === "org_admin" || profile.role === "super_admin";
   let subscriptionLine: string | null = null;
   let billingHref: string | null = null;
+  let awaitingPayment = false;
+  let completePaymentHref: string | null = null;
+  let planCode: PlanCode | null = (org?.plan_code as PlanCode) ?? null;
 
   if (canManageBilling && org) {
     const summary = await loadOrgSubscriptionSummary(
@@ -117,19 +123,36 @@ export async function resolveFounderProgramGate(profile: UsersRow | null): Promi
     if (summary.planCode !== "free" || (summary.status !== "free" && summary.status !== "inactive")) {
       subscriptionLine = `${summary.planLabel} · ${summary.statusLabel}`;
     }
+    awaitingPayment =
+      summary.status === "incomplete" ||
+      summary.status === "founder_pending" ||
+      summary.status === "incomplete_expired";
     if (profile.role === "org_admin" || profile.role === "super_admin") {
       billingHref = "/app/billing";
+      if (awaitingPayment) {
+        completePaymentHref = "/app/billing?checkout=1";
+      }
     }
+  }
+
+  let titleOut = title;
+  let messageOut = message;
+  if (isFounderOrg && awaitingPayment && canManageBilling) {
+    titleOut = "Complete your founder subscription";
+    messageOut = `Your founder account for ${orgName} is set up, but payment is still pending. Complete checkout to activate your plan and unlock the dashboard.`;
   }
 
   return {
     eligible: false,
-    title,
-    message,
+    title: titleOut,
+    message: messageOut,
     orgName: org?.name ?? null,
     subscriptionLine,
     dashboardHref: homePathForRole(profile.role),
     billingHref,
+    awaitingPayment,
+    completePaymentHref,
+    planCode,
   };
 }
 

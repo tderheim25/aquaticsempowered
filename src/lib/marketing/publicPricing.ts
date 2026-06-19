@@ -31,3 +31,13 @@ export const ESSENTIAL_ANNUAL_PER_MONTH_USD = annualPerMonthUsd(ESSENTIAL_MONTHL
 export const PRO_ANNUAL_PER_MONTH_USD = annualPerMonthUsd(PRO_MONTHLY_USD);
 export const ESSENTIAL_ANNUAL_TOTAL_USD = annualTotalUsd(ESSENTIAL_MONTHLY_USD);
 export const PRO_ANNUAL_TOTAL_USD = annualTotalUsd(PRO_MONTHLY_USD);
+
+/** Per additional active pool beyond the first (monthly). */
+export const POOL_ADDON_MONTHLY_USD = 29;
+
+/** Founder launch discount on base subscription only. */
+export const FOUNDER_DISCOUNT_PERCENT = 50;
+
+export function founderBaseMonthlyUsd(listMonthlyUsd: number): number {
+  return Math.round(listMonthlyUsd * (1 - FOUNDER_DISCOUNT_PERCENT / 100));
+}

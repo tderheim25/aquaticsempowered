@@ -1,9 +1,14 @@
 import {
+  annualTotalUsd,
   ESSENTIAL_ANNUAL_PER_MONTH_USD,
   ESSENTIAL_MONTHLY_USD,
+  formatUsd,
+  founderBaseMonthlyUsd,
+  POOL_ADDON_MONTHLY_USD,
   PRO_ANNUAL_PER_MONTH_USD,
   PRO_MONTHLY_USD,
 } from "@/lib/marketing/publicPricing";
+import { applyPromoDiscount } from "@/lib/marketing/sitePromo";
 import type { BillingCadence } from "@/lib/stripe/prices";
 import type { PlanCode } from "@/types/database";
 
@@ -28,10 +33,12 @@ export const SELF_SERVE_PLANS: SelfServePlanOption[] = [
   {
     planCode: "essential",
     name: "Essential",
-    tagline: "Run a single facility",
+    tagline: "Run your facility operations",
     monthlyDisplay: ESSENTIAL_MONTHLY_USD,
     annualDisplay: ESSENTIAL_ANNUAL_PER_MONTH_USD,
     highlights: [
+      "1 pool included",
+      `Additional pools: $${POOL_ADDON_MONTHLY_USD}/mo each`,
       "Chemical logs & alerts",
       "SOP library & checklists",
       "Member support portal",
@@ -41,10 +48,12 @@ export const SELF_SERVE_PLANS: SelfServePlanOption[] = [
   {
     planCode: "pro",
     name: "Professional",
-    tagline: "Multi-facility operations",
+    tagline: "Advanced ops for growing aquatics teams",
     monthlyDisplay: PRO_MONTHLY_USD,
     annualDisplay: PRO_ANNUAL_PER_MONTH_USD,
     highlights: [
+      "1 pool included",
+      `Additional pools: $${POOL_ADDON_MONTHLY_USD}/mo each`,
       "Everything in Essential",
       "Audits & procurement tools",
       "Advanced reporting & insights",
@@ -92,4 +101,24 @@ export function priceLabel(plan: SelfServePlanOption, cadence: BillingCadence): 
   const amount = cadence === "annual" ? plan.annualDisplay : plan.monthlyDisplay;
   const suffix = cadence === "annual" ? "/mo · billed annually" : "/mo";
   return `$${amount}${suffix}`;
+}
+
+export function founderPriceLabel(plan: SelfServePlanOption, cadence: BillingCadence): string {
+  if (cadence === "annual") {
+    const perMonth = Math.round(applyPromoDiscount(annualTotalUsd(plan.monthlyDisplay)) / 12);
+    return `$${formatUsd(perMonth)}/mo · billed annually`;
+  }
+  return `$${formatUsd(founderBaseMonthlyUsd(plan.monthlyDisplay))}/mo`;
+}
+
+const PLAN_DISPLAY_NAMES: Record<PlanCode, string> = {
+  free: "Free",
+  essential: "Essential",
+  pro: "Professional",
+  enterprise: "Enterprise",
+};
+
+export function getPlanDisplayName(planCode: PlanCode | string | null | undefined): string | null {
+  if (!planCode) return null;
+  return PLAN_DISPLAY_NAMES[planCode as PlanCode] ?? null;
 }

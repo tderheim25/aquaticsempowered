@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import { subscriptionIdFromInvoice } from "@/lib/stripe/stripeApiCompat";
 import { syncCheckoutSessionCompleted, syncSubscriptionFromStripe } from "@/lib/stripe/syncSubscription";
 import { captureException } from "@/lib/sentry";
 
@@ -52,9 +53,26 @@ export async function POST(request: Request) {
         await syncSubscriptionFromStripe(subscription);
         break;
       }
-      case "invoice.paid":
-      case "invoice.payment_failed":
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = subscriptionIdFromInvoice(invoice);
+        if (subId) {
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          await syncSubscriptionFromStripe(subscription);
+        }
         break;
+      }
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = subscriptionIdFromInvoice(invoice);
+        if (subId) {
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          await syncSubscriptionFromStripe(subscription);
+        }
+        break;
+      }
       default:
         break;
     }

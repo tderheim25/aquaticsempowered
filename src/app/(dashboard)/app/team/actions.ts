@@ -5,8 +5,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { requireOrg, requireRole } from "@/lib/auth/rbac";
+import { getRoleDisplayLabel } from "@/lib/auth/roleLabels";
 import {
-  ORG_ROLE_LABELS,
   buildAppUrl,
   buildInviteSignupUrl,
   generateInviteToken,
@@ -76,10 +76,36 @@ export async function updateOrgMemberDetailsAction(formData: FormData) {
   }
 
   const admin = createAdminClient();
-  const { data: target } = await admin.from("users").select("id, org_id").eq("id", userId).maybeSingle();
+  const { data: target } = await admin
+    .from("users")
+    .select("id, org_id, role")
+    .eq("id", userId)
+    .maybeSingle();
 
   if (!target || target.org_id !== actor.org_id) {
     redirect("/app/team?status=invalid");
+  }
+
+  const { data: membership } = await admin
+    .from("organization_memberships")
+    .select("is_owner")
+    .eq("user_id", userId)
+    .eq("org_id", actor.org_id)
+    .maybeSingle();
+
+  if (membership?.is_owner) {
+    const { error } = await admin
+      .from("users")
+      .update({ full_name: fullName || null })
+      .eq("id", userId)
+      .eq("org_id", actor.org_id);
+
+    if (error) {
+      redirect("/app/team?status=error");
+    }
+
+    revalidatePath("/app/team");
+    redirect("/app/team?status=updated");
   }
 
   const { data: appRole } = await admin.from("app_roles").select("id").eq("slug", role).maybeSingle();
@@ -190,11 +216,21 @@ export async function inviteOrgMemberAction(formData: FormData) {
       (actor as { first_name?: string | null }).first_name?.trim() ||
       actor.email;
 
+    const { data: appRoleForLabel } = await admin
+      .from("app_roles")
+      .select("label, slug")
+      .eq("slug", role)
+      .maybeSingle();
+
     await sendOrgInvitationEmail(email, {
       orgName,
       inviterName,
       recipientName: fullName ?? existingUser?.full_name ?? null,
-      roleLabel: ORG_ROLE_LABELS[role] ?? role,
+      roleLabel: getRoleDisplayLabel({
+        role,
+        appRoleLabel: appRoleForLabel?.label,
+        appRoleSlug: appRoleForLabel?.slug,
+      }),
       signupUrl: buildInviteSignupUrl(baseUrl, invite.token),
       appUrl: buildAppUrl(baseUrl),
       isExistingUser: Boolean(existingUser),
@@ -304,11 +340,21 @@ export async function resendOrgInvitationAction(formData: FormData) {
     const orgName = org?.name ?? "your organization";
     const inviterName = actor.full_name?.trim() || actor.email;
 
+    const { data: inviteAppRole } = await admin
+      .from("app_roles")
+      .select("label, slug")
+      .eq("slug", invite.role)
+      .maybeSingle();
+
     await sendOrgInvitationEmail(invite.email, {
       orgName,
       inviterName,
       recipientName: invite.full_name,
-      roleLabel: ORG_ROLE_LABELS[invite.role] ?? invite.role,
+      roleLabel: getRoleDisplayLabel({
+        role: invite.role,
+        appRoleLabel: inviteAppRole?.label,
+        appRoleSlug: inviteAppRole?.slug,
+      }),
       signupUrl: buildInviteSignupUrl(baseUrl, token),
       appUrl: buildAppUrl(baseUrl),
       isExistingUser: Boolean(invite.invited_user_id),
@@ -350,9 +396,16 @@ export async function removeOrgMemberAction(formData: FormData) {
     redirect("/app/team?status=invalid");
   }
 
+  const { data: staffRole } = await admin.from("app_roles").select("id").eq("slug", "staff").maybeSingle();
+  const { data: defaultUserRole } = await admin.from("app_roles").select("id").eq("slug", "default_user").maybeSingle();
+
   const { error } = await admin
     .from("users")
-    .update({ org_id: null })
+    .update({
+      org_id: null,
+      role: "staff",
+      app_role_id: defaultUserRole?.id ?? staffRole?.id ?? null,
+    })
     .eq("id", userId)
     .eq("org_id", actor.org_id);
 
@@ -361,5 +414,8 @@ export async function removeOrgMemberAction(formData: FormData) {
   }
 
   revalidatePath("/app/team");
+  revalidatePath("/app");
+  revalidatePath("/app/pools");
+  revalidatePath("/app/billing");
   redirect("/app/team?status=removed");
 }

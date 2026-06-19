@@ -7,8 +7,11 @@ import { HowItWorks } from "@/components/marketing/HowItWorks";
 import { PricingTeaser } from "@/components/marketing/PricingTeaser";
 import { SocialProof } from "@/components/marketing/SocialProof";
 import { ValueProps } from "@/components/marketing/ValueProps";
+import { getSitePromoConfig } from "@/lib/marketing/sitePromo";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const sitePromo = await getSitePromoConfig();
+
   return (
     <>
       <Hero />
@@ -18,7 +21,7 @@ export default function HomePage() {
         <AdBanner variant="inline" />
       </Container>
       <SocialProof />
-      <PricingTeaser />
+      <PricingTeaser sitePromo={sitePromo} />
       <FounderCTA />
     </>
   );

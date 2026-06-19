@@ -5,6 +5,7 @@ import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
 import { getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
 import { enforceRateLimit } from "@/lib/security/rateLimit";
 import { getStripePriceId } from "@/lib/stripe/prices";
+import { findBasePlanItem } from "@/lib/stripe/syncPoolSubscription";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
 import { syncSubscriptionFromStripe } from "@/lib/stripe/syncSubscription";
 import { captureException } from "@/lib/sentry";
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const orgCtx = await loadActiveOrgContext(profile);
-  const orgId = orgCtx.activeOrgId ?? profile.org_id;
+  const orgId = orgCtx.billingRootOrgId ?? orgCtx.activeOrgId ?? profile.org_id;
   if (!orgId) {
     return NextResponse.json({ error: "Organization required" }, { status: 403 });
   }
@@ -94,7 +95,8 @@ export async function POST(request: Request) {
   try {
     const stripe = getStripe();
     const existing = await stripe.subscriptions.retrieve(sub.stripe_subscription_id);
-    const itemId = existing.items.data[0]?.id;
+    const baseItem = findBasePlanItem(existing);
+    const itemId = baseItem?.id ?? existing.items.data[0]?.id;
     if (!itemId) {
       return NextResponse.json({ error: "Subscription has no billable items" }, { status: 500 });
     }

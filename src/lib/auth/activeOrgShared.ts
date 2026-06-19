@@ -1,6 +1,8 @@
 /** Client-safe org context helpers (no next/headers). */
 
 export const SUPER_ADMIN_ORG_COOKIE = "ae_super_admin_org";
+/** Active facility for multi-org owners and super admins. */
+export const ACTIVE_ORG_COOKIE = "ae_active_org";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

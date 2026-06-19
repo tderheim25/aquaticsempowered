@@ -23,6 +23,7 @@ export default async function EditPoolPage({ params }: { params: Promise<{ poolI
           poolId={pool.id}
           defaults={{
             name: pool.name,
+            water_body_type: pool.water_body_type ?? "swimming_pool",
             pool_type: pool.pool_type,
             volume_gallons: pool.volume_gallons,
             location_label: pool.location_label,

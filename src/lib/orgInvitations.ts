@@ -3,10 +3,14 @@ import { randomBytes } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { UserRole } from "@/types/database";
 
-export const ORG_INVITATION_ROLES: UserRole[] = ["org_admin", "manager", "staff"];
+export const ORG_INVITATION_ROLES: UserRole[] = ["manager", "staff"];
 
 export const ORG_ROLE_LABELS: Record<string, string> = {
-  org_admin: "Org Admin",
+  essential_owner: "Essential Owner",
+  professional_owner: "Professional Owner",
+  enterprise_owner: "Enterprise Owner",
+  default_user: "Default User",
+  org_admin: "Organization Owner",
   manager: "Manager",
   staff: "Staff",
 };

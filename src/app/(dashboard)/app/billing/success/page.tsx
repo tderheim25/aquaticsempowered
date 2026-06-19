@@ -1,7 +1,7 @@
-import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
-import { Avatar, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
+import { Button, Card, CardContent, Container, Stack } from "@mui/material";
 import Link from "next/link";
 
+import { CheckoutSuccessCelebration } from "@/components/billing/CheckoutSuccessCelebration";
 import { ManageBillingButton } from "@/components/billing/ManageBillingButton";
 import { requireProfileForApp } from "@/lib/auth/rbac";
 import { parsePlanCode } from "@/lib/stripe/prices";
@@ -18,7 +18,7 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: "Enterprise",
 };
 
-type SearchParams = { session_id?: string };
+type SearchParams = { session_id?: string; plan?: string };
 
 export default async function BillingSuccessPage({
   searchParams,
@@ -26,9 +26,9 @@ export default async function BillingSuccessPage({
   searchParams: Promise<SearchParams>;
 }) {
   await requireProfileForApp();
-  const { session_id: sessionId } = (await searchParams) ?? {};
+  const { session_id: sessionId, plan: planParam } = (await searchParams) ?? {};
 
-  let planLabel: string | null = null;
+  let planLabel: string | null = planParam ? PLAN_LABELS[planParam] ?? planParam : null;
   let paymentConfirmed = false;
 
   if (sessionId && isStripeConfigured()) {
@@ -53,31 +53,15 @@ export default async function BillingSuccessPage({
       <Card sx={{ borderRadius: 4, boxShadow: "0 24px 60px rgba(15,23,42,0.08)" }}>
         <CardContent sx={{ p: { xs: 4, md: 6 } }}>
           <Stack spacing={2.5} alignItems="center" textAlign="center">
-            <Avatar
-              sx={{
-                width: 72,
-                height: 72,
-                background: "linear-gradient(135deg, #003B6F 0%, #2EA5A0 100%)",
-                boxShadow: "0 18px 36px rgba(0,59,111,0.25)",
-              }}
-            >
-              <CheckCircleRoundedIcon sx={{ fontSize: 36 }} />
-            </Avatar>
-
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>
-              {paymentConfirmed ? "Payment confirmed" : "Thanks for subscribing"}
-            </Typography>
-
-            <Typography variant="body1" color="text.secondary">
-              {planLabel ? (
-                <>
-                  Your organization is being upgraded to the <strong>{planLabel}</strong> plan.
-                  Feature access updates within a minute once billing sync completes.
-                </>
-              ) : (
-                "Your subscription is being activated. Feature access updates within a minute once billing sync completes."
-              )}
-            </Typography>
+            <CheckoutSuccessCelebration
+              planLabel={planLabel}
+              headline={paymentConfirmed ? "Payment confirmed" : "Thanks for subscribing"}
+              subline={
+                planLabel
+                  ? `Your organization is being upgraded to the ${planLabel} plan. Feature access updates within a minute once billing sync completes.`
+                  : "Your subscription is being activated. Feature access updates within a minute once billing sync completes."
+              }
+            />
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 1 }}>
               <Button component={Link} href="/app" variant="contained" color="primary" size="large">

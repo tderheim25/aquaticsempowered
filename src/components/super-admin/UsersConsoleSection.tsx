@@ -26,6 +26,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { deleteUserAction, updateUserDetailsAction } from "@/app/private/ae-console/users/actions";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
+import { getRoleDisplayLabel, roleDisplayTone } from "@/lib/auth/roleLabels";
 import {
   DataTable,
   StatusPill,
@@ -46,6 +47,8 @@ export type AdminUserRow = {
   role: string;
   app_role_id: string | null;
   support_provider_id?: string | null;
+  is_founder?: boolean;
+  founder_enrolled_at?: string | null;
   created_at: string;
 };
 
@@ -62,6 +65,9 @@ export type AdminAppRoleOption = {
 
 const UNASSIGNED = "__unassigned__";
 const ALL = "__all__";
+const FOUNDER_ALL = "__founder_all__";
+const FOUNDER_YES = "__founder_yes__";
+const FOUNDER_NO = "__founder_no__";
 
 function monogramFor(user: AdminUserRow) {
   const name = user.full_name?.trim() || user.email;
@@ -70,13 +76,8 @@ function monogramFor(user: AdminUserRow) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function roleTone(slug: string): "success" | "info" | "warning" | "neutral" | "primary" {
-  if (slug === "super_admin") return "primary";
-  if (slug === "org_admin") return "info";
-  if (slug === "manager") return "warning";
-  if (slug === "vendor") return "success";
-  if (slug === "support_technician") return "info";
-  return "neutral";
+function roleTone(slug: string, appRoleSlug?: string | null) {
+  return roleDisplayTone(slug, appRoleSlug);
 }
 
 export type SupportProviderOption = { id: string; name: string };
@@ -95,9 +96,11 @@ export function UsersConsoleSection({
   const [query, setQuery] = useState("");
   const [orgFilter, setOrgFilter] = useState<string>(ALL);
   const [roleFilter, setRoleFilter] = useState<string>(ALL);
+  const [founderFilter, setFounderFilter] = useState<string>(FOUNDER_ALL);
   const [editing, setEditing] = useState<AdminUserRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminUserRow | null>(null);
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
+  const idToRole = useMemo(() => new Map(appRoles.map((r) => [r.id, r])), [appRoles]);
   const slugToRole = useMemo(() => new Map(appRoles.map((r) => [r.slug, r])), [appRoles]);
 
   const filtered = useMemo(() => {
@@ -105,22 +108,32 @@ export function UsersConsoleSection({
     return users.filter((u) => {
       if (orgFilter === UNASSIGNED && u.org_id) return false;
       if (orgFilter !== ALL && orgFilter !== UNASSIGNED && u.org_id !== orgFilter) return false;
-      if (roleFilter !== ALL && u.role !== roleFilter) return false;
+      if (roleFilter !== ALL) {
+        const appSlug = u.app_role_id ? idToRole.get(u.app_role_id)?.slug : u.role;
+        if (appSlug !== roleFilter) return false;
+      }
+      if (founderFilter === FOUNDER_YES && !u.is_founder) return false;
+      if (founderFilter === FOUNDER_NO && (u.is_founder || !u.org_id)) return false;
       if (!q) return true;
+      const appRole = u.app_role_id ? idToRole.get(u.app_role_id) : slugToRole.get(u.role);
       const haystack = [
         u.full_name ?? "",
         u.email ?? "",
         u.org_id ? orgNameById.get(u.org_id) ?? "" : "",
-        u.role,
+        appRole?.label ?? u.role,
+        u.is_founder ? "founder" : "",
       ]
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [users, query, orgFilter, roleFilter, orgNameById]);
+  }, [users, query, orgFilter, roleFilter, founderFilter, orgNameById, idToRole, slugToRole]);
 
   const activeFilterCount =
-    (orgFilter !== ALL ? 1 : 0) + (roleFilter !== ALL ? 1 : 0) + (query.trim() ? 1 : 0);
+    (orgFilter !== ALL ? 1 : 0) +
+    (roleFilter !== ALL ? 1 : 0) +
+    (founderFilter !== FOUNDER_ALL ? 1 : 0) +
+    (query.trim() ? 1 : 0);
 
   return (
     <>
@@ -210,6 +223,19 @@ export function UsersConsoleSection({
               ))}
             </TextField>
 
+            <TextField
+              select
+              size="small"
+              margin="none"
+              value={founderFilter}
+              onChange={(e) => setFounderFilter(e.target.value)}
+              sx={{ minWidth: 170 }}
+            >
+              <MenuItem value={FOUNDER_ALL}>All founder status</MenuItem>
+              <MenuItem value={FOUNDER_YES}>Founder only</MenuItem>
+              <MenuItem value={FOUNDER_NO}>Not founder</MenuItem>
+            </TextField>
+
           </Box>
         </Stack>
 
@@ -225,6 +251,7 @@ export function UsersConsoleSection({
                 setQuery("");
                 setOrgFilter(ALL);
                 setRoleFilter(ALL);
+                setFounderFilter(FOUNDER_ALL);
               }}
             >
               Clear filters
@@ -238,6 +265,7 @@ export function UsersConsoleSection({
               <TableCell>User</TableCell>
               <TableCell>Organization</TableCell>
               <TableCell>Role</TableCell>
+              <TableCell>Founder</TableCell>
               <TableCell>Joined</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -245,7 +273,7 @@ export function UsersConsoleSection({
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Stack alignItems="center" sx={{ py: 5 }}>
                     <Typography variant="body2" color="text.secondary">
                       No users match your filters.
@@ -256,7 +284,12 @@ export function UsersConsoleSection({
             ) : (
               filtered.map((user) => {
                 const orgName = user.org_id ? orgNameById.get(user.org_id) : null;
-                const role = slugToRole.get(user.role);
+                const appRole = user.app_role_id ? idToRole.get(user.app_role_id) : slugToRole.get(user.role);
+                const roleLabel = getRoleDisplayLabel({
+                  role: user.role,
+                  appRoleLabel: appRole?.label,
+                  appRoleSlug: appRole?.slug,
+                });
                 return (
                   <TableRow key={user.id} hover>
                     <TableCell>
@@ -277,10 +310,23 @@ export function UsersConsoleSection({
                     </TableCell>
                     <TableCell>
                       <StatusPill
-                        label={role?.label ?? user.role}
-                        tone={roleTone(user.role)}
+                        label={roleLabel}
+                        tone={roleTone(user.role, appRole?.slug)}
                         dot={false}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {!user.org_id ? (
+                        <Typography variant="body2" color="text.disabled">
+                          —
+                        </Typography>
+                      ) : user.is_founder ? (
+                        <Chip size="small" label="Founder" color="secondary" sx={{ height: 24 }} />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <TableDateTimeCell iso={user.created_at} />
@@ -341,10 +387,12 @@ function EditUserDialog({
   );
   const selectedSlug = appRoles.find((r) => r.id === selectedRoleId)?.slug ?? user?.role ?? "";
   const isSupportTech = selectedSlug === "support_technician";
+  const [isFounder, setIsFounder] = useState(Boolean(user?.is_founder));
 
   useEffect(() => {
     if (user) {
       setSelectedRoleId(user.app_role_id ?? appRoles.find((r) => r.slug === user.role)?.id ?? "");
+      setIsFounder(Boolean(user.is_founder));
     }
   }, [user, appRoles]);
 
@@ -489,6 +537,25 @@ function EditUserDialog({
                 ))}
               </TextField>
             ) : null}
+
+            <TextField
+              name="isFounder"
+              label="Founder program"
+              select
+              value={isFounder ? "yes" : "no"}
+              onChange={(e) => setIsFounder(e.target.value === "yes")}
+              fullWidth
+              size="small"
+              margin="none"
+              helperText={
+                user.founder_enrolled_at
+                  ? `Enrolled ${new Date(user.founder_enrolled_at).toLocaleDateString()}`
+                  : "Founder wizard enrollments only; does not change organization founder flag."
+              }
+            >
+              <MenuItem value="no">No</MenuItem>
+              <MenuItem value="yes">Yes</MenuItem>
+            </TextField>
 
             <Stack direction="row" alignItems="center" spacing={1} sx={{ pt: 0.5 }}>
               <Chip

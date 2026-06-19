@@ -41,7 +41,11 @@ export default async function NoOrganizationPage() {
               </Alert>
             ) : (
               <Alert severity="info">
-                Ask your organization administrator to add you to their facility, or open{" "}
+                Ask your organization administrator to add you to their facility, start your own via the{" "}
+                <Link href="/founders" style={{ fontWeight: 600 }}>
+                  Founder Program
+                </Link>
+                , or open{" "}
                 <Link href="/app/support" style={{ fontWeight: 600 }}>
                   Support Center
                 </Link>{" "}
@@ -52,11 +56,15 @@ export default async function NoOrganizationPage() {
               <Button component={Link} href="/app" variant="contained" fullWidth>
                 Back to dashboard
               </Button>
-              {isSuperAdmin ? (
+              {!isSuperAdmin ? (
+                <Button component={Link} href="/founders" variant="outlined" fullWidth>
+                  Start your own facility
+                </Button>
+              ) : (
                 <Button component={Link} href="/private/ae-console" variant="outlined" fullWidth>
                   AE Console
                 </Button>
-              ) : null}
+              )}
             </Stack>
           </Stack>
         </CardContent>

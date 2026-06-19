@@ -17,6 +17,7 @@ export function UsCityAutocomplete<T extends FieldValues>({
   error,
   helperText,
   noStateHelperText = "Select a state first",
+  size = "medium",
 }: {
   control: Control<T>;
   name: Path<T>;
@@ -27,6 +28,7 @@ export function UsCityAutocomplete<T extends FieldValues>({
   error?: boolean;
   helperText?: string;
   noStateHelperText?: string;
+  size?: "small" | "medium";
 }) {
   const cityOptions = useMemo(
     () => getUsCitiesForState(stateCode).map((c) => c.name),
@@ -57,6 +59,8 @@ export function UsCityAutocomplete<T extends FieldValues>({
               label={label}
               required={required}
               fullWidth
+              size={size}
+              margin="none"
               error={error}
               helperText={
                 !stateCode ? noStateHelperText : helperText ?? "Choose from the list or type your city"

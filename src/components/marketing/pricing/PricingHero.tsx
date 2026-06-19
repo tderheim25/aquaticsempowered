@@ -14,9 +14,10 @@ import {
 
 import LocalOfferRoundedIcon from "@mui/icons-material/LocalOfferRounded";
 
-import { PROMO } from "@/lib/marketing/promo";
+import type { SitePromoConfig } from "@/lib/marketing/promo";
 
 import type { BillingCadence } from "./pricingData";
+import { POOL_BILLING_PRICING_NOTE } from "./pricingData";
 
 const float = keyframes`
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
@@ -41,9 +42,10 @@ const fadeUp = keyframes`
 type Props = {
   cadence: BillingCadence;
   onCadenceChange: (next: BillingCadence) => void;
+  sitePromo: SitePromoConfig;
 };
 
-export function PricingHero({ cadence, onCadenceChange }: Props) {
+export function PricingHero({ cadence, onCadenceChange, sitePromo }: Props) {
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   return (
@@ -145,10 +147,21 @@ export function PricingHero({ cadence, onCadenceChange }: Props) {
             }}
           >
             From free community access to enterprise-grade monitoring and advisory.
-            Switch tiers anytime — founders lock in preferred pricing for life.
+            Switch tiers anytime — founders lock in preferred pricing for 3 years.
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              fontWeight: 500,
+              opacity: 0.88,
+              maxWidth: 680,
+              animation: reduceMotion ? "none" : `${fadeUp} 700ms ease 200ms both`,
+            }}
+          >
+            {POOL_BILLING_PRICING_NOTE}
           </Typography>
 
-          {PROMO.active ? (
+          {sitePromo.active ? (
             <Stack
               direction="row"
               spacing={1.5}
@@ -181,10 +194,10 @@ export function PricingHero({ cadence, onCadenceChange }: Props) {
               </Box>
               <Box sx={{ textAlign: "left" }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-                  {PROMO.headline}
+                  {sitePromo.headline}
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  {PROMO.description}
+                  {sitePromo.description}
                 </Typography>
               </Box>
             </Stack>

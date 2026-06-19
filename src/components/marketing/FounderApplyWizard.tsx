@@ -7,7 +7,6 @@ import BusinessRoundedIcon from "@mui/icons-material/BusinessRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
 import LockRoundedIcon from "@mui/icons-material/LockRounded";
-import PaymentRoundedIcon from "@mui/icons-material/PaymentRounded";
 import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import StarRoundedIcon from "@mui/icons-material/StarRounded";
@@ -25,7 +24,6 @@ import {
   CircularProgress,
   Collapse,
   Divider,
-  Fade,
   FormControl,
   FormHelperText,
   IconButton,
@@ -41,6 +39,8 @@ import {
   StepLabel,
   Stepper,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   alpha,
   stepConnectorClasses,
@@ -49,18 +49,26 @@ import {
   useTheme,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, type SubmitHandler } from "react-hook-form";
 
 import { submitFounderWizard } from "@/app/(marketing)/founders/_actions";
-import { applyPromoDiscount, PROMO, promoAppliesToPlan } from "@/lib/marketing/promo";
+import { EmbeddedCheckoutModal } from "@/components/billing/EmbeddedCheckoutModal";
+import { requestEmbeddedCheckout } from "@/lib/billing/requestEmbeddedCheckout";
+import { getPlanDisplayName } from "@/lib/billing/planCatalog";
+import { FOUNDER_DISCOUNT_BADGE, FOUNDER_DISCOUNT_TERM } from "@/lib/founders/founderProgram";
+import { applyPromoDiscount, promoAppliesToPlan, type SitePromoConfig } from "@/lib/marketing/promo";
+import { ANNUAL_BILLING_DISCOUNT } from "@/lib/marketing/publicPricing";
+import type { BillingCadence } from "@/lib/stripe/prices";
 import {
   choiceStepSchema,
+  founderPlanListAmountUsd,
+  founderPlanPriceSuffix,
   founderStepSchema,
+  FOUNDER_PLAN_CHOICES,
   organizationStepSchema,
   ORG_TIERS,
   ORG_TIER_LABELS,
-  PLAN_CHOICES,
   type ChoiceStepValues,
   type FounderPlanCode,
   type FounderStepValues,
@@ -136,14 +144,25 @@ function WizardStepIcon(props: StepIconProps) {
   );
 }
 
-export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser | null }) {
+export function FounderApplyWizard({
+  currentUser,
+  sitePromo,
+  defaultPlanCode = "pro",
+}: {
+  currentUser: CurrentUser | null;
+  sitePromo: SitePromoConfig;
+  defaultPlanCode?: FounderPlanCode;
+}) {
   const router = useRouter();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"), { noSsr: true });
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const [mounted, setMounted] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [checkoutClientSecret, setCheckoutClientSecret] = useState<string | null>(null);
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
 
   const orgForm = useForm<OrganizationStepValues>({
     resolver: zodResolver(organizationStepSchema),
@@ -182,12 +201,18 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
     mode: "onTouched",
     defaultValues: {
       request_type: "founder_account",
-      requested_plan_code: "pro",
+      requested_plan_code: defaultPlanCode,
+      billing_cadence: "monthly",
+      promo_code: "",
       message: "",
     },
   });
 
   const choiceValues = choiceForm.watch();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleNext() {
     if (activeStep === 0) {
@@ -207,6 +232,52 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
   function handleBack() {
     setSubmitError(null);
     setActiveStep((s) => Math.max(0, s - 1));
+  }
+
+  function openCheckoutModal(clientSecret: string) {
+    setCheckoutClientSecret(clientSecret);
+    setCheckoutModalOpen(true);
+  }
+
+  async function startFounderCheckout(choice: ChoiceStepValues) {
+    const planCode = choice.requested_plan_code ?? "pro";
+    const cadence = choice.billing_cadence ?? "monthly";
+
+    const { response: checkoutRes, data: checkoutData } = await requestEmbeddedCheckout(
+      {
+        planCode,
+        cadence,
+        flow: "founder",
+        promoCode: choice.promo_code?.trim() || undefined,
+      },
+      {
+        onBeforeRetry: () => {
+          router.refresh();
+        },
+      },
+    );
+
+    if (checkoutRes.ok && checkoutData.clientSecret) {
+      openCheckoutModal(checkoutData.clientSecret);
+      return;
+    }
+
+    if (checkoutRes.ok && checkoutData.url) {
+      window.location.href = checkoutData.url;
+      return;
+    }
+
+    if (checkoutRes.status === 503) {
+      setSubmitError(
+        "Payment is not configured yet. Add Stripe keys to the server environment, or choose Request a demo.",
+      );
+      return;
+    }
+
+    setSubmitError(
+      checkoutData.error ??
+        "Could not start secure checkout. Verify Stripe price IDs in your environment and try again.",
+    );
   }
 
   const onFinalSubmit: SubmitHandler<ChoiceStepValues> = async (choice) => {
@@ -243,38 +314,20 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
       return;
     }
 
+    if (res.checkoutClientSecret) {
+      openCheckoutModal(res.checkoutClientSecret);
+      setSubmitting(false);
+      return;
+    }
+
+    if (res.checkoutError) {
+      setSubmitError(res.checkoutError);
+      setSubmitting(false);
+      return;
+    }
+
     try {
-      const checkoutRes = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planCode: res.planCode,
-          cadence: "annual",
-          flow: "founder",
-        }),
-      });
-
-      const checkoutData = (await checkoutRes.json()) as { url?: string; error?: string };
-
-      if (checkoutRes.ok && checkoutData.url) {
-        window.location.href = checkoutData.url;
-        return;
-      }
-
-      if (checkoutRes.status === 503) {
-        setSubmitError(
-          "Payment is not configured yet. Add Stripe keys to the server environment, or choose Request a demo.",
-        );
-      } else if (res.planCode === "enterprise") {
-        setSubmitError(
-          "Enterprise founder billing is arranged with our team. Switch to Essential or Professional, or choose Request a demo.",
-        );
-      } else {
-        setSubmitError(
-          checkoutData.error ??
-            "Could not start secure checkout. Verify Stripe price IDs in your environment and try again.",
-        );
-      }
+      await startFounderCheckout(choice);
     } catch {
       setSubmitError("Could not reach the payment service. Check your connection and try again.");
     }
@@ -282,10 +335,19 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
     setSubmitting(false);
   };
 
+  function handleFounderPaymentComplete() {
+    const plan = choiceValues.requested_plan_code ?? "pro";
+    router.refresh();
+    router.push(`/founders/thanks?checkout=success&plan=${plan}`);
+  }
+
+  const founderPlanLabel = getPlanDisplayName(choiceValues.requested_plan_code ?? "pro");
+
   const progress = useMemo(() => ((activeStep + 1) / STEPS.length) * 100, [activeStep]);
+  const currentStep = STEPS[activeStep];
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3} sx={{ pb: activeStep === 2 && isMobile ? 10 : 0 }}>
       <Box>
         <LinearProgress
           variant="determinate"
@@ -300,39 +362,105 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
             },
           }}
         />
-        <Stepper
-          activeStep={activeStep}
-          alternativeLabel
-          connector={<WizardConnector />}
-          sx={{ pt: 3, pb: 1 }}
-        >
-          {STEPS.map((step) => (
-            <Step key={step.label}>
-              <StepLabel
-                StepIconComponent={WizardStepIcon}
-                sx={{
-                  "& .MuiStepLabel-label": {
-                    fontWeight: 600,
-                    color: "text.secondary",
-                    "&.Mui-active": { color: "primary.main", fontWeight: 700 },
-                    "&.Mui-completed": { color: "primary.main" },
-                  },
-                }}
-              >
-                <Stack spacing={0.25} alignItems="center">
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    {step.label}
-                  </Typography>
-                  {!isMobile && (
+        {isMobile ? (
+          <Stack spacing={1.5} sx={{ pt: 2, pb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, letterSpacing: "0.04em" }}>
+              Step {activeStep + 1} of {STEPS.length}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+              {STEPS.map((step, index) => {
+                const Icon = step.icon;
+                const isActive = index === activeStep;
+                const isComplete = index < activeStep;
+                return (
+                  <Box
+                    key={step.label}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.75,
+                      px: 1.25,
+                      py: 0.5,
+                      borderRadius: 999,
+                      border: "1px solid",
+                      borderColor: isActive ? "primary.main" : isComplete ? alpha(theme.palette.primary.main, 0.35) : "divider",
+                      bgcolor: isActive
+                        ? alpha(theme.palette.primary.main, 0.08)
+                        : isComplete
+                          ? alpha(theme.palette.primary.main, 0.04)
+                          : "transparent",
+                      opacity: isActive || isComplete ? 1 : 0.55,
+                      minWidth: 0,
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                        color: isActive || isComplete ? "common.white" : "text.secondary",
+                        background: isActive || isComplete
+                          ? `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                          : theme.palette.grey[200],
+                      }}
+                    >
+                      {isComplete ? (
+                        <CheckCircleRoundedIcon sx={{ fontSize: 14 }} />
+                      ) : (
+                        <Icon sx={{ fontSize: 14 }} />
+                      )}
+                    </Box>
+                    {isActive ? (
+                      <Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main", lineHeight: 1.2 }}>
+                        {step.label}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                );
+              })}
+            </Stack>
+            {currentStep ? (
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                {currentStep.helper}
+              </Typography>
+            ) : null}
+          </Stack>
+        ) : (
+          <Stepper
+            activeStep={activeStep}
+            alternativeLabel
+            connector={<WizardConnector />}
+            sx={{ pt: 3, pb: 1 }}
+          >
+            {STEPS.map((step) => (
+              <Step key={step.label}>
+                <StepLabel
+                  StepIconComponent={WizardStepIcon}
+                  sx={{
+                    "& .MuiStepLabel-label": {
+                      fontWeight: 600,
+                      color: "text.secondary",
+                      "&.Mui-active": { color: "primary.main", fontWeight: 700 },
+                      "&.Mui-completed": { color: "primary.main" },
+                    },
+                  }}
+                >
+                  <Stack spacing={0.25} alignItems="center">
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {step.label}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {step.helper}
                     </Typography>
-                  )}
-                </Stack>
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+                  </Stack>
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        )}
       </Box>
 
       {submitError && (
@@ -341,22 +469,21 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
         </Alert>
       )}
 
-      <Box sx={{ position: "relative", minHeight: 360 }}>
-        <Fade in={activeStep === 0} unmountOnExit>
-          <Box hidden={activeStep !== 0}>
-            <OrganizationStep form={orgForm} />
-          </Box>
-        </Fade>
-        <Fade in={activeStep === 1} unmountOnExit>
-          <Box hidden={activeStep !== 1}>
-            <FounderStep form={founderForm} currentUser={currentUser} />
-          </Box>
-        </Fade>
-        <Fade in={activeStep === 2} unmountOnExit>
-          <Box hidden={activeStep !== 2}>
-            <ChoiceStep form={choiceForm} />
-          </Box>
-        </Fade>
+      <Box sx={{ position: "relative", minHeight: { xs: 0, sm: 360 } }}>
+        {!mounted ? (
+          <Stack spacing={2.5} aria-hidden>
+            <LinearProgress sx={{ borderRadius: 2, opacity: 0.35 }} />
+          </Stack>
+        ) : activeStep === 0 ? (
+          <OrganizationStep form={orgForm} />
+        ) : activeStep === 1 ? (
+          <FounderStep form={founderForm} currentUser={currentUser} />
+        ) : (
+          <ChoiceStep
+            form={choiceForm}
+            sitePromo={sitePromo}
+          />
+        )}
       </Box>
 
       <Stack
@@ -364,6 +491,9 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
         spacing={2}
         justifyContent="space-between"
         alignItems={{ sm: "center" }}
+        sx={{
+          display: { xs: activeStep === 2 && isMobile ? "none" : "flex", sm: "flex" },
+        }}
       >
         <Button
           startIcon={<ArrowBackRoundedIcon />}
@@ -389,7 +519,7 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
           >
             Continue
           </Button>
-        ) : (
+        ) : checkoutModalOpen ? null : (
           <Button
             onClick={choiceForm.handleSubmit(onFinalSubmit)}
             variant="contained"
@@ -413,10 +543,66 @@ export function FounderApplyWizard({ currentUser }: { currentUser: CurrentUser |
               ? "Submitting…"
               : choiceValues.request_type === "demo"
                 ? "Request demo"
-                : "Continue to secure checkout"}
+                : "Continue to founder checkout"}
           </Button>
         )}
       </Stack>
+
+      {activeStep === 2 && isMobile && !checkoutModalOpen ? (
+        <Box
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1100,
+            px: 2,
+            py: 1.5,
+            bgcolor: "background.paper",
+            borderTop: 1,
+            borderColor: "divider",
+            boxShadow: "0 -8px 24px rgba(15,23,42,0.08)",
+          }}
+        >
+          <Button
+            onClick={choiceForm.handleSubmit(onFinalSubmit)}
+            variant="contained"
+            size="large"
+            fullWidth
+            disabled={submitting}
+            startIcon={
+              submitting ? (
+                <CircularProgress size={18} sx={{ color: "common.white" }} />
+              ) : choiceValues.request_type === "demo" ? (
+                <EventAvailableRoundedIcon />
+              ) : (
+                <RocketLaunchRoundedIcon />
+              )
+            }
+            sx={{
+              backgroundImage: `linear-gradient(95deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            }}
+          >
+            {submitting
+              ? "Submitting…"
+              : choiceValues.request_type === "demo"
+                ? "Request demo"
+                : "Continue to founder checkout"}
+          </Button>
+        </Box>
+      ) : null}
+
+      <EmbeddedCheckoutModal
+        open={checkoutModalOpen && Boolean(checkoutClientSecret)}
+        onClose={() => {
+          setCheckoutModalOpen(false);
+          setCheckoutClientSecret(null);
+        }}
+        clientSecret={checkoutClientSecret}
+        title="Complete founder subscription"
+        planLabel={founderPlanLabel}
+        onComplete={handleFounderPaymentComplete}
+      />
     </Stack>
   );
 }
@@ -715,8 +901,13 @@ function FounderStep({
   );
 }
 
-function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues>> }) {
-  const theme = useTheme();
+function ChoiceStep({
+  form,
+  sitePromo,
+}: {
+  form: ReturnType<typeof useForm<ChoiceStepValues>>;
+  sitePromo: SitePromoConfig;
+}) {
   const {
     control,
     register,
@@ -725,14 +916,16 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
     formState: { errors },
   } = form;
   const requestType = watch("request_type");
-  const selectedPlan = watch("requested_plan_code");
+  const selectedPlan = watch("requested_plan_code") ?? "pro";
+  const billingCadence = watch("billing_cadence") ?? "monthly";
+  const anyPromoActive = sitePromo.active;
 
   return (
     <Stack spacing={3}>
       <SectionHeader
         eyebrow="Step 3 of 3"
         title="How can we help next?"
-        subtitle="Pick the path that matches where you are right now. You can always upgrade later."
+        subtitle="Pick the path that fits you. Lock in founder pricing before the first 50 spots are gone."
       />
 
       <Controller
@@ -744,13 +937,13 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
               selected={field.value === "founder_account"}
               onClick={() => field.onChange("founder_account")}
               icon={<RocketLaunchRoundedIcon />}
-              eyebrow="Recommended"
+              eyebrow={`Recommended · ${FOUNDER_DISCOUNT_BADGE}`}
               title="Create your founder account"
-              description="Create your workspace, then complete annual billing on Stripe's secure checkout."
+              description="Set up your workspace, then complete billing below."
               bullets={[
-                "Save your facility & locations",
-                "Pay annually for your selected founder plan",
-                "Concierge onboarding kicks off after checkout",
+                "Join the first 50 founder facilities at half-price subscription",
+                "1 pool included; $29/mo per additional active pool",
+                "Concierge onboarding starts after payment",
               ]}
             />
             <ChoiceCard
@@ -772,33 +965,92 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
 
       <Collapse in={requestType === "founder_account"} timeout={250} unmountOnExit>
         <Stack spacing={2}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            Choose your founder plan
-          </Typography>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              {anyPromoActive
+                ? `You're in — lock in 50% off ${FOUNDER_DISCOUNT_TERM}`
+                : "Choose your founder plan"}
+            </Typography>
+            <Controller
+              name="billing_cadence"
+              control={control}
+              render={({ field }) => (
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
+                  <ToggleButtonGroup
+                    exclusive
+                    size="small"
+                    value={field.value ?? "monthly"}
+                    onChange={(_, value: BillingCadence | null) => {
+                      if (value) field.onChange(value);
+                    }}
+                    sx={{
+                      bgcolor: (t) => alpha(t.palette.primary.main, 0.04),
+                      borderRadius: 999,
+                      p: 0.35,
+                      "& .MuiToggleButton-root": {
+                        border: "none",
+                        borderRadius: 999,
+                        px: 2,
+                        py: 0.5,
+                        textTransform: "none",
+                        fontWeight: 700,
+                        fontSize: "0.8125rem",
+                        "&.Mui-selected": {
+                          bgcolor: "primary.main",
+                          color: "primary.contrastText",
+                          "&:hover": { bgcolor: "primary.dark" },
+                        },
+                      },
+                    }}
+                  >
+                    <ToggleButton value="monthly">Monthly</ToggleButton>
+                    <ToggleButton value="annual">Annual</ToggleButton>
+                  </ToggleButtonGroup>
+                  {field.value === "annual" ? (
+                    <Chip
+                      size="small"
+                      label={`Save ${Math.round(ANNUAL_BILLING_DISCOUNT * 100)}%`}
+                      color="secondary"
+                      sx={{ fontWeight: 700, height: 24 }}
+                    />
+                  ) : null}
+                </Stack>
+              )}
+            />
+          </Stack>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-            {PLAN_CHOICES.map((plan) => (
-              <PlanCard
-                key={plan.code}
+            {FOUNDER_PLAN_CHOICES.map((plan) => (
+              <FounderPlanCard
+                key={plan.planCode}
                 plan={plan}
-                selected={selectedPlan === plan.code}
-                onClick={() => setValue("requested_plan_code", plan.code, { shouldValidate: true })}
+                selected={selectedPlan === plan.planCode}
+                cadence={billingCadence}
+                sitePromo={sitePromo}
+                onClick={() =>
+                  setValue("requested_plan_code", plan.planCode, { shouldValidate: true })
+                }
               />
             ))}
           </Stack>
-          <Alert
-            severity="info"
-            icon={<PaymentRoundedIcon fontSize="small" />}
-            sx={{
-              borderRadius: 2,
-              backgroundColor: alpha(theme.palette.secondary.main, 0.08),
-              color: "text.primary",
-              border: `1px solid ${alpha(theme.palette.secondary.main, 0.18)}`,
-            }}
-          >
-            After you submit, you&apos;ll be redirected to <strong>Stripe Checkout</strong> to pay for your
-            founder plan <strong>annually</strong> (card and other methods supported). Your workspace activates
-            once payment succeeds.
-          </Alert>
+
+          {!anyPromoActive ? (
+            <TextField
+              label="Founder promo code (optional)"
+              placeholder="AE-XXXX-XXXX"
+              fullWidth
+              {...register("promo_code")}
+              error={Boolean(errors.promo_code)}
+              helperText={
+                errors.promo_code?.message ??
+                "Have a code from our team? Enter it here to lock in founder pricing at checkout."
+              }
+            />
+          ) : null}
         </Stack>
       </Collapse>
 
@@ -817,6 +1069,148 @@ function ChoiceStep({ form }: { form: ReturnType<typeof useForm<ChoiceStepValues
   );
 }
 
+function FounderPlanCard({
+  plan,
+  selected,
+  cadence,
+  sitePromo,
+  onClick,
+}: {
+  plan: (typeof FOUNDER_PLAN_CHOICES)[number];
+  selected: boolean;
+  cadence: BillingCadence;
+  sitePromo: SitePromoConfig;
+  onClick: () => void;
+}) {
+  const theme = useTheme();
+  const showPromo = promoAppliesToPlan(plan.planCode, sitePromo);
+  const listAmount = founderPlanListAmountUsd(plan.monthlyUsd, cadence);
+  const promoAmount = showPromo ? applyPromoDiscount(listAmount, sitePromo) : null;
+  const priceSuffix = founderPlanPriceSuffix(cadence);
+
+  return (
+    <Paper
+      elevation={0}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      sx={{
+        flex: 1,
+        position: "relative",
+        p: 2.5,
+        borderRadius: 3,
+        cursor: "pointer",
+        outline: "none",
+        border: `2px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
+        background: selected
+          ? `linear-gradient(160deg, ${alpha(theme.palette.primary.main, 0.07)} 0%, ${alpha(
+              theme.palette.secondary.main,
+              0.07,
+            )} 100%)`
+          : theme.palette.background.paper,
+        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
+        "&:hover": {
+          transform: "translateY(-3px)",
+          boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.12)}`,
+        },
+        "&:focus-visible": {
+          boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.18)}`,
+        },
+      }}
+    >
+      {plan.featured ? (
+        <Chip
+          size="small"
+          icon={<StarRoundedIcon sx={{ fontSize: 14 }} />}
+          label="Founder favorite"
+          sx={{
+            position: "absolute",
+            top: -10,
+            right: 14,
+            fontWeight: 700,
+            backgroundImage: `linear-gradient(95deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            color: "common.white",
+          }}
+        />
+      ) : null}
+      {showPromo ? (
+        <Chip
+          size="small"
+          label={sitePromo.badge}
+          sx={{
+            position: "absolute",
+            top: -10,
+            left: 14,
+            fontWeight: 800,
+            bgcolor: "secondary.main",
+            color: "common.white",
+          }}
+        />
+      ) : null}
+      <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.14em" }}>
+        {plan.tagline}
+      </Typography>
+      <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.25 }}>
+        {plan.name}
+      </Typography>
+      {showPromo && selected ? (
+        <Chip
+          size="small"
+          label={FOUNDER_DISCOUNT_BADGE}
+          sx={{
+            mt: 0.75,
+            fontWeight: 700,
+            bgcolor: alpha(theme.palette.secondary.main, 0.15),
+            color: "secondary.dark",
+          }}
+        />
+      ) : null}
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, fontWeight: 600 }}>
+        {plan.poolLimitLabel}
+      </Typography>
+      {showPromo && promoAmount != null ? (
+        <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mt: 0.5, flexWrap: "wrap" }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark" }}>
+            ${promoAmount.toLocaleString()}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+            {priceSuffix}
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontWeight: 600, textDecoration: "line-through" }}
+          >
+            ${listAmount.toLocaleString()} {priceSuffix}
+          </Typography>
+        </Stack>
+      ) : (
+        <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark", mt: 0.5 }}>
+          ${listAmount.toLocaleString()} {priceSuffix}
+        </Typography>
+      )}
+      <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+        {plan.features.map((feature) => (
+          <Stack key={feature} direction="row" spacing={1} alignItems="flex-start">
+            <CheckCircleRoundedIcon
+              sx={{ color: selected ? "primary.main" : "text.disabled", fontSize: 18, mt: "2px" }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              {feature}
+            </Typography>
+          </Stack>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
 function SectionHeader({
   eyebrow,
   title,
@@ -830,7 +1224,12 @@ function SectionHeader({
     <Stack spacing={0.5}>
       <Typography
         variant="overline"
-        sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.16em" }}
+        sx={{
+          color: "secondary.main",
+          fontWeight: 700,
+          letterSpacing: "0.16em",
+          display: { xs: "none", sm: "block" },
+        }}
       >
         {eyebrow}
       </Typography>
@@ -941,133 +1340,3 @@ function ChoiceCard({
   );
 }
 
-function PlanCard({
-  plan,
-  selected,
-  onClick,
-}: {
-  plan: {
-    code: FounderPlanCode;
-    name: string;
-    tagline: string;
-    price: string;
-    annual: number | null;
-    pricePeriod: string;
-    features: string[];
-  };
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const theme = useTheme();
-  const isFeatured = plan.code === "pro";
-  const showPromo = promoAppliesToPlan(plan.code) && typeof plan.annual === "number";
-  const promoPrice = showPromo
-    ? `$${applyPromoDiscount(plan.annual as number).toLocaleString()}`
-    : null;
-  return (
-    <Paper
-      elevation={0}
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      sx={{
-        flex: 1,
-        position: "relative",
-        p: 2.5,
-        borderRadius: 3,
-        cursor: "pointer",
-        outline: "none",
-        border: `2px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
-        background: selected
-          ? `linear-gradient(160deg, ${alpha(theme.palette.primary.main, 0.07)} 0%, ${alpha(
-              theme.palette.secondary.main,
-              0.07,
-            )} 100%)`
-          : theme.palette.background.paper,
-        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease",
-        "&:hover": {
-          transform: "translateY(-3px)",
-          boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.12)}`,
-        },
-        "&:focus-visible": {
-          boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.18)}`,
-        },
-      }}
-    >
-      {isFeatured && (
-        <Chip
-          size="small"
-          icon={<StarRoundedIcon sx={{ fontSize: 14 }} />}
-          label="Founder favorite"
-          sx={{
-            position: "absolute",
-            top: -10,
-            right: 14,
-            fontWeight: 700,
-            backgroundImage: `linear-gradient(95deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-            color: "common.white",
-          }}
-        />
-      )}
-      {showPromo && (
-        <Chip
-          size="small"
-          label={PROMO.badge}
-          sx={{
-            position: "absolute",
-            top: -10,
-            left: 14,
-            fontWeight: 800,
-            letterSpacing: "0.04em",
-            bgcolor: "secondary.main",
-            color: "common.white",
-            boxShadow: `0 6px 16px ${alpha(theme.palette.secondary.main, 0.4)}`,
-          }}
-        />
-      )}
-      <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.14em" }}>
-        {plan.tagline}
-      </Typography>
-      <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.25 }}>
-        {plan.name}
-      </Typography>
-      {showPromo ? (
-        <Stack direction="row" spacing={1} alignItems="baseline" sx={{ mt: 0.5, flexWrap: "wrap" }}>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark" }}>
-            {promoPrice}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-            {plan.pricePeriod}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ fontWeight: 600, textDecoration: "line-through" }}
-          >
-            {plan.price}
-          </Typography>
-        </Stack>
-      ) : (
-        <Typography variant="h5" sx={{ fontWeight: 800, color: "primary.dark", mt: 0.5 }}>
-          {plan.price}
-        </Typography>
-      )}
-      <Stack spacing={0.75} sx={{ mt: 1.5 }}>
-        {plan.features.map((f) => (
-          <Stack key={f} direction="row" spacing={1} alignItems="flex-start">
-            <CheckCircleRoundedIcon sx={{ color: selected ? "primary.main" : "text.disabled", fontSize: 18, mt: "2px" }} />
-            <Typography variant="body2" color="text.secondary">
-              {f}
-            </Typography>
-          </Stack>
-        ))}
-      </Stack>
-    </Paper>
-  );
-}

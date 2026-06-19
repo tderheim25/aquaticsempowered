@@ -1,6 +1,6 @@
 import type { PlanCode, UserRole } from "@/types/database";
 
-/** Org admins (and super admins) can use these regardless of subscription tier. */
+/** Super admins can use these regardless of subscription tier (support / AE Console). */
 const ROLE_UNLOCKED_FEATURES: FeatureKey[] = [
   "pools",
   "monitoring",
@@ -103,7 +103,7 @@ export function hasFeature(
   feature: FeatureKey,
   role?: UserRole | null
 ): boolean {
-  if (role === "org_admin" || role === "super_admin") {
+  if (role === "super_admin") {
     if (ROLE_UNLOCKED_FEATURES.includes(feature)) return true;
   }
   const p = plan ?? "free";

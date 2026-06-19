@@ -58,8 +58,11 @@ export function DashboardShell({
   userRole,
   allowedViews,
   hasOrg,
-  superAdminOrgOptions,
-  superAdminActiveOrgId,
+  orgSwitcherOptions,
+  activeOrgId,
+  showOrgSwitcher,
+  canCreateFacility,
+  isFounder = false,
   children,
 }: {
   displayName: string;
@@ -72,8 +75,11 @@ export function DashboardShell({
   userRole: UserRole | null;
   allowedViews: AppViewKey[];
   hasOrg: boolean;
-  superAdminOrgOptions?: OrgOption[];
-  superAdminActiveOrgId?: string | null;
+  orgSwitcherOptions?: OrgOption[];
+  activeOrgId?: string | null;
+  showOrgSwitcher?: boolean;
+  canCreateFacility?: boolean;
+  isFounder?: boolean;
   children: React.ReactNode;
 }) {
   const theme = useTheme();
@@ -93,8 +99,11 @@ export function DashboardShell({
     <DashboardNav
       allowedViews={allowedViews}
       hasOrg={hasOrg}
-      superAdminOrgOptions={superAdminOrgOptions}
-      superAdminActiveOrgId={superAdminActiveOrgId}
+      orgSwitcherOptions={orgSwitcherOptions}
+      activeOrgId={activeOrgId}
+      showOrgSwitcher={showOrgSwitcher}
+      canCreateFacility={canCreateFacility}
+      isFounder={isFounder}
       userRole={userRole}
       collapsed={collapsed && mdUp}
       onToggleCollapse={mdUp ? () => setCollapsed((c) => !c) : undefined}
@@ -186,6 +195,7 @@ export function DashboardShell({
             {subscriptionSummary ? (
               <AccountSubscriptionMenuSection
                 summary={subscriptionSummary}
+                readOnly={!subscriptionSummary.canManageBilling}
                 onNavigate={() => setAnchorEl(null)}
               />
             ) : (
@@ -224,21 +234,35 @@ export function DashboardShell({
           onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
           sx={{ display: { xs: "block", md: "none" } }}
-          PaperProps={{ sx: { ...sidebarDrawerPaperSx, width: SIDEBAR_DRAWER_WIDTH } }}
+          PaperProps={{
+            sx: {
+              ...sidebarDrawerPaperSx,
+              width: SIDEBAR_DRAWER_WIDTH,
+              maxHeight: "100dvh",
+            },
+          }}
         >
-          <Toolbar />
-          {sidebar}
+          <Toolbar sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {sidebar}
+          </Box>
         </Drawer>
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": { ...sidebarDrawerPaperSx, width: drawerWidth },
+            "& .MuiDrawer-paper": {
+              ...sidebarDrawerPaperSx,
+              width: drawerWidth,
+              maxHeight: "100dvh",
+            },
           }}
           open
         >
-          <Toolbar />
-          {sidebar}
+          <Toolbar sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {sidebar}
+          </Box>
         </Drawer>
       </Box>
 
