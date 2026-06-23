@@ -13,7 +13,6 @@ import { formatSubscriptionDate, validUntilLabel } from "@/lib/billing/planCatal
 import { isBillingActive, normalizeSubscriptionStatus } from "@/lib/billing/subscriptionSummary";
 import { getStripePoolAddonPriceId } from "@/lib/stripe/prices";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { BillingCadence } from "@/lib/stripe/prices";
 import type { createClient } from "@/lib/supabase/server";
 import type { PlanCode } from "@/types/database";
 

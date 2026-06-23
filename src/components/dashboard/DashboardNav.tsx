@@ -339,7 +339,6 @@ export function DashboardNav({
   hasOrg,
   orgSwitcherOptions,
   activeOrgId,
-  showOrgSwitcher,
   canCreateFacility,
   isFounder = false,
   userRole,

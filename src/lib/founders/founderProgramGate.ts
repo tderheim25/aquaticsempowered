@@ -111,7 +111,7 @@ export async function resolveFounderProgramGate(profile: UsersRow | null): Promi
   let billingHref: string | null = null;
   let awaitingPayment = false;
   let completePaymentHref: string | null = null;
-  let planCode: PlanCode | null = (org?.plan_code as PlanCode) ?? null;
+  const planCode: PlanCode | null = (org?.plan_code as PlanCode) ?? null;
 
   if (canManageBilling && org) {
     const summary = await loadOrgSubscriptionSummary(

@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  ownerAppRoleSlugForPlan,
-  type PlanOwnerAppRoleSlug,
-} from "@/lib/auth/planOwnerRoleSlugs";
+import { ownerAppRoleSlugForPlan } from "@/lib/auth/planOwnerRoleSlugs";
 import { resolveBillingRootOrgId } from "@/lib/billing/billingRoot";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { captureException } from "@/lib/sentry";

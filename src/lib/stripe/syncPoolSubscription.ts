@@ -85,7 +85,7 @@ async function resolvePoolAddonBillingContext(
   }
 
   const admin = createAdminClient();
-  let { data: sub } = await admin
+  const { data: sub } = await admin
     .from("subscriptions")
     .select("plan_code, stripe_subscription_id, stripe_customer_id, status")
     .eq("org_id", billingRootId)

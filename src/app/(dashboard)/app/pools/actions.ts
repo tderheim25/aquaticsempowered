@@ -36,7 +36,8 @@ async function insertPoolWithSchemaFallback(
   let { data, error } = await client.from("pools").insert(row).select("id, org_id").single();
 
   if (error?.code === "PGRST204" && "water_body_type" in row) {
-    const { water_body_type: _omit, ...withoutWaterBodyType } = row;
+    const { water_body_type, ...withoutWaterBodyType } = row;
+    void water_body_type;
     ({ data, error } = await client
       .from("pools")
       .insert(withoutWaterBodyType)
@@ -174,7 +175,8 @@ export async function updatePoolAction(formData: FormData) {
     .eq("org_id", existing.org_id);
 
   if (error?.code === "PGRST204") {
-    const { water_body_type: _omit, ...withoutWaterBodyType } = updatePayload;
+    const { water_body_type, ...withoutWaterBodyType } = updatePayload;
+    void water_body_type;
     ({ error } = await supabase
       .from("pools")
       .update(withoutWaterBodyType)

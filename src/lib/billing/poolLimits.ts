@@ -8,7 +8,8 @@ export function canManagePools(planCode: PlanCode | null | undefined): boolean {
 }
 
 /** @deprecated Use canManagePools — paid plans may add unlimited pools (billed per add-on). */
-export function canAddPool(planCode: PlanCode | null | undefined, _currentCount?: number): boolean {
+export function canAddPool(planCode: PlanCode | null | undefined, currentCount?: number): boolean {
+  void currentCount;
   return canManagePools(planCode);
 }
 
@@ -17,6 +18,7 @@ export function poolBillingMessage(): string {
 }
 
 /** @deprecated Use poolBillingMessage */
-export function poolLimitMessage(_planCode?: PlanCode): string {
+export function poolLimitMessage(planCode?: PlanCode): string {
+  void planCode;
   return ADDITIONAL_POOL_BILLING_MESSAGE;
 }

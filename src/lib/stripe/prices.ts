@@ -25,8 +25,9 @@ const PLAN_PRICE_MAP: Partial<Record<PlanCode, Partial<Record<BillingCadence, st
 export function getStripePriceId(
   planCode: PlanCode,
   cadence: BillingCadence,
-  _flow: CheckoutFlow,
+  flow: CheckoutFlow,
 ): string | null {
+  void flow;
   return PLAN_PRICE_MAP[planCode]?.[cadence] ?? null;
 }
 

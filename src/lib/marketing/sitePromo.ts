@@ -38,7 +38,7 @@ export type ResolvedCheckoutDiscount = {
   source: CheckoutDiscountSource;
 };
 
-function eligiblePlanCodes(_flow: CheckoutFlow): PlanCode[] {
+function eligiblePlanCodes(): PlanCode[] {
   return ["essential", "pro"];
 }
 
@@ -104,10 +104,11 @@ export async function resolveCheckoutDiscount(params: {
   promoCode?: string | null;
   sitePromo?: SitePromoConfig;
 }): Promise<ResolvedCheckoutDiscount> {
-  const { planCode, flow, promoCode } = params;
+  const { planCode, promoCode } = params;
+  void params.flow;
   const sitePromo = params.sitePromo ?? (await getSitePromoConfig());
   const couponId = getStripePromoCouponId();
-  const eligible = eligiblePlanCodes(flow);
+  const eligible = eligiblePlanCodes();
 
   if (!eligible.includes(planCode)) {
     return { applyDiscount: false, stripeDiscount: null, source: "none" };
