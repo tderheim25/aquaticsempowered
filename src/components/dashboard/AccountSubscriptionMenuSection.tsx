@@ -9,9 +9,12 @@ import type { OrgSubscriptionSummary } from "@/lib/billing/subscriptionSummary";
 export function AccountSubscriptionMenuSection({
   summary,
   onNavigate,
+  readOnly = false,
 }: {
   summary: OrgSubscriptionSummary;
   onNavigate?: () => void;
+  /** Team members see org plan without billing management actions. */
+  readOnly?: boolean;
 }) {
   const [portalLoading, setPortalLoading] = useState(false);
   const awaitingPayment =
@@ -36,21 +39,22 @@ export function AccountSubscriptionMenuSection({
   return (
     <>
       <MenuItem
-        component={Link}
-        href="/app/billing"
-        onClick={onNavigate}
+        component={readOnly ? "div" : Link}
+        href={readOnly ? undefined : "/app/billing"}
+        onClick={readOnly ? undefined : onNavigate}
         sx={{
           flexDirection: "column",
           alignItems: "flex-start",
           py: 1.25,
           whiteSpace: "normal",
+          cursor: readOnly ? "default" : "pointer",
         }}
       >
         <Typography
           variant="overline"
           sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.12em", lineHeight: 1.4 }}
         >
-          Subscription
+          {readOnly ? "Organization plan" : "Subscription"}
         </Typography>
         <Stack
           direction="row"
@@ -69,16 +73,22 @@ export function AccountSubscriptionMenuSection({
             {summary.periodLine}
           </Typography>
         ) : null}
-        <Typography variant="caption" color="primary.main" sx={{ mt: 0.75, fontWeight: 600 }}>
-          Manage plan →
-        </Typography>
+        {!readOnly ? (
+          <Typography variant="caption" color="primary.main" sx={{ mt: 0.75, fontWeight: 600 }}>
+            Manage plan →
+          </Typography>
+        ) : (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: "block" }}>
+            Included with your team membership
+          </Typography>
+        )}
       </MenuItem>
-      {awaitingPayment ? (
+      {!readOnly && awaitingPayment ? (
         <MenuItem component={Link} href="/app/billing" onClick={onNavigate}>
           Complete checkout
         </MenuItem>
       ) : null}
-      {summary.canManageBilling ? (
+      {!readOnly && summary.canManageBilling ? (
         <MenuItem disabled={portalLoading} onClick={() => void openBillingPortal()}>
           {portalLoading ? "Opening billing…" : "Payment methods in Stripe"}
         </MenuItem>

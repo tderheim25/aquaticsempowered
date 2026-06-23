@@ -20,6 +20,11 @@ export async function getSessionUser() {
   return user;
 }
 
+export function isMissingFounderColumnError(message: string | undefined) {
+  const m = (message ?? "").toLowerCase();
+  return m.includes("is_founder") || m.includes("founder_enrolled_at");
+}
+
 /** Exported for admin list queries when `0005_app_roles.sql` is not applied yet. */
 export function isMissingAppRoleIdColumnError(message: string | undefined) {
   const m = (message ?? "").toLowerCase();

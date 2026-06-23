@@ -40,6 +40,16 @@ export function normalizeSubscriptionStatus(status: string): string {
   return status;
 }
 
+export function isAwaitingPayment(status: string): boolean {
+  const normalized = normalizeSubscriptionStatus(status);
+  return normalized === "incomplete" || normalized === "incomplete_expired";
+}
+
+export function isBillingActive(status: string): boolean {
+  const normalized = normalizeSubscriptionStatus(status);
+  return normalized === "active" || normalized === "trialing";
+}
+
 export function statusPresentation(status: string): {
   label: string;
   color: OrgSubscriptionSummary["statusColor"];

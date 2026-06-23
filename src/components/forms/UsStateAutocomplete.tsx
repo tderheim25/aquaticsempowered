@@ -17,6 +17,7 @@ export function UsStateAutocomplete<T extends FieldValues>({
   helperText,
   storeAs = "name",
   onStateChange,
+  size = "medium",
 }: {
   control: Control<T>;
   name: Path<T>;
@@ -28,6 +29,7 @@ export function UsStateAutocomplete<T extends FieldValues>({
   /** Persist the 2-letter code (e.g. CA) or full state name. */
   storeAs?: "code" | "name";
   onStateChange?: (storedValue: string) => void;
+  size?: "small" | "medium";
 }) {
   return (
     <Controller
@@ -63,6 +65,8 @@ export function UsStateAutocomplete<T extends FieldValues>({
                 label={label}
                 required={required}
                 fullWidth
+                size={size}
+                margin="none"
                 error={error}
                 helperText={helperText}
               />

@@ -32,10 +32,11 @@ import {
   type DashboardNavGroup,
   type DashboardNavLink,
 } from "@/components/dashboard/dashboardNavConfig";
-import { SuperAdminOrgSwitcher } from "@/components/dashboard/SuperAdminOrgSwitcher";
+import { FacilityOrgSwitcher } from "@/components/dashboard/FacilityOrgSwitcher";
 import {
   sidebarGroupHeaderSx,
   sidebarNavItemSx,
+  sidebarNavScrollSx,
 } from "@/components/navigation/sidebarStyles";
 import type { AppViewKey } from "@/lib/auth/viewPermissions";
 import { hrefWithOrg, type OrgOption } from "@/lib/auth/activeOrgShared";
@@ -336,8 +337,10 @@ function NavGroupSection({
 export function DashboardNav({
   allowedViews,
   hasOrg,
-  superAdminOrgOptions,
-  superAdminActiveOrgId,
+  orgSwitcherOptions,
+  activeOrgId,
+  canCreateFacility,
+  isFounder = false,
   userRole,
   collapsed = false,
   onToggleCollapse,
@@ -345,8 +348,11 @@ export function DashboardNav({
 }: {
   allowedViews: AppViewKey[];
   hasOrg: boolean;
-  superAdminOrgOptions?: OrgOption[];
-  superAdminActiveOrgId?: string | null;
+  orgSwitcherOptions?: OrgOption[];
+  activeOrgId?: string | null;
+  showOrgSwitcher?: boolean;
+  canCreateFacility?: boolean;
+  isFounder?: boolean;
   userRole: UserRole | null;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -354,7 +360,8 @@ export function DashboardNav({
 }) {
   const pathname = usePathname();
   const allowedViewSet = useMemo(() => new Set(allowedViews), [allowedViews]);
-  const showOrgSwitcher = userRole === "super_admin" && (superAdminOrgOptions?.length ?? 0) > 0;
+  const isSuperAdminPicker = userRole === "super_admin";
+  const hasFacilitySwitcher = Boolean((orgSwitcherOptions?.length ?? 0) > 0);
   const isVendorPortal = userRole === "vendor";
 
   const defaultExpanded = useMemo(() => {
@@ -380,7 +387,9 @@ export function DashboardNav({
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        flex: 1,
+        minHeight: 0,
+        overflow: "hidden",
         py: 1.5,
       }}
     >
@@ -388,6 +397,7 @@ export function DashboardNav({
         sx={{
           px: collapsed ? 1 : 2,
           pb: 1.5,
+          flexShrink: 0,
           display: "flex",
           alignItems: "flex-start",
           justifyContent: collapsed ? "center" : "space-between",
@@ -399,10 +409,30 @@ export function DashboardNav({
             <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: "0.12em", color: "primary.main" }}>
               Portal
             </Typography>
-            <Typography variant="caption" color="text.secondary" display="block">
-              {isVendorPortal ? "Vendor portal" : "Pool operations"}
-            </Typography>
+            {hasFacilitySwitcher && !isVendorPortal ? (
+              <FacilityOrgSwitcher
+                compact
+                orgs={orgSwitcherOptions!}
+                activeOrgId={activeOrgId ?? null}
+                allowNone={isSuperAdminPicker}
+                canCreateFacility={canCreateFacility}
+                isFounder={isFounder}
+              />
+            ) : (
+              <Typography variant="caption" color="text.secondary" display="block">
+                {isVendorPortal ? "Vendor portal" : "Pool operations"}
+              </Typography>
+            )}
           </Box>
+        ) : hasFacilitySwitcher && !isVendorPortal ? (
+          <FacilityOrgSwitcher
+            collapsed
+            orgs={orgSwitcherOptions!}
+            activeOrgId={activeOrgId ?? null}
+            allowNone={isSuperAdminPicker}
+            canCreateFacility={canCreateFacility}
+            isFounder={isFounder}
+          />
         ) : null}
         {onToggleCollapse ? (
           <Tooltip title={collapsed ? "Expand sidebar" : "Collapse sidebar"} placement="right">
@@ -428,16 +458,9 @@ export function DashboardNav({
         ) : null}
       </Box>
 
-      {showOrgSwitcher && !collapsed ? (
-        <>
-          <SuperAdminOrgSwitcher orgs={superAdminOrgOptions!} activeOrgId={superAdminActiveOrgId ?? null} />
-          <Divider sx={{ mx: 2, opacity: 0.6, mb: 0.5 }} />
-        </>
-      ) : null}
+      <Divider sx={{ mx: collapsed ? 1 : 2, opacity: 0.6, flexShrink: 0 }} />
 
-      <Divider sx={{ mx: collapsed ? 1 : 2, opacity: 0.6 }} />
-
-      <Box sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", py: 1 }}>
+      <Box sx={sidebarNavScrollSx}>
         {!collapsed ? (
           <Typography variant="caption" sx={sidebarGroupHeaderSx}>
             Home
@@ -496,7 +519,7 @@ export function DashboardNav({
                   pathname={pathname}
                   allowed={allowedViewSet.has(group.viewKey)}
                   hasOrg={hasOrg}
-                  superAdminOrgId={superAdminActiveOrgId}
+                  superAdminOrgId={activeOrgId}
                   expanded={expanded[group.label] ?? false}
                   onToggle={() => setExpanded((e) => ({ ...e, [group.label]: !e[group.label] }))}
                   onNavigate={handleNavigate}
@@ -513,7 +536,7 @@ export function DashboardNav({
             ) : null}
             <List dense disablePadding sx={{ mt: collapsed ? 0.5 : 0 }}>
               {DASHBOARD_FACILITY_NAV.filter((item) => allowedViewSet.has(item.viewKey)).map((item) => {
-                const href = resolveHref(item.viewKey, item.href, hasOrg, superAdminActiveOrgId);
+                const href = resolveHref(item.viewKey, item.href, hasOrg, activeOrgId);
                 const active = isNavItemActive(pathname, href);
                 return (
                   <NavLeafButton

@@ -2,10 +2,12 @@ import { z } from "zod";
 
 import { resolveUsState } from "@/lib/geo/resolveUsState";
 import {
-  ESSENTIAL_ANNUAL_TOTAL_USD,
+  ESSENTIAL_MONTHLY_USD,
+  annualPerMonthUsd,
   formatUsd,
-  PRO_ANNUAL_TOTAL_USD,
+  PRO_MONTHLY_USD,
 } from "@/lib/marketing/publicPricing";
+import type { BillingCadence } from "@/lib/stripe/prices";
 import type { OrgTier } from "@/types/database";
 
 export const ORG_TIERS: OrgTier[] = [
@@ -128,25 +130,25 @@ export const founderStepSchema = z
   });
 export type FounderStepValues = z.infer<typeof founderStepSchema>;
 
-export type FounderPlanCode = "essential" | "pro" | "enterprise";
+export type FounderPlanCode = "essential" | "pro";
 
-export const PLAN_CHOICES: {
-  code: FounderPlanCode;
+export const FOUNDER_PLAN_CHOICES: {
+  planCode: FounderPlanCode;
   name: string;
   tagline: string;
-  price: string;
-  /** Whole-dollar annual amount, or null for custom-priced plans. */
-  annual: number | null;
-  pricePeriod: string;
+  monthlyUsd: number;
+  priceLabel: string;
+  poolLimitLabel: string;
   features: string[];
+  featured?: boolean;
 }[] = [
   {
-    code: "essential",
+    planCode: "essential",
     name: "Essential",
-    tagline: "For single facilities ready to digitize",
-    price: `$${formatUsd(ESSENTIAL_ANNUAL_TOTAL_USD)} / yr`,
-    annual: ESSENTIAL_ANNUAL_TOTAL_USD,
-    pricePeriod: "/ yr",
+    tagline: "Core ops — founder rate from day one",
+    monthlyUsd: ESSENTIAL_MONTHLY_USD,
+    priceLabel: `$${formatUsd(ESSENTIAL_MONTHLY_USD)} / mo`,
+    poolLimitLabel: "1 pool included · $29/mo each additional",
     features: [
       "Chemical & cleaning logs",
       "Operator SOPs and templates",
@@ -154,39 +156,43 @@ export const PLAN_CHOICES: {
     ],
   },
   {
-    code: "pro",
+    planCode: "pro",
     name: "Professional",
-    tagline: "Most popular for founder facilities",
-    price: `$${formatUsd(PRO_ANNUAL_TOTAL_USD)} / yr`,
-    annual: PRO_ANNUAL_TOTAL_USD,
-    pricePeriod: "/ yr",
+    tagline: "Advanced ops — most founders choose this",
+    monthlyUsd: PRO_MONTHLY_USD,
+    priceLabel: `$${formatUsd(PRO_MONTHLY_USD)} / mo`,
+    poolLimitLabel: "1 pool included · $29/mo each additional",
+    featured: true,
     features: [
       "Everything in Essential",
       "Audits & procurement",
       "Chemistry calculator + reports",
-    ],
-  },
-  {
-    code: "enterprise",
-    name: "Enterprise",
-    tagline: "Multi-site monitoring and advisory",
-    price: "Custom annual",
-    annual: null,
-    pricePeriod: "",
-    features: [
-      "Everything in Professional",
-      "24/7 monitoring + sensors",
-      "Dedicated advisory team",
+      "Priority operator support",
     ],
   },
 ];
 
 export const choiceStepSchema = z.object({
   request_type: z.enum(["founder_account", "demo"]),
-  requested_plan_code: z.enum(["essential", "pro", "enterprise"]).optional(),
+  requested_plan_code: z.enum(["essential", "pro"]).optional(),
+  billing_cadence: z.enum(["monthly", "annual"]),
+  promo_code: z.string().trim().max(64).optional().or(z.literal("")),
   message: z.string().trim().max(2000).optional().or(z.literal("")),
 });
 export type ChoiceStepValues = z.infer<typeof choiceStepSchema>;
+
+export function founderPlanListAmountUsd(monthlyUsd: number, cadence: BillingCadence): number {
+  return cadence === "monthly" ? monthlyUsd : annualPerMonthUsd(monthlyUsd);
+}
+
+export function founderPlanPriceSuffix(cadence: BillingCadence): string {
+  return cadence === "monthly" ? "/ mo" : "/ mo · billed annually";
+}
+
+export function formatFounderPlanPriceLabel(monthlyUsd: number, cadence: BillingCadence): string {
+  const amount = founderPlanListAmountUsd(monthlyUsd, cadence);
+  return `$${formatUsd(amount)} ${founderPlanPriceSuffix(cadence)}`;
+}
 
 export const founderOnboardingPayloadSchema = z.object({
   organization: organizationStepSchema,

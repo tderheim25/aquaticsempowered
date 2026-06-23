@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -20,7 +21,12 @@ import {
   upsertTrainingCourseAction,
 } from "@/app/private/ae-console/platform/actions";
 import { createAppRoleAction } from "@/app/private/ae-console/permissions/actions";
-import { updateDemoRequestEmailAction } from "@/app/private/ae-console/settings/actions";
+import {
+  generateFounderPromoCodeAction,
+  revokeFounderPromoCodeAction,
+  updateDemoRequestEmailAction,
+  updateSitePromoAction,
+} from "@/app/private/ae-console/settings/actions";
 import { RoleManagementPanel } from "@/components/admin/RoleManagementPanel";
 import { AE_CONSOLE_SECTION_META } from "@/components/super-admin/aeConsoleNavConfig";
 import {
@@ -39,6 +45,7 @@ import {
   AeConsoleStatCard,
 } from "@/components/super-admin/AeConsolePrimitives";
 import { StatusToast } from "@/components/ui/StatusToast";
+import { PoolCatalogConsoleSection } from "@/components/super-admin/PoolCatalogConsoleSection";
 import { OrganizationsConsoleSection } from "@/components/super-admin/OrganizationsConsoleSection";
 import { SupportProvidersConsoleSection } from "@/components/super-admin/SupportProvidersConsoleSection";
 import { SupportTicketsConsoleSection } from "@/components/super-admin/SupportTicketsConsoleSection";
@@ -46,8 +53,9 @@ import { UsersConsoleSection } from "@/components/super-admin/UsersConsoleSectio
 import { VendorSection, type VendorApplicationRow } from "@/components/super-admin/VendorSection";
 import type { VendorConsoleTab } from "@/components/super-admin/VendorConsoleTabs";
 import { getSuperAdminPortalPath } from "@/lib/auth/superAdminPortalConstants";
-import { isMissingAppRoleIdColumnError } from "@/lib/auth/rbac";
+import { isMissingAppRoleIdColumnError, isMissingFounderColumnError } from "@/lib/auth/rbac";
 import { ALL_ROLES, ALL_VIEW_KEYS, VIEW_DEFINITIONS, type AppViewKey } from "@/lib/auth/viewPermissions";
+import { buildPoolCatalogRows } from "@/lib/billing/loadPoolCatalog";
 import { requireSuperAdminConsole } from "@/lib/auth/superAdminPortal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PlanCode, UserRole } from "@/types/database";
@@ -84,6 +92,8 @@ const AE_CONSOLE_TOAST_MESSAGES = {
   org_updated: { text: "Organization updated.", severity: "success" as const },
   plan_updated: { text: "Plan updated.", severity: "success" as const },
   settings_saved: { text: "Settings saved.", severity: "success" as const },
+  promo_code_created: { text: "Founder promo code created.", severity: "success" as const },
+  promo_code_revoked: { text: "Promo code revoked.", severity: "info" as const },
 };
 
 type Section =
@@ -92,6 +102,7 @@ type Section =
   | "organizations"
   | "permissions"
   | "billing"
+  | "pool_catalog"
   | "support"
   | "support_providers"
   | "vendors"
@@ -107,6 +118,7 @@ const ALL_SECTIONS: Section[] = [
   "organizations",
   "permissions",
   "billing",
+  "pool_catalog",
   "support",
   "support_providers",
   "vendors",
@@ -124,7 +136,7 @@ function parseViews(input: string[]) {
 export async function AeConsolePageContent({
   searchParams,
 }: {
-  searchParams: { section?: string; status?: string; roleId?: string; tab?: string };
+  searchParams: { section?: string; status?: string; roleId?: string; tab?: string; code?: string };
 }) {
   await requireSuperAdminConsole();
   const rawSection = searchParams.section ?? "overview";
@@ -157,10 +169,12 @@ export async function AeConsolePageContent({
     subsRes,
     settingsRes,
     techInvitesRes,
+    founderPromoCodesRes,
+    poolsRes,
   ] = await Promise.all([
     admin
       .from("users")
-      .select("id, email, full_name, org_id, role, app_role_id, support_provider_id, created_at")
+      .select("id, email, full_name, org_id, role, app_role_id, support_provider_id, is_founder, founder_enrolled_at, created_at")
       .order("created_at", { ascending: false }),
     admin.from("app_roles").select("id, slug, label, permissions_base, is_builtin, sort_order").order("sort_order"),
     admin
@@ -193,15 +207,38 @@ export async function AeConsolePageContent({
       .select("id, email, full_name, support_provider_id, status, created_at, expires_at")
       .eq("status", "pending")
       .order("created_at", { ascending: false }),
+    admin
+      .from("founder_promo_codes")
+      .select("id, code, active, max_redemptions, times_redeemed, expires_at, note, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50),
+    admin
+      .from("pools")
+      .select(
+        "id, org_id, name, water_body_type, pool_type, volume_gallons, location_label, status, created_at",
+      )
+      .order("created_at", { ascending: false }),
   ]);
 
   let users = usersQuery.data;
-  if (usersQuery.error && isMissingAppRoleIdColumnError(usersQuery.error.message)) {
+  if (usersQuery.error && isMissingFounderColumnError(usersQuery.error.message)) {
+    const fallback = await admin
+      .from("users")
+      .select("id, email, full_name, org_id, role, app_role_id, support_provider_id, created_at")
+      .order("created_at", { ascending: false });
+    users = (fallback.data ?? []).map((u) => ({
+      ...u,
+      is_founder: false,
+      founder_enrolled_at: null as string | null,
+    }));
+  } else if (usersQuery.error && isMissingAppRoleIdColumnError(usersQuery.error.message)) {
     const fallback = await admin.from("users").select("id, email, full_name, org_id, role, created_at").order("created_at", { ascending: false });
     users = (fallback.data ?? []).map((u) => ({
       ...u,
       app_role_id: null as string | null,
       support_provider_id: null as string | null,
+      is_founder: false,
+      founder_enrolled_at: null as string | null,
     }));
   }
 
@@ -247,6 +284,28 @@ export async function AeConsolePageContent({
     const value = (row?.value ?? {}) as { email?: string };
     return value.email ?? "";
   })();
+  const sitePromoActive = (() => {
+    const row = settingsRows.find((r) => r.key === "site_promo");
+    const value = (row?.value ?? {}) as { active?: boolean };
+    return typeof value.active === "boolean" ? value.active : true;
+  })();
+  const founderPromoCodes = founderPromoCodesRes.error ? [] : (founderPromoCodesRes.data ?? []);
+  const poolRecords = poolsRes.error ? [] : (poolsRes.data ?? []);
+  const poolCatalog = buildPoolCatalogRows(
+    poolRecords.map((p) => ({
+      ...p,
+      water_body_type: (p as { water_body_type?: string | null }).water_body_type as
+        | import("@/types/database").WaterBodyType
+        | null,
+    })),
+    organizationRows.map((o) => ({
+      id: o.id,
+      name: o.name,
+      plan_code: o.plan_code,
+      founder: o.founder,
+    })),
+  );
+  const createdPromoCode = searchParams.code;
 
   const pendingVendors = vendorApps.filter((a) => a.status === "pending").length;
   const openTickets = tickets.filter((t) => t.status === "open" || t.status === "pending").length;
@@ -336,10 +395,14 @@ export async function AeConsolePageContent({
             role: u.role,
             app_role_id: u.app_role_id,
             support_provider_id: (u as { support_provider_id?: string | null }).support_provider_id ?? null,
+            is_founder: (u as { is_founder?: boolean }).is_founder ?? false,
+            founder_enrolled_at: (u as { founder_enrolled_at?: string | null }).founder_enrolled_at ?? null,
             created_at: u.created_at,
           }))}
           orgs={organizationRows.map((o) => ({ id: o.id, name: o.name }))}
-          appRoles={appRoles.map((r) => ({ id: r.id, slug: r.slug, label: r.label }))}
+          appRoles={appRoles
+            .filter((r) => r.slug !== "org_admin_legacy")
+            .map((r) => ({ id: r.id, slug: r.slug, label: r.label }))}
           supportProviders={supportProviders.map((p) => ({ id: p.id, name: p.name }))}
         />
       ) : null}
@@ -391,6 +454,10 @@ export async function AeConsolePageContent({
             viewDefinitions={VIEW_DEFINITIONS.map((v) => ({ key: v.key, label: v.label }))}
           />
         </Stack>
+      ) : null}
+
+      {section === "pool_catalog" ? (
+        <PoolCatalogConsoleSection rows={poolCatalog.rows} summaries={poolCatalog.summaries} />
       ) : null}
 
       {section === "billing" ? (
@@ -660,6 +727,128 @@ export async function AeConsolePageContent({
 
       {section === "settings" ? (
         <Stack spacing={2}>
+          <AeConsolePanel>
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  Site-wide 50% promo
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  When on, new founders and pricing checkouts automatically receive 50% off Professional
+                  (locked for 3 years). When off, new signups pay full price — existing subscribers keep their
+                  locked-in rate.
+                </Typography>
+              </Box>
+              <Stack component="form" action={updateSitePromoAction} spacing={1.5}>
+                <FormControlLabel
+                  control={
+                    <Checkbox name="site_promo_active" defaultChecked={sitePromoActive} />
+                  }
+                  label="50% founder launch promo active"
+                />
+                <Button type="submit" variant="contained" sx={{ alignSelf: "flex-start" }}>
+                  Save promo toggle
+                </Button>
+              </Stack>
+            </Stack>
+          </AeConsolePanel>
+
+          <AeConsolePanel>
+            <Stack spacing={1.5}>
+              <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  Founder gift codes
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Generate one-time codes for specific founders when the site-wide promo is off. Each code
+                  locks in 50% off Professional monthly for 3 years.
+                </Typography>
+              </Box>
+              {createdPromoCode ? (
+                <Alert severity="success">
+                  New code: <strong>{createdPromoCode}</strong> — share this with the founder to enter at
+                  checkout.
+                </Alert>
+              ) : null}
+              <Stack
+                component="form"
+                action={generateFounderPromoCodeAction}
+                direction={{ xs: "column", sm: "row" }}
+                spacing={1.5}
+                alignItems={{ sm: "flex-start" }}
+                flexWrap="wrap"
+              >
+                <TextField name="promo_note" label="Note (optional)" size="small" sx={{ minWidth: 200, flex: 1 }} />
+                <TextField
+                  name="promo_max_redemptions"
+                  label="Max uses"
+                  type="number"
+                  size="small"
+                  inputProps={{ min: 1 }}
+                  sx={{ width: 120 }}
+                />
+                <TextField
+                  name="promo_expires_at"
+                  label="Expires"
+                  type="datetime-local"
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ minWidth: 220 }}
+                />
+                <Button type="submit" variant="contained">
+                  Generate code
+                </Button>
+              </Stack>
+              {founderPromoCodes.length > 0 ? (
+                <DataTable>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Code</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Redemptions</TableCell>
+                      <TableCell>Note</TableCell>
+                      <TableCell>Created</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {founderPromoCodes.map((row) => (
+                      <TableRow key={row.id}>
+                        <TablePrimaryCell primary={row.code} />
+                        <TableCell>
+                          <StatusPill
+                            label={row.active ? "Active" : "Revoked"}
+                            tone={row.active ? "success" : "neutral"}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {row.times_redeemed}
+                          {row.max_redemptions != null ? ` / ${row.max_redemptions}` : ""}
+                        </TableCell>
+                        <TableCell>{row.note ?? "—"}</TableCell>
+                        <TableCell>{new Date(row.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          {row.active ? (
+                            <Stack component="form" action={revokeFounderPromoCodeAction}>
+                              <input type="hidden" name="promo_code_id" value={row.id} />
+                              <Button type="submit" size="small" color="warning">
+                                Revoke
+                              </Button>
+                            </Stack>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </DataTable>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No gift codes yet.
+                </Typography>
+              )}
+            </Stack>
+          </AeConsolePanel>
+
           <AeConsolePanel>
             <Stack spacing={1.5}>
               <Box>

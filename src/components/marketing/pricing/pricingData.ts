@@ -7,6 +7,7 @@ import type { ElementType } from "react";
 import {
   ESSENTIAL_ANNUAL_PER_MONTH_USD,
   ESSENTIAL_MONTHLY_USD,
+  POOL_ADDON_MONTHLY_USD,
   PRO_ANNUAL_PER_MONTH_USD,
   PRO_MONTHLY_USD,
   TIER_MONTHLY_USD,
@@ -32,6 +33,9 @@ export type Tier = {
   badge?: string;
 };
 
+export const POOL_BILLING_PRICING_NOTE =
+  "All paid plans include one body of water at no additional charge. Additional pools and water features are billed at $29/month each.";
+
 export const tiers: Tier[] = [
   {
     id: "community",
@@ -55,17 +59,19 @@ export const tiers: Tier[] = [
   {
     id: "essential",
     name: "Essential",
-    tagline: "Run a single facility",
+    tagline: "Run your facility operations",
     icon: StarRoundedIcon,
     monthly: ESSENTIAL_MONTHLY_USD,
     annual: ESSENTIAL_ANNUAL_PER_MONTH_USD,
     priceSuffix: "/mo",
-    priceNote: "Per facility · billed monthly",
-    annualNote: "Per facility · billed annually",
+    priceNote: "Billed monthly",
+    annualNote: "Billed annually",
     ctaLabel: "Start Essential",
     ctaHref: "/founders",
     ctaEventName: "cta_click_pricing_essential",
     highlights: [
+      "1 pool included",
+      `Additional pools: $${POOL_ADDON_MONTHLY_USD}/mo each`,
       "Chemical logs & alerts",
       "SOP library & checklists",
       "Member support portal",
@@ -75,19 +81,21 @@ export const tiers: Tier[] = [
   {
     id: "professional",
     name: "Professional",
-    tagline: "Multi-facility operations",
+    tagline: "Advanced ops for growing aquatics teams",
     icon: RocketLaunchRoundedIcon,
     monthly: PRO_MONTHLY_USD,
     annual: PRO_ANNUAL_PER_MONTH_USD,
     priceSuffix: "/mo",
-    priceNote: "Up to 5 facilities · monthly",
-    annualNote: "Up to 5 facilities · annual",
+    priceNote: "Billed monthly",
+    annualNote: "Billed annually",
     ctaLabel: "Go Professional",
     ctaHref: "/founders",
     ctaEventName: "cta_click_pricing_professional",
     featured: true,
     badge: "Most popular",
     highlights: [
+      "1 pool included",
+      `Additional pools: $${POOL_ADDON_MONTHLY_USD}/mo each`,
       "Everything in Essential",
       "Audits & procurement tools",
       "Vendor pricing guidance",
@@ -144,7 +152,8 @@ export const compareGroups: CompareGroup[] = [
       { label: "Chemical logs & alerts", values: [false, true, true, true] },
       { label: "SOP library & checklists", values: [false, true, true, true] },
       { label: "Compliance reports", values: [false, true, true, true] },
-      { label: "Facilities supported", values: ["—", "1", "Up to 5", "Unlimited"] },
+      { label: "Pools included", values: ["—", "1", "1", "1"] },
+      { label: "Additional pools", values: ["—", `$${POOL_ADDON_MONTHLY_USD}/mo`, `$${POOL_ADDON_MONTHLY_USD}/mo`, "Custom"] },
     ],
   },
   {
@@ -175,7 +184,7 @@ export const faqs: { q: string; a: string }[] = [
   },
   {
     q: "Do you offer founder pricing?",
-    a: "The first 50 founder facilities lock in preferred pricing and contract terms. Apply through the Founder Program to see your custom quote.",
+    a: "The first 50 founder organizations receive 50% off base subscription fees on Essential or Professional monthly billing for 3 years. Pool add-ons remain $29/month each and are not discounted.",
   },
   {
     q: "Is there a long-term contract?",
@@ -186,7 +195,7 @@ export const faqs: { q: string; a: string }[] = [
     a: "Enterprise scales with your facility count, monitoring footprint, and advisory needs. Most networks land between $1,500 and $6,000 per month.",
   },
   {
-    q: "Do you support multiple facilities on Essential?",
-    a: "Essential is built for a single facility. Once you operate more than one site, Professional or Enterprise give you cross-facility reporting and procurement tools.",
+    q: "How does pool billing work?",
+    a: `A facility is your organization site (team, address, and data). A pool is a body of water you manage within a facility. Every paid account includes one active pool at no extra charge across all your facilities. Each additional active pool is $${POOL_ADDON_MONTHLY_USD}/month. Example: Professional founder ($350/mo) with 4 pools across two facilities pays $350 + (3 × $${POOL_ADDON_MONTHLY_USD}) = $437/month.`,
   },
 ];

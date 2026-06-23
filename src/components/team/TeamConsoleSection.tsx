@@ -34,6 +34,7 @@ import {
   resendOrgInvitationAction,
   updateOrgMemberDetailsAction,
 } from "@/app/(dashboard)/app/team/actions";
+import { getRoleDisplayLabel, isOrganizationOwner, roleDisplayTone } from "@/lib/auth/roleLabels";
 import {
   DataTable,
   StatusPill,
@@ -51,6 +52,9 @@ export type TeamMember = {
   email: string;
   full_name: string | null;
   role: string;
+  role_label?: string | null;
+  app_role_slug?: string | null;
+  is_founder?: boolean;
   created_at: string;
 };
 
@@ -59,15 +63,15 @@ export type PendingInvitation = {
   email: string;
   full_name: string | null;
   role: string;
+  role_label?: string | null;
   created_at: string;
   expires_at: string;
   kind: "new" | "existing";
 };
 
-type OrgRoleSlug = "org_admin" | "manager" | "staff";
+type InviteRoleSlug = "manager" | "staff";
 
-const ORG_ROLE_OPTIONS: { slug: OrgRoleSlug; label: string; description: string }[] = [
-  { slug: "org_admin", label: "Org Admin", description: "Full control of the organization" },
+const INVITE_ROLE_OPTIONS: { slug: InviteRoleSlug; label: string; description: string }[] = [
   { slug: "manager", label: "Manager", description: "Manages teams, schedules, and reports" },
   { slug: "staff", label: "Staff", description: "Day-to-day operators (default)" },
 ];
@@ -81,14 +85,20 @@ function monogramFor(member: { full_name: string | null; email: string }) {
   return name.slice(0, 2).toUpperCase();
 }
 
-function roleTone(slug: string): "info" | "warning" | "neutral" {
-  if (slug === "org_admin") return "info";
-  if (slug === "manager") return "warning";
-  return "neutral";
+function roleTone(slug: string, appRoleSlug?: string | null) {
+  return roleDisplayTone(slug, appRoleSlug);
 }
 
-function roleLabel(slug: string) {
-  return ORG_ROLE_OPTIONS.find((r) => r.slug === slug)?.label ?? slug.replace("_", " ");
+function memberRoleLabel(member: TeamMember) {
+  return getRoleDisplayLabel({
+    role: member.role,
+    appRoleLabel: member.role_label,
+    appRoleSlug: member.app_role_slug,
+  });
+}
+
+function isOwnerMember(member: TeamMember) {
+  return isOrganizationOwner({ role: member.role, appRoleSlug: member.app_role_slug });
 }
 
 export function TeamConsoleSection({
@@ -109,9 +119,11 @@ export function TeamConsoleSection({
   const [removing, setRemoving] = useState<TeamMember | null>(null);
 
   const counts = useMemo(() => {
-    const base = { total: members.length, org_admin: 0, manager: 0, staff: 0 } as Record<string, number>;
+    const base = { total: members.length, owner: 0, manager: 0, staff: 0 } as Record<string, number>;
     for (const m of members) {
-      if (m.role in base) base[m.role] += 1;
+      if (isOwnerMember(m)) base.owner += 1;
+      else if (m.role === "manager") base.manager += 1;
+      else base.staff += 1;
     }
     return base;
   }, [members]);
@@ -119,9 +131,12 @@ export function TeamConsoleSection({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return members.filter((m) => {
-      if (roleFilter !== ALL && m.role !== roleFilter) return false;
+      if (roleFilter !== ALL) {
+        if (roleFilter === "owner" && !isOwnerMember(m)) return false;
+        if (roleFilter !== "owner" && (isOwnerMember(m) || m.role !== roleFilter)) return false;
+      }
       if (!q) return true;
-      const haystack = [m.full_name ?? "", m.email, m.role].join(" ").toLowerCase();
+      const haystack = [m.full_name ?? "", m.email, memberRoleLabel(m)].join(" ").toLowerCase();
       return haystack.includes(q);
     });
   }, [members, query, roleFilter]);
@@ -137,7 +152,7 @@ export function TeamConsoleSection({
             label={`${counts.total} member${counts.total === 1 ? "" : "s"}`}
             variant="outlined"
           />
-          <Chip size="small" label={`${counts.org_admin} admin`} variant="outlined" />
+          <Chip size="small" label={`${counts.owner} owner${counts.owner === 1 ? "" : "s"}`} variant="outlined" />
           <Chip size="small" label={`${counts.manager} manager`} variant="outlined" />
           <Chip size="small" label={`${counts.staff} staff`} variant="outlined" />
         </Stack>
@@ -210,7 +225,8 @@ export function TeamConsoleSection({
               sx={{ minWidth: 160 }}
             >
               <MenuItem value={ALL}>All roles</MenuItem>
-              {ORG_ROLE_OPTIONS.map((r) => (
+              <MenuItem value="owner">Owner</MenuItem>
+              {INVITE_ROLE_OPTIONS.map((r) => (
                 <MenuItem key={r.slug} value={r.slug}>
                   {r.label}
                 </MenuItem>
@@ -285,7 +301,16 @@ export function TeamConsoleSection({
                     />
                   </TableCell>
                   <TableCell>
-                    <StatusPill label={roleLabel(member.role)} tone={roleTone(member.role)} dot={false} />
+                    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                      <StatusPill
+                        label={memberRoleLabel(member)}
+                        tone={roleTone(member.role, member.app_role_slug)}
+                        dot={false}
+                      />
+                      {member.is_founder ? (
+                        <Chip size="small" label="Founder" color="secondary" sx={{ height: 22 }} />
+                      ) : null}
+                    </Stack>
                   </TableCell>
                   <TableCell>
                     <TableDateTimeCell iso={member.created_at} />
@@ -387,7 +412,11 @@ function PendingInvitationsPanel({ invitations }: { invitations: PendingInvitati
                 <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                   {inv.full_name?.trim() || inv.email}
                 </Typography>
-                <StatusPill label={roleLabel(inv.role)} tone={roleTone(inv.role)} dot={false} />
+                <StatusPill
+                  label={inv.role_label ?? getRoleDisplayLabel({ role: inv.role })}
+                  tone={roleTone(inv.role)}
+                  dot={false}
+                />
                 <Chip
                   size="small"
                   variant="outlined"
@@ -451,7 +480,7 @@ function InviteMemberDialog({
           <TextField name="email" type="email" label="Email address" required fullWidth size="small" margin="none" autoComplete="off" placeholder="teammate@example.com" />
           <TextField name="fullName" label="Full name (optional)" fullWidth size="small" margin="none" autoComplete="off" />
           <TextField name="role" label="Role" select required defaultValue="staff" fullWidth size="small" margin="none">
-            {ORG_ROLE_OPTIONS.map((r) => (
+            {INVITE_ROLE_OPTIONS.map((r) => (
               <MenuItem key={r.slug} value={r.slug}>
                 <Stack spacing={0.25}>
                   <Stack direction="row" alignItems="center" spacing={1}>
@@ -569,22 +598,38 @@ function EditMemberDialog({
 
             <TextField name="fullName" label="Full name" defaultValue={member.full_name ?? ""} fullWidth size="small" margin="none" autoComplete="off" />
 
-            <TextField name="role" label="Role" select required defaultValue={member.role} fullWidth size="small" margin="none" disabled={member.id === currentUserId}>
-              {ORG_ROLE_OPTIONS.map((r) => (
-                <MenuItem key={r.slug} value={r.slug}>
-                  <Stack direction="row" alignItems="center" spacing={1.25}>
-                    <StatusPill label={r.label} tone={roleTone(r.slug)} dot={false} />
-                    <Typography variant="caption" color="text.secondary">
-                      {r.description}
-                    </Typography>
-                  </Stack>
-                </MenuItem>
-              ))}
+            <TextField
+              name="role"
+              label="Role"
+              select
+              required
+              defaultValue={isOwnerMember(member) ? member.role : member.role === "manager" ? "manager" : "staff"}
+              fullWidth
+              size="small"
+              margin="none"
+              disabled={member.id === currentUserId || isOwnerMember(member)}
+            >
+              {isOwnerMember(member) ? (
+                <MenuItem value={member.role}>{memberRoleLabel(member)}</MenuItem>
+              ) : (
+                INVITE_ROLE_OPTIONS.map((r) => (
+                  <MenuItem key={r.slug} value={r.slug}>
+                    <Stack direction="row" alignItems="center" spacing={1.25}>
+                      <StatusPill label={r.label} tone={roleTone(r.slug)} dot={false} />
+                      <Typography variant="caption" color="text.secondary">
+                        {r.description}
+                      </Typography>
+                    </Stack>
+                  </MenuItem>
+                ))
+              )}
             </TextField>
 
-            {member.id === currentUserId ? (
+            {member.id === currentUserId || isOwnerMember(member) ? (
               <Typography variant="caption" color="text.disabled">
-                You can&apos;t demote yourself. Have another org admin update your role.
+                {member.id === currentUserId
+                  ? "You can't demote yourself. Have another owner update your role."
+                  : "Plan owners cannot be reassigned from the team console."}
               </Typography>
             ) : null}
           </Stack>

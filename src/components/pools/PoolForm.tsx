@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import type { ReactNode } from "react";
 
-import { POOL_STATUSES, POOL_TYPES, type PoolFormValues } from "@/lib/validations/pools";
+import { POOL_STATUSES, POOL_TYPES, WATER_BODY_TYPE_LABELS, WATER_BODY_TYPES, type PoolFormValues } from "@/lib/validations/pools";
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
@@ -107,6 +107,26 @@ export function PoolFormFields({
             ),
           }}
         />
+        <TextField
+          {...sharedTextFieldProps}
+          name="water_body_type"
+          label="Body of water"
+          select
+          defaultValue={defaults.water_body_type ?? "swimming_pool"}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <PoolOutlinedIcon />
+              </InputAdornment>
+            ),
+          }}
+        >
+          {WATER_BODY_TYPES.map((t) => (
+            <MenuItem key={t} value={t}>
+              {WATER_BODY_TYPE_LABELS[t]}
+            </MenuItem>
+          ))}
+        </TextField>
         <TextField
           {...sharedTextFieldProps}
           name="location_label"

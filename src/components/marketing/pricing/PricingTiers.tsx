@@ -4,6 +4,7 @@ import { keyframes } from "@emotion/react";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import {
   Box,
+  Button,
   Card,
   CardContent,
   Chip,
@@ -12,12 +13,13 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import Link from "next/link";
 
 import { PricingCheckoutButton } from "./PricingCheckoutButton";
 import type { BillingCadence, Tier } from "./pricingData";
 import { tiers } from "./pricingData";
 import { tierIdToPlanCode } from "@/lib/stripe/prices";
-import { applyPromoDiscount, PROMO, promoAppliesToTier } from "@/lib/marketing/promo";
+import { applyPromoDiscount, promoAppliesToTier, type SitePromoConfig } from "@/lib/marketing/promo";
 import { useReveal } from "./useReveal";
 
 const priceSwap = keyframes`
@@ -39,9 +41,10 @@ function formatPrice(tier: Tier, cadence: BillingCadence) {
 
 type Props = {
   cadence: BillingCadence;
+  sitePromo: SitePromoConfig;
 };
 
-export function PricingTiers({ cadence }: Props) {
+export function PricingTiers({ cadence, sitePromo }: Props) {
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   return (
@@ -67,6 +70,7 @@ export function PricingTiers({ cadence }: Props) {
             cadence={cadence}
             index={i}
             reduceMotion={reduceMotion}
+            sitePromo={sitePromo}
           />
         ))}
       </Stack>
@@ -79,17 +83,20 @@ function TierCard({
   cadence,
   index,
   reduceMotion,
+  sitePromo,
 }: {
   tier: Tier;
   cadence: BillingCadence;
   index: number;
   reduceMotion: boolean;
+  sitePromo: SitePromoConfig;
 }) {
   const { ref, visible } = useReveal<HTMLDivElement>();
   const Icon = tier.icon;
   const rawValue = cadence === "monthly" ? tier.monthly : tier.annual;
-  const showPromo = promoAppliesToTier(tier.id) && typeof rawValue === "number" && rawValue > 0;
-  const promoValue = showPromo ? applyPromoDiscount(rawValue as number) : null;
+  const showPromo =
+    promoAppliesToTier(tier.id, sitePromo) && typeof rawValue === "number" && rawValue > 0;
+  const promoValue = showPromo ? applyPromoDiscount(rawValue as number, sitePromo) : null;
   const price = showPromo ? `$${(promoValue as number).toLocaleString()}` : formatPrice(tier, cadence);
   const originalPrice = showPromo ? formatPrice(tier, cadence) : null;
   const note =
@@ -219,7 +226,7 @@ function TierCard({
                   {originalPrice}
                 </Typography>
                 <Chip
-                  label={PROMO.badge}
+                  label={sitePromo.badge}
                   size="small"
                   sx={{
                     height: 22,
@@ -308,35 +315,68 @@ function TierCard({
               ))}
             </Stack>
 
-            <PricingCheckoutButton
-              tierId={tier.id}
-              planCode={planCode}
-              cadence={cadence}
-              ctaHref={tier.ctaHref}
-              eventName={tier.ctaEventName}
-              variant={tier.featured ? "contained" : "outlined"}
-              color={tier.featured ? "secondary" : "primary"}
-              fullWidth
-              size="large"
-              sx={{
-                mt: 3,
-                fontWeight: 700,
-                py: 1.25,
-                transition:
-                  "transform 220ms ease, box-shadow 220ms ease, background 220ms ease",
-                boxShadow: tier.featured
-                  ? "0 12px 28px rgba(46,165,160,0.42)"
-                  : "none",
-                "&:hover": {
-                  transform: reduceMotion ? "none" : "translateY(-2px)",
+            {tier.id === "essential" || tier.id === "professional" ? (
+              <Button
+                component={Link}
+                href={
+                  tier.id === "essential"
+                    ? "/founders?plan=essential"
+                    : "/founders?plan=pro"
+                }
+                variant={tier.featured ? "contained" : "outlined"}
+                color={tier.featured ? "secondary" : "primary"}
+                fullWidth
+                size="large"
+                sx={{
+                  mt: 3,
+                  fontWeight: 700,
+                  py: 1.25,
+                  transition:
+                    "transform 220ms ease, box-shadow 220ms ease, background 220ms ease",
                   boxShadow: tier.featured
-                    ? "0 18px 36px rgba(46,165,160,0.5)"
-                    : "0 10px 24px rgba(0,59,111,0.18)",
-                },
-              }}
-            >
-              {tier.ctaLabel}
-            </PricingCheckoutButton>
+                    ? "0 12px 28px rgba(46,165,160,0.42)"
+                    : "none",
+                  "&:hover": {
+                    transform: reduceMotion ? "none" : "translateY(-2px)",
+                    boxShadow: tier.featured
+                      ? "0 18px 36px rgba(46,165,160,0.5)"
+                      : "0 10px 24px rgba(0,59,111,0.18)",
+                  },
+                }}
+              >
+                {tier.ctaLabel}
+              </Button>
+            ) : (
+              <PricingCheckoutButton
+                tierId={tier.id}
+                planCode={planCode}
+                cadence={cadence}
+                ctaHref={tier.ctaHref}
+                eventName={tier.ctaEventName}
+                variant={tier.featured ? "contained" : "outlined"}
+                color={tier.featured ? "secondary" : "primary"}
+                fullWidth
+                size="large"
+                sx={{
+                  mt: 3,
+                  fontWeight: 700,
+                  py: 1.25,
+                  transition:
+                    "transform 220ms ease, box-shadow 220ms ease, background 220ms ease",
+                  boxShadow: tier.featured
+                    ? "0 12px 28px rgba(46,165,160,0.42)"
+                    : "none",
+                  "&:hover": {
+                    transform: reduceMotion ? "none" : "translateY(-2px)",
+                    boxShadow: tier.featured
+                      ? "0 18px 36px rgba(46,165,160,0.5)"
+                      : "0 10px 24px rgba(0,59,111,0.18)",
+                  },
+                }}
+              >
+                {tier.ctaLabel}
+              </PricingCheckoutButton>
+            )}
           </CardContent>
         </Card>
       </Box>

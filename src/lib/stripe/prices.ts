@@ -27,19 +27,24 @@ export function getStripePriceId(
   cadence: BillingCadence,
   flow: CheckoutFlow,
 ): string | null {
-  if (flow === "founder") {
-    const annualForPlan = PLAN_PRICE_MAP[planCode]?.annual;
-    if (annualForPlan) return annualForPlan;
-    if (planCode === "pro") return envPrice("STRIPE_PRICE_FOUNDER_ANNUAL");
-    return null;
-  }
-
+  void flow;
   return PLAN_PRICE_MAP[planCode]?.[cadence] ?? null;
+}
+
+/** Stripe Price ID for additional pool add-on ($29/mo). */
+export function getStripePoolAddonPriceId(): string | null {
+  return envPrice("STRIPE_PRICE_POOL_ADDON_MONTHLY");
+}
+
+export function isPoolAddonPriceId(priceId: string | null | undefined): boolean {
+  if (!priceId) return false;
+  const poolPrice = getStripePoolAddonPriceId();
+  return Boolean(poolPrice && priceId === poolPrice);
 }
 
 /** Reverse lookup for webhook sync when metadata is missing. */
 export function planCodeFromStripePriceId(priceId: string | null | undefined): PlanCode | null {
-  if (!priceId) return null;
+  if (!priceId || isPoolAddonPriceId(priceId)) return null;
 
   const entries: Array<[string | null, PlanCode, BillingCadence]> = [
     [envPrice("STRIPE_PRICE_ESSENTIAL_MONTHLY"), "essential", "monthly"],
@@ -80,4 +85,13 @@ export function tierIdToPlanCode(tierId: string): PlanCode | null {
     default:
       return null;
   }
+}
+
+/** Subscription item that bills the base plan (not pool add-on). */
+export function isBasePlanSubscriptionItem(item: {
+  price?: { id?: string | null } | null;
+  metadata?: Record<string, string> | null;
+}): boolean {
+  if (item.metadata?.type === "pool_addon") return false;
+  return !isPoolAddonPriceId(item.price?.id);
 }

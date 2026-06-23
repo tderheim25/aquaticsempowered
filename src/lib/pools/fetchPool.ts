@@ -1,3 +1,4 @@
+import { userHasOrgMembership } from "@/lib/auth/activeOrg";
 import type { UsersRow } from "@/lib/auth/rbac";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -11,14 +12,15 @@ export type PoolListRow = Pick<
   "id" | "name" | "pool_type" | "status" | "volume_gallons" | "location_label"
 >;
 
-export function canViewPoolOrg(profile: UsersRow, poolOrgId: string): boolean {
+export async function canViewPoolOrg(profile: UsersRow, poolOrgId: string): Promise<boolean> {
   if (profile.role === "super_admin") return true;
-  return Boolean(profile.org_id && profile.org_id === poolOrgId);
+  if (profile.org_id === poolOrgId) return true;
+  return userHasOrgMembership(profile.id, poolOrgId);
 }
 
 /** Lists pools for one organization; admin fallback when session RLS hides rows. */
 export async function fetchPoolsForOrg(orgId: string, profile: UsersRow): Promise<PoolListRow[]> {
-  if (profile.role !== "super_admin" && profile.org_id !== orgId) {
+  if (profile.role !== "super_admin" && !(await canViewPoolOrg(profile, orgId))) {
     return [];
   }
 
@@ -27,7 +29,7 @@ export async function fetchPoolsForOrg(orgId: string, profile: UsersRow): Promis
   const { data: pools } = await supabase.from("pools").select(columns).eq("org_id", orgId).order("name");
   if (pools?.length) return pools as PoolListRow[];
 
-  if (!canViewPoolOrg(profile, orgId)) return [];
+  if (!(await canViewPoolOrg(profile, orgId))) return [];
 
   const admin = createAdminClient();
   const { data: adminPools } = await admin.from("pools").select(columns).eq("org_id", orgId).order("name");
@@ -37,10 +39,10 @@ export async function fetchPoolsForOrg(orgId: string, profile: UsersRow): Promis
 export async function fetchLastReadingByPool(
   orgId: string,
   poolIds: string[],
-  profile: UsersRow
+  profile: UsersRow,
 ): Promise<Map<string, string>> {
   const lastByPool = new Map<string, string>();
-  if (poolIds.length === 0 || (profile.role !== "super_admin" && profile.org_id !== orgId)) {
+  if (poolIds.length === 0 || !(await canViewPoolOrg(profile, orgId))) {
     return lastByPool;
   }
 
@@ -53,7 +55,7 @@ export async function fetchLastReadingByPool(
     .order("logged_at", { ascending: false });
 
   let logs = userLogs ?? [];
-  if (logs.length === 0 && canViewPoolOrg(profile, orgId)) {
+  if (logs.length === 0 && (await canViewPoolOrg(profile, orgId))) {
     const admin = createAdminClient();
     const { data: adminLogs } = await admin
       .from("chemical_logs")
@@ -75,7 +77,7 @@ export async function fetchLastReadingByPool(
 /** Loads a pool for the signed-in user, with admin fallback when RLS/session org claims lag. */
 export async function fetchPoolByIdForProfile(
   poolId: string,
-  profile: UsersRow
+  profile: UsersRow,
 ): Promise<PoolRow | null> {
   const supabase = await createClient();
   const { data: pool } = await supabase.from("pools").select("*").eq("id", poolId).maybeSingle();
@@ -83,14 +85,14 @@ export async function fetchPoolByIdForProfile(
 
   const admin = createAdminClient();
   const { data: adminPool } = await admin.from("pools").select("*").eq("id", poolId).maybeSingle();
-  if (!adminPool || !canViewPoolOrg(profile, adminPool.org_id)) return null;
+  if (!adminPool || !(await canViewPoolOrg(profile, adminPool.org_id))) return null;
   return adminPool;
 }
 
 export async function fetchPoolEquipmentForProfile(
   poolId: string,
   profile: UsersRow,
-  poolOrgId: string
+  poolOrgId: string,
 ): Promise<EquipmentRow[]> {
   const supabase = await createClient();
   const { data: equipment } = await supabase
@@ -100,7 +102,7 @@ export async function fetchPoolEquipmentForProfile(
     .order("kind");
   if (equipment?.length) return equipment;
 
-  if (!canViewPoolOrg(profile, poolOrgId)) return [];
+  if (!(await canViewPoolOrg(profile, poolOrgId))) return [];
 
   const admin = createAdminClient();
   const { data: adminEquipment } = await admin

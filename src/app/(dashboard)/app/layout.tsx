@@ -4,7 +4,10 @@ import { getAllowedViewsForProfile } from "@/lib/auth/viewPermissions";
 import { getUsersRowWithAdminFallback, requireAuth } from "@/lib/auth/rbac";
 import { getVendorForUser } from "@/lib/auth/vendorPortal";
 import { loadOrgSubscriptionSummary } from "@/lib/billing/loadOrgSubscriptionSummary";
-import { planLabelFromCode } from "@/lib/billing/subscriptionSummary";
+import { isAwaitingPayment, planLabelFromCode } from "@/lib/billing/subscriptionSummary";
+import { captureException } from "@/lib/sentry";
+import { syncOrgBillingFromStripe } from "@/lib/stripe/syncSubscription";
+import { isStripeConfigured } from "@/lib/stripe/server";
 import { buildDisplayName, signAvatarPath } from "@/lib/profile/avatar";
 import { accountSettingsPath, communityProfilePath } from "@/lib/profile/paths";
 import { createClient } from "@/lib/supabase/server";
@@ -29,14 +32,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const vendor = await getVendorForUser(profile.id);
     displayOrgName = vendor?.name ?? "Vendor partner";
     planCode = "essential";
-  } else if (profile?.org_id) {
+  } else if (profile?.org_id && !orgCtx.activeOrgName) {
     const { data: memberOrg } = await supabase
       .from("organizations")
       .select("name, plan_code")
       .eq("id", profile.org_id)
       .maybeSingle();
     displayOrgName = memberOrg?.name ?? null;
-    planCode = (memberOrg?.plan_code as PlanCode) ?? "free";
+    planCode = (memberOrg?.plan_code as PlanCode) ?? planCode;
   }
 
   const displayName = profile
@@ -52,20 +55,60 @@ export default async function DashboardLayout({ children }: { children: React.Re
     profile ? { role: profile.role, app_role_id: profile.app_role_id } : null
   );
 
-  const canViewOrgBilling =
+  const canManageOrgBilling =
     Boolean(orgCtx.activeOrgId) &&
     profile?.role !== "vendor" &&
     (profile?.role === "org_admin" || profile?.role === "super_admin");
 
+  const canViewOrgSubscription =
+    Boolean(orgCtx.activeOrgId) &&
+    profile?.role !== "vendor" &&
+    profile?.role !== "support_technician";
+
   const subscriptionSummary =
-    canViewOrgBilling && orgCtx.activeOrgId
+    canViewOrgSubscription && orgCtx.billingRootOrgId
       ? await loadOrgSubscriptionSummary(
           supabase,
-          orgCtx.activeOrgId,
+          orgCtx.billingRootOrgId,
           planCode,
-          profile?.role === "org_admin" || profile?.role === "super_admin",
+          canManageOrgBilling,
         )
       : null;
+
+  if (
+    isStripeConfigured() &&
+    orgCtx.billingRootOrgId &&
+    subscriptionSummary &&
+    isAwaitingPayment(subscriptionSummary.status)
+  ) {
+    try {
+      await syncOrgBillingFromStripe(orgCtx.billingRootOrgId);
+    } catch (error) {
+      captureException(error, { step: "dashboard_layout_resync", orgId: orgCtx.billingRootOrgId });
+    }
+  }
+
+  const refreshedSubscriptionSummary =
+    canViewOrgSubscription && orgCtx.billingRootOrgId
+      ? await loadOrgSubscriptionSummary(
+          supabase,
+          orgCtx.billingRootOrgId,
+          planCode,
+          canManageOrgBilling,
+        )
+      : subscriptionSummary;
+
+  const hasFacilitySwitcher =
+    profile?.role !== "vendor" &&
+    (orgCtx.orgOptions.length > 0 ||
+      Boolean(orgCtx.activeOrgId && displayOrgName));
+
+  const facilityOrgOptions =
+    orgCtx.orgOptions.length > 0
+      ? orgCtx.orgOptions
+      : orgCtx.activeOrgId && displayOrgName
+        ? [{ id: orgCtx.activeOrgId, name: displayOrgName }]
+        : [];
 
   return (
     <DashboardShell
@@ -77,12 +120,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }
       orgName={displayOrgName}
       planLabel={planLabelFromCode(planCode)}
-      subscriptionSummary={subscriptionSummary}
+      subscriptionSummary={refreshedSubscriptionSummary}
       userRole={profile?.role ?? null}
       allowedViews={allowedViews}
       hasOrg={orgCtx.hasActiveOrg}
-      superAdminOrgOptions={orgCtx.showOrgSwitcher ? orgCtx.orgOptions : undefined}
-      superAdminActiveOrgId={orgCtx.showOrgSwitcher ? orgCtx.activeOrgId : undefined}
+      orgSwitcherOptions={hasFacilitySwitcher ? facilityOrgOptions : undefined}
+      activeOrgId={hasFacilitySwitcher ? orgCtx.activeOrgId : undefined}
+      showOrgSwitcher={hasFacilitySwitcher}
+      canCreateFacility={orgCtx.canCreateFacility}
+      isFounder={orgCtx.isFounder}
     >
       {children}
     </DashboardShell>

@@ -38,7 +38,7 @@ export async function POST() {
   }
 
   const orgCtx = await loadActiveOrgContext(profile);
-  const orgId = orgCtx.activeOrgId ?? profile.org_id;
+  const orgId = orgCtx.billingRootOrgId ?? orgCtx.activeOrgId ?? profile.org_id;
   if (!orgId) {
     return NextResponse.json({ error: "Organization required" }, { status: 403 });
   }

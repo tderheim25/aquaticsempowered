@@ -5,6 +5,7 @@ import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import PoolOutlinedIcon from "@mui/icons-material/PoolOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
@@ -18,6 +19,7 @@ export type AeConsoleSectionKey =
   | "organizations"
   | "permissions"
   | "billing"
+  | "pool_catalog"
   | "support"
   | "support_providers"
   | "vendors"
@@ -73,6 +75,12 @@ export const AE_CONSOLE_NAV_GROUPS: AeConsoleNavGroup[] = [
         label: "Billing",
         description: "Plans and subscriptions",
         icon: PaymentsOutlinedIcon,
+      },
+      {
+        key: "pool_catalog",
+        label: "Pool catalog",
+        description: "Bodies of water and billable pool fees",
+        icon: PoolOutlinedIcon,
       },
       {
         key: "support",

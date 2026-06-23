@@ -2,19 +2,28 @@
 
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
+import LocalOfferRoundedIcon from "@mui/icons-material/LocalOfferRounded";
 import { Box, Button, Chip, Container, Stack, Typography } from "@mui/material";
 import { alpha, keyframes } from "@mui/material/styles";
 import Link from "next/link";
 
-import { ESSENTIAL_MONTHLY_USD, PRO_MONTHLY_USD } from "@/lib/marketing/publicPricing";
+import {
+  FOUNDER_DISCOUNT_BADGE,
+  FOUNDER_DISCOUNT_TERM,
+  FOUNDER_FACILITY_LIMIT,
+} from "@/lib/founders/founderProgram";
+import { applyPromoDiscount, promoAppliesToTier, type SitePromoConfig } from "@/lib/marketing/promo";
+import { ESSENTIAL_MONTHLY_USD, formatUsd, PRO_MONTHLY_USD } from "@/lib/marketing/publicPricing";
 
 const fadeUp = keyframes`
   from { opacity: 0; transform: translate3d(0, 16px, 0); }
   to   { opacity: 1; transform: translate3d(0, 0, 0); }
 `;
 
-const tiers: {
+type TeaserTier = {
+  tierId?: string;
   name: string;
+  listMonthlyUsd?: number;
   price: string;
   unit?: string;
   blurb: string;
@@ -22,7 +31,9 @@ const tiers: {
   cta: string;
   href: string;
   featured?: boolean;
-}[] = [
+};
+
+const tiers: TeaserTier[] = [
   {
     name: "Community",
     price: "$0",
@@ -32,16 +43,20 @@ const tiers: {
     href: "/community",
   },
   {
+    tierId: "essential",
     name: "Essential",
+    listMonthlyUsd: ESSENTIAL_MONTHLY_USD,
     price: `$${ESSENTIAL_MONTHLY_USD}`,
     unit: "/mo",
     blurb: "Run daily ops with chemistry, maintenance, and audit-ready logs.",
-    highlights: ["Daily chemistry logs", "Maintenance templates", "Support portal", "Up to 2 pools"],
-    cta: "Start with Essential",
-    href: "/pricing",
+    highlights: ["Daily chemistry logs", "Maintenance templates", "Support portal", "1 pool included"],
+    cta: "Lock in founder rate",
+    href: "/founders",
   },
   {
+    tierId: "professional",
     name: "Professional",
+    listMonthlyUsd: PRO_MONTHLY_USD,
     price: `$${PRO_MONTHLY_USD}`,
     unit: "/mo",
     blurb: "Everything in Essential plus vendor & procurement intelligence.",
@@ -52,8 +67,8 @@ const tiers: {
       "Priority vendor matching",
       "Unlimited pools",
     ],
-    cta: "Start with Professional",
-    href: "/pricing",
+    cta: "Lock in founder rate",
+    href: "/founders",
     featured: true,
   },
   {
@@ -63,15 +78,40 @@ const tiers: {
     blurb: "Multi-facility command center with real-time monitoring & advisory.",
     highlights: ["Real-time sensor monitoring", "Dedicated advisor", "Capital planning", "SSO + roles"],
     cta: "Talk to sales",
-    href: "/pricing",
+    href: "/founders",
   },
 ];
 
-export function PricingTeaser() {
+function founderPriceForTier(tier: TeaserTier, sitePromo: SitePromoConfig): {
+  showPromo: boolean;
+  displayPrice: string;
+  listPrice: string | null;
+} {
+  const showPromo =
+    tier.tierId != null &&
+    promoAppliesToTier(tier.tierId, sitePromo) &&
+    typeof tier.listMonthlyUsd === "number" &&
+    tier.listMonthlyUsd > 0;
+
+  if (!showPromo) {
+    return { showPromo: false, displayPrice: tier.price, listPrice: null };
+  }
+
+  const founderUsd = applyPromoDiscount(tier.listMonthlyUsd!, sitePromo);
+  return {
+    showPromo: true,
+    displayPrice: `$${formatUsd(founderUsd)}`,
+    listPrice: `$${formatUsd(tier.listMonthlyUsd!)}`,
+  };
+}
+
+export function PricingTeaser({ sitePromo }: { sitePromo: SitePromoConfig }) {
+  const showFounderOffer = sitePromo.active;
+
   return (
     <Box component="section" sx={{ py: { xs: 8, md: 12 }, bgcolor: "background.paper" }}>
       <Container maxWidth="lg">
-        <Stack spacing={2} sx={{ textAlign: "center", maxWidth: 720, mx: "auto", mb: { xs: 5, md: 7 } }}>
+        <Stack spacing={2} sx={{ textAlign: "center", maxWidth: 720, mx: "auto", mb: { xs: 4, md: 5 } }}>
           <Typography variant="overline" sx={{ color: "secondary.main", fontWeight: 700, letterSpacing: "0.18em" }}>
             Membership tiers
           </Typography>
@@ -79,9 +119,57 @@ export function PricingTeaser() {
             Simple, honest pricing for every facility
           </Typography>
           <Typography variant="body1" sx={{ color: "text.secondary", fontSize: "1.1rem" }}>
-            Start free, upgrade when you&apos;re ready. Founder facilities lock in preferred pricing for life.
+            Start free, upgrade when you&apos;re ready.{" "}
+            {showFounderOffer
+              ? `Founders lock in ${FOUNDER_DISCOUNT_BADGE} on Essential or Professional.`
+              : "Founder facilities lock in preferred pricing for 3 years."}
           </Typography>
         </Stack>
+
+        {showFounderOffer ? (
+          <Box
+            sx={{
+              mb: { xs: 4, md: 5 },
+              p: { xs: 2.5, md: 3 },
+              borderRadius: 3,
+              border: "1px solid",
+              borderColor: (theme) => alpha(theme.palette.secondary.main, 0.35),
+              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.06),
+            }}
+          >
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={2}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+              justifyContent="space-between"
+            >
+              <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                <LocalOfferRoundedIcon sx={{ color: "secondary.main", mt: 0.25 }} />
+                <Box sx={{ textAlign: "left" }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+                    {sitePromo.headline}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {sitePromo.description}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                    Limited to the first {FOUNDER_FACILITY_LIMIT} founder facilities nationwide · {FOUNDER_DISCOUNT_TERM}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Button
+                component={Link}
+                href="/founders"
+                variant="contained"
+                color="secondary"
+                endIcon={<ArrowForwardRoundedIcon />}
+                sx={{ flexShrink: 0, fontWeight: 700, px: 2.5 }}
+              >
+                Join the founder program
+              </Button>
+            </Stack>
+          </Box>
+        ) : null}
 
         <Box
           sx={{
@@ -93,6 +181,8 @@ export function PricingTeaser() {
         >
           {tiers.map((t, idx) => {
             const featured = !!t.featured;
+            const { showPromo, displayPrice, listPrice } = founderPriceForTier(t, sitePromo);
+
             return (
               <Box
                 key={t.name}
@@ -157,6 +247,33 @@ export function PricingTeaser() {
                   >
                     {t.name}
                   </Typography>
+
+                  {showPromo && listPrice ? (
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 600,
+                          textDecoration: "line-through",
+                          color: featured ? "rgba(255,255,255,0.7)" : "text.secondary",
+                        }}
+                      >
+                        {listPrice}
+                        {t.unit}
+                      </Typography>
+                      <Chip
+                        label={sitePromo.badge}
+                        size="small"
+                        sx={{
+                          height: 22,
+                          fontWeight: 800,
+                          bgcolor: featured ? "#FFD66B" : "secondary.main",
+                          color: featured ? "#1a1a1a" : "common.white",
+                        }}
+                      />
+                    </Stack>
+                  ) : null}
+
                   <Stack direction="row" alignItems="baseline" spacing={0.5}>
                     <Typography
                       sx={{
@@ -166,7 +283,7 @@ export function PricingTeaser() {
                         lineHeight: 1,
                       }}
                     >
-                      {t.price}
+                      {displayPrice}
                     </Typography>
                     {t.unit ? (
                       <Typography
@@ -180,6 +297,19 @@ export function PricingTeaser() {
                       </Typography>
                     ) : null}
                   </Stack>
+
+                  {showPromo ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: featured ? "rgba(255,255,255,0.85)" : "secondary.dark",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Founder rate · {FOUNDER_DISCOUNT_TERM}
+                    </Typography>
+                  ) : null}
+
                   <Typography
                     variant="body2"
                     sx={{
@@ -253,6 +383,7 @@ export function PricingTeaser() {
           sx={{ color: "text.secondary", mt: { xs: 4, md: 5 } }}
         >
           All plans include unlimited team members, secure logs, and access to the founder community.
+          {showFounderOffer ? " Pool add-ons remain $29/mo each and are not discounted." : null}
         </Typography>
       </Container>
     </Box>

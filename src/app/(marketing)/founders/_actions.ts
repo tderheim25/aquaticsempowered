@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "crypto";
+
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendFounderDemoRequest, sendFounderWelcome } from "@/lib/resend";
@@ -10,7 +12,15 @@ import {
   type FounderOnboardingPayload,
 } from "@/lib/validations/founderOnboarding";
 import { founderSchema as legacyFounderSchema } from "@/lib/validations/founder";
+import {
+  ownerAppRoleSlugForPlan,
+  resolveAppRoleIdBySlug,
+  syncOwnerAppRoleForOrg,
+} from "@/lib/auth/planOwnerRoles";
 import { getFounderWizardBlockReason, founderProgramBlockedError } from "@/lib/founders/founderProgramGate";
+import { isStripeConfigured } from "@/lib/stripe/server";
+import { createCheckoutSession } from "@/lib/stripe/createCheckoutSession";
+import type { BillingCadence } from "@/lib/stripe/prices";
 import type { Json, PlanCode } from "@/types/database";
 
 export type SubmitFounderResult =
@@ -26,6 +36,9 @@ export type FounderWizardResult =
       userId: string;
       requiresEmailConfirm: boolean;
       planCode: PlanCode;
+      billingCadence: BillingCadence;
+      checkoutClientSecret?: string;
+      checkoutError?: string;
     }
   | { ok: false; error: string; field?: string };
 
@@ -281,11 +294,15 @@ async function submitAccountPath(
       };
     }
 
+    const orgId = randomUUID();
+
     const orgInsert = {
+      id: orgId,
       name: organization.facility_name,
       tier: organization.facility_tier,
       plan_code: planCode,
       founder: true,
+      billing_org_id: orgId,
       website_url: organization.website_url?.trim() || null,
       phone: organization.phone?.trim() || founder.phone?.trim() || null,
       address: address as unknown as Json,
@@ -302,6 +319,10 @@ async function submitAccountPath(
       return { ok: false, error: orgErr?.message || "Could not create organization." };
     }
 
+    const ownerSlug = ownerAppRoleSlugForPlan(planCode);
+    const ownerAppRoleId = await resolveAppRoleIdBySlug(ownerSlug);
+    const founderEnrolledAt = new Date().toISOString();
+
     const { error: userUpdateErr } = await admin
       .from("users")
       .upsert(
@@ -311,12 +332,41 @@ async function submitAccountPath(
           full_name: founder.contact_name,
           org_id: org.id,
           role: "org_admin",
+          app_role_id: ownerAppRoleId,
+          is_founder: true,
+          founder_enrolled_at: founderEnrolledAt,
         },
         { onConflict: "id" },
       );
 
     if (userUpdateErr) {
       captureException(userUpdateErr, { step: "founder_user_upsert" });
+    } else {
+      await admin
+        .from("organizations")
+        .update({ created_by_user_id: userId })
+        .eq("id", org.id);
+
+      const { error: membershipErr } = await admin.from("organization_memberships").insert({
+        user_id: userId,
+        org_id: org.id,
+        role: "org_admin",
+        is_owner: true,
+      });
+      if (membershipErr) {
+        captureException(membershipErr, { step: "founder_membership_insert" });
+      }
+
+      const { error: prefErr } = await admin.from("user_preferences").upsert({
+        user_id: userId,
+        active_org_id: org.id,
+        updated_at: new Date().toISOString(),
+      });
+      if (prefErr) {
+        captureException(prefErr, { step: "founder_user_preferences_upsert" });
+      }
+
+      await syncOwnerAppRoleForOrg(org.id);
     }
 
     if (!requiresEmailConfirm) {
@@ -363,6 +413,27 @@ async function submitAccountPath(
       }
     }
 
+    const billingCadence: BillingCadence = choice.billing_cadence ?? "monthly";
+    let checkoutClientSecret: string | undefined;
+    let checkoutError: string | undefined;
+
+    if (!requiresEmailConfirm && isStripeConfigured()) {
+      const checkout = await createCheckoutSession({
+        orgId: org.id,
+        email: userEmail,
+        planCode,
+        cadence: billingCadence,
+        flow: "founder",
+        promoCode: choice.promo_code?.trim() || undefined,
+        embedded: true,
+      });
+      if (checkout.ok && checkout.embedded) {
+        checkoutClientSecret = checkout.clientSecret;
+      } else if (!checkout.ok) {
+        checkoutError = checkout.error;
+      }
+    }
+
     return {
       ok: true,
       mode: "account",
@@ -370,6 +441,9 @@ async function submitAccountPath(
       userId,
       requiresEmailConfirm,
       planCode,
+      billingCadence,
+      checkoutClientSecret,
+      checkoutError,
     };
   } catch (e) {
     captureException(e, { step: "submitAccountPath" });

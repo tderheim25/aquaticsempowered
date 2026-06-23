@@ -8,6 +8,7 @@ import { Box, Container, Stack, Typography } from "@mui/material";
 import { keyframes } from "@mui/material/styles";
 import Link from "next/link";
 
+import { FOUNDER_DISCOUNT_TERM } from "@/lib/founders/founderProgram";
 import { TrackedButton } from "@/components/marketing/TrackedButton";
 
 const fadeUp = keyframes`
@@ -24,7 +25,7 @@ const perks: { icon: React.ReactNode; title: string; body: string }[] = [
   {
     icon: <LockRoundedIcon />,
     title: "Locked pricing",
-    body: "Founder pricing for life, even as plans change.",
+    body: `Founder pricing ${FOUNDER_DISCOUNT_TERM}, even as plans change.`,
   },
   {
     icon: <SupportAgentRoundedIcon />,
@@ -137,7 +138,7 @@ export function FounderCTA() {
               animation: `${fadeUp} 700ms ease-out 240ms forwards`,
             }}
           >
-            Founder facilities get preferred pricing for life, hands-on onboarding, and a direct line to our
+            Founder facilities get preferred pricing {FOUNDER_DISCOUNT_TERM}, hands-on onboarding, and a direct line to our
             team. We build with you — not at you.
           </Typography>
 

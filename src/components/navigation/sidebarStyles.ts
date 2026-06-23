@@ -20,7 +20,38 @@ export const sidebarDrawerPaperSx = {
       duration: t.transitions.duration.enteringScreen,
     }),
   overflowX: "hidden",
+  overflowY: "hidden",
+  display: "flex",
+  flexDirection: "column",
+  height: "100%",
 };
+
+/** Single scroll region inside the sidebar — thin, branded thumb. */
+export const sidebarNavScrollSx = {
+  flex: 1,
+  minHeight: 0,
+  overflowY: "auto",
+  overflowX: "hidden",
+  py: 1,
+  scrollbarWidth: "thin",
+  scrollbarColor: "rgba(0, 59, 111, 0.28) transparent",
+  WebkitOverflowScrolling: "touch",
+  "&::-webkit-scrollbar": {
+    width: 6,
+  },
+  "&::-webkit-scrollbar-track": {
+    background: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    borderRadius: 999,
+    backgroundColor: "rgba(0, 59, 111, 0.22)",
+    border: "2px solid transparent",
+    backgroundClip: "padding-box",
+    "&:hover": {
+      backgroundColor: "rgba(0, 59, 111, 0.38)",
+    },
+  },
+} as const;
 
 export const sidebarNavItemSx = {
   mx: 1,

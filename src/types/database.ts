@@ -63,6 +63,15 @@ export type ProcurementRequestCategory = "chemicals" | "equipment" | "parts" | "
 
 export type PoolType = "chlorine" | "saltwater" | "bromine";
 
+export type WaterBodyType =
+  | "swimming_pool"
+  | "splash_pad"
+  | "aquatic_center"
+  | "therapy_pool"
+  | "competition_pool"
+  | "water_park_feature"
+  | "other";
+
 export type PoolStatus = "active" | "seasonal" | "inactive";
 
 export type EquipmentKind = "pump" | "heater" | "filter" | "timer" | "other";
@@ -140,6 +149,7 @@ export type Database = {
           org_id: string;
           name: string;
           pool_type: PoolType;
+          water_body_type: WaterBodyType | null;
           volume_gallons: number | null;
           location_label: string | null;
           notes: string | null;
@@ -154,6 +164,7 @@ export type Database = {
           org_id: string;
           name: string;
           pool_type?: PoolType;
+          water_body_type?: WaterBodyType | null;
           volume_gallons?: number | null;
           location_label?: string | null;
           notes?: string | null;
@@ -168,6 +179,7 @@ export type Database = {
           org_id?: string;
           name?: string;
           pool_type?: PoolType;
+          water_body_type?: WaterBodyType | null;
           volume_gallons?: number | null;
           location_label?: string | null;
           notes?: string | null;
@@ -387,6 +399,8 @@ export type Database = {
           first_name: string | null;
           last_name: string | null;
           avatar_path: string | null;
+          is_founder: boolean;
+          founder_enrolled_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -401,6 +415,8 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           avatar_path?: string | null;
+          is_founder?: boolean;
+          founder_enrolled_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -415,9 +431,44 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           avatar_path?: string | null;
+          is_founder?: boolean;
+          founder_enrolled_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
+      };
+      user_preferences: {
+        Row: {
+          user_id: string;
+          active_org_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          active_org_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          active_org_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_preferences_active_org_id_fkey";
+            columns: ["active_org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_preferences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       support_providers: {
         Row: {
@@ -525,6 +576,8 @@ export type Database = {
           founder: boolean;
           website_url: string | null;
           phone: string | null;
+          billing_org_id: string;
+          created_by_user_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -536,6 +589,8 @@ export type Database = {
           founder?: boolean;
           website_url?: string | null;
           phone?: string | null;
+          billing_org_id?: string;
+          created_by_user_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -547,9 +602,68 @@ export type Database = {
           founder?: boolean;
           website_url?: string | null;
           phone?: string | null;
+          billing_org_id?: string;
+          created_by_user_id?: string | null;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "organizations_billing_org_id_fkey";
+            columns: ["billing_org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "organizations_created_by_user_id_fkey";
+            columns: ["created_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      organization_memberships: {
+        Row: {
+          id: string;
+          user_id: string;
+          org_id: string;
+          role: UserRole;
+          is_owner: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          org_id: string;
+          role?: UserRole;
+          is_owner?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          org_id?: string;
+          role?: UserRole;
+          is_owner?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "organization_memberships_org_id_fkey";
+            columns: ["org_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "organization_memberships_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       org_invitations: {
         Row: {
@@ -623,6 +737,51 @@ export type Database = {
           description?: string | null;
           updated_at?: string;
           updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      founder_promo_codes: {
+        Row: {
+          id: string;
+          code: string;
+          stripe_promotion_code_id: string;
+          stripe_coupon_id: string;
+          percent_off: number;
+          active: boolean;
+          max_redemptions: number | null;
+          times_redeemed: number;
+          expires_at: string | null;
+          note: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          stripe_promotion_code_id: string;
+          stripe_coupon_id: string;
+          percent_off?: number;
+          active?: boolean;
+          max_redemptions?: number | null;
+          times_redeemed?: number;
+          expires_at?: string | null;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          stripe_promotion_code_id?: string;
+          stripe_coupon_id?: string;
+          percent_off?: number;
+          active?: boolean;
+          max_redemptions?: number | null;
+          times_redeemed?: number;
+          expires_at?: string | null;
+          note?: string | null;
+          created_by?: string | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -762,6 +921,8 @@ export type Database = {
           status: string;
           current_period_start: string | null;
           current_period_end: string | null;
+          billing_cadence: string | null;
+          pool_license_quantity: number;
           created_at: string;
         };
         Insert: {
@@ -773,6 +934,8 @@ export type Database = {
           status?: string;
           current_period_start?: string | null;
           current_period_end?: string | null;
+          billing_cadence?: string | null;
+          pool_license_quantity?: number;
           created_at?: string;
         };
         Update: {
@@ -784,6 +947,8 @@ export type Database = {
           status?: string;
           current_period_start?: string | null;
           current_period_end?: string | null;
+          billing_cadence?: string | null;
+          pool_license_quantity?: number;
           created_at?: string;
         };
         Relationships: [];

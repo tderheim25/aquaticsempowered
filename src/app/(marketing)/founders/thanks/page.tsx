@@ -1,12 +1,17 @@
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import EventAvailableRoundedIcon from "@mui/icons-material/EventAvailableRounded";
-import PaymentRoundedIcon from "@mui/icons-material/PaymentRounded";
 import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
 import { Avatar, Box, Button, Card, CardContent, Container, Stack, Typography } from "@mui/material";
 import Link from "next/link";
 
+import { CheckoutSuccessCelebration } from "@/components/billing/CheckoutSuccessCelebration";
+import { FOUNDER_DISCOUNT_TERM } from "@/lib/founders/founderProgram";
+import { getUsersRowWithAdminFallback } from "@/lib/auth/rbac";
+import { loadActiveOrgContext } from "@/lib/auth/activeOrg";
+import { createClient } from "@/lib/supabase/server";
+
 import { parsePlanCode } from "@/lib/stripe/prices";
-import { syncCheckoutSessionCompleted } from "@/lib/stripe/syncSubscription";
+import { syncCheckoutSessionCompleted, syncOrgBillingFromStripe } from "@/lib/stripe/syncSubscription";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
 
 export const metadata = {
@@ -39,19 +44,36 @@ export default async function FoundersThanksPage({
   const requiresEmailConfirm = confirm === "1";
 
   let checkoutPlanLabel: string | null = planLabel;
-  if (paidCheckout && sessionId && isStripeConfigured()) {
-    try {
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session.payment_status === "paid") {
-        await syncCheckoutSessionCompleted(session);
+  if (paidCheckout && isStripeConfigured()) {
+    if (sessionId) {
+      try {
+        const stripe = getStripe();
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.payment_status === "paid") {
+          await syncCheckoutSessionCompleted(session);
+        }
+        const planCode = parsePlanCode(session.metadata?.plan_code ?? null);
+        if (planCode) {
+          checkoutPlanLabel = PLAN_LABELS[planCode] ?? planCode;
+        }
+      } catch {
+        // Webhook or org sync may still update billing.
       }
-      const planCode = parsePlanCode(session.metadata?.plan_code ?? null);
-      if (planCode) {
-        checkoutPlanLabel = PLAN_LABELS[planCode] ?? planCode;
+    } else {
+      try {
+        const supabase = await createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const profile = user ? await getUsersRowWithAdminFallback(user.id) : null;
+        const orgCtx = profile ? await loadActiveOrgContext(profile) : null;
+        const billingRootId = orgCtx?.billingRootOrgId ?? orgCtx?.activeOrgId;
+        if (billingRootId) {
+          await syncOrgBillingFromStripe(billingRootId);
+        }
+      } catch {
+        // Modal sync or webhook may still update billing.
       }
-    } catch {
-      // Webhook may still sync; generic copy is fine if retrieve/sync fails.
     }
   }
 
@@ -68,22 +90,22 @@ export default async function FoundersThanksPage({
         <Card sx={{ borderRadius: 4, boxShadow: "0 24px 60px rgba(15,23,42,0.08)" }}>
           <CardContent sx={{ p: { xs: 4, md: 6 } }}>
             <Stack spacing={2.5} alignItems="center">
-              <Avatar
-                sx={{
-                  width: 72,
-                  height: 72,
-                  background: "linear-gradient(135deg, #003B6F 0%, #2EA5A0 100%)",
-                  boxShadow: "0 18px 36px rgba(0,59,111,0.25)",
-                }}
-              >
-                {mode === "demo" ? (
-                  <EventAvailableRoundedIcon sx={{ fontSize: 36 }} />
-                ) : mode === "paid" ? (
-                  <PaymentRoundedIcon sx={{ fontSize: 36 }} />
-                ) : (
-                  <RocketLaunchRoundedIcon sx={{ fontSize: 36 }} />
-                )}
-              </Avatar>
+              {mode !== "paid" ? (
+                <Avatar
+                  sx={{
+                    width: 72,
+                    height: 72,
+                    background: "linear-gradient(135deg, #003B6F 0%, #2EA5A0 100%)",
+                    boxShadow: "0 18px 36px rgba(0,59,111,0.25)",
+                  }}
+                >
+                  {mode === "demo" ? (
+                    <EventAvailableRoundedIcon sx={{ fontSize: 36 }} />
+                  ) : (
+                    <RocketLaunchRoundedIcon sx={{ fontSize: 36 }} />
+                  )}
+                </Avatar>
+              ) : null}
 
               {mode === "demo" ? (
                 <>
@@ -96,36 +118,30 @@ export default async function FoundersThanksPage({
                   </Typography>
                 </>
               ) : mode === "paid" ? (
-                <>
-                  <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                    Founder payment confirmed
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {checkoutPlanLabel ? (
-                      <>
-                        Your founder membership on the <strong>{checkoutPlanLabel}</strong> plan is
-                        active. We&apos;re syncing your workspace — you can open the dashboard now.
-                      </>
-                    ) : (
-                      "Your founder membership payment succeeded. We're syncing your workspace now."
-                    )}
-                  </Typography>
-                </>
+                <CheckoutSuccessCelebration
+                  planLabel={checkoutPlanLabel}
+                  headline="Welcome to the founder program"
+                  subline={
+                    checkoutPlanLabel
+                      ? `Your ${checkoutPlanLabel} founder membership is active with your locked-in 50% subscription rate ${FOUNDER_DISCOUNT_TERM}. We're syncing your workspace — open the dashboard when you're ready.`
+                      : `Your founder membership payment succeeded with your locked-in 50% rate ${FOUNDER_DISCOUNT_TERM}. We're syncing your workspace now.`
+                  }
+                />
               ) : (
                 <>
                   <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                    Your founder account is live
+                    You&apos;re in — founder account created
                   </Typography>
                   <Typography variant="body1" color="text.secondary">
                     {planLabel ? (
                       <>
                         Your facility is set up on the <strong>{planLabel}</strong> founder plan.
                         {requiresEmailConfirm
-                          ? " Confirm your email, then sign in to complete annual payment on Stripe Checkout."
-                          : " Sign in and return to the founder flow if you still need to complete payment."}
+                          ? ` Confirm your email, then sign in to complete checkout and lock in your 50% founder rate ${FOUNDER_DISCOUNT_TERM}.`
+                          : ` Sign in and complete checkout to lock in your 50% founder rate ${FOUNDER_DISCOUNT_TERM}.`}
                       </>
                     ) : (
-                      "Your facility workspace is ready. Sign in to complete founder checkout when you're ready."
+                      "Your facility workspace is ready. Sign in to complete founder checkout and lock in 50% off your subscription."
                     )}
                   </Typography>
                   {requiresEmailConfirm && (

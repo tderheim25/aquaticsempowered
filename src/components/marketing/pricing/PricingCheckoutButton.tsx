@@ -2,8 +2,11 @@
 
 import { Button, type ButtonProps, CircularProgress } from "@mui/material";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { EmbeddedCheckoutModal } from "@/components/billing/EmbeddedCheckoutModal";
+import { getPlanDisplayName } from "@/lib/billing/planCatalog";
 import { captureEvent } from "@/lib/posthog";
 import type { PlanCode } from "@/types/database";
 
@@ -27,7 +30,10 @@ export function PricingCheckoutButton({
   children,
   ...buttonProps
 }: Props) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   if (!planCode) {
     return (
@@ -36,6 +42,8 @@ export function PricingCheckoutButton({
       </Button>
     );
   }
+
+  const planLabel = getPlanDisplayName(planCode);
 
   async function handleCheckout() {
     captureEvent(eventName, { location: "pricing_tier_card", cadence, tier: tierId });
@@ -49,6 +57,7 @@ export function PricingCheckoutButton({
           planCode,
           cadence,
           flow: "self_serve",
+          embedded: true,
         }),
       });
 
@@ -57,20 +66,26 @@ export function PricingCheckoutButton({
         return;
       }
 
-      const data = (await res.json()) as { url?: string; error?: string };
+      const data = (await res.json()) as { url?: string; clientSecret?: string; error?: string };
 
       if (res.status === 503) {
         window.location.href = ctaHref;
         return;
       }
 
-      if (!res.ok || !data.url) {
-        console.error("[PricingCheckoutButton]", data.error ?? "Checkout failed");
-        window.location.href = ctaHref;
+      if (res.ok && data.clientSecret) {
+        setClientSecret(data.clientSecret);
+        setCheckoutOpen(true);
         return;
       }
 
-      window.location.href = data.url;
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      console.error("[PricingCheckoutButton]", data.error ?? "Checkout failed");
+      window.location.href = ctaHref;
     } catch (error) {
       console.error("[PricingCheckoutButton]", error);
       window.location.href = ctaHref;
@@ -80,8 +95,26 @@ export function PricingCheckoutButton({
   }
 
   return (
-    <Button {...buttonProps} onClick={handleCheckout} disabled={loading || buttonProps.disabled}>
-      {loading ? <CircularProgress size={22} color="inherit" /> : children}
-    </Button>
+    <>
+      <Button {...buttonProps} onClick={handleCheckout} disabled={loading || buttonProps.disabled}>
+        {loading ? <CircularProgress size={22} color="inherit" /> : children}
+      </Button>
+
+      <EmbeddedCheckoutModal
+        open={checkoutOpen && Boolean(clientSecret)}
+        onClose={() => {
+          setCheckoutOpen(false);
+          setClientSecret(null);
+        }}
+        clientSecret={clientSecret}
+        title={planLabel ? `Subscribe to ${planLabel}` : "Complete your subscription"}
+        planLabel={planLabel}
+        onComplete={() => {
+          setCheckoutOpen(false);
+          setClientSecret(null);
+          router.push(`/app/billing/success?plan=${planCode}`);
+        }}
+      />
+    </>
   );
 }

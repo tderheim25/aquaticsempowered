@@ -74,9 +74,9 @@ export type ChemicalLogListRow = {
   pools: { name: string } | { name: string }[] | null;
 };
 
-function assertOrgAccess(profile: UsersRow, orgId: string) {
-  if (profile.role !== "super_admin" && profile.org_id !== orgId) return false;
-  return canViewPoolOrg(profile, orgId);
+async function assertOrgAccess(profile: UsersRow, orgId: string) {
+  if (profile.role === "super_admin") return true;
+  return await canViewPoolOrg(profile, orgId);
 }
 
 /** Pools for chemical log forms and filters (RLS-safe read). */
@@ -84,7 +84,7 @@ export async function fetchPoolOptionsForOrg(
   orgId: string,
   profile: UsersRow
 ): Promise<PoolChemicalOption[]> {
-  if (!assertOrgAccess(profile, orgId)) return [];
+  if (!(await assertOrgAccess(profile, orgId))) return [];
 
   const supabase = await createClient();
   const { data: pools } = await supabase
@@ -110,7 +110,7 @@ export async function fetchPoolCalculatorOptionsForOrg(
   orgId: string,
   profile: UsersRow
 ): Promise<PoolCalculatorOption[]> {
-  if (!assertOrgAccess(profile, orgId)) return [];
+  if (!(await assertOrgAccess(profile, orgId))) return [];
 
   const columns = "id, name, volume_gallons, target_ranges";
   const supabase = await createClient();
@@ -128,7 +128,7 @@ export async function fetchChemicalLogsForOrg(
   profile: UsersRow,
   options?: { poolId?: string; date?: string; limit?: number }
 ): Promise<{ logs: ChemicalLogListRow[]; error: string | null }> {
-  if (!assertOrgAccess(profile, orgId)) {
+  if (!(await assertOrgAccess(profile, orgId))) {
     return { logs: [], error: null };
   }
 
@@ -170,7 +170,7 @@ export async function fetchChemicalTrendLogsForOrg(
   profile: UsersRow,
   options: { poolId?: string; since: string; limit?: number }
 ): Promise<{ points: ChemicalTrendPoint[]; error: string | null }> {
-  if (!assertOrgAccess(profile, orgId)) {
+  if (!(await assertOrgAccess(profile, orgId))) {
     return { points: [], error: null };
   }
 
@@ -214,7 +214,7 @@ export async function fetchLatestChemicalReadingForPool(
   poolId: string,
   profile: UsersRow
 ): Promise<LatestChemicalReading | null> {
-  if (!assertOrgAccess(profile, orgId)) return null;
+  if (!(await assertOrgAccess(profile, orgId))) return null;
 
   const select =
     "ph, free_chlorine, total_chlorine, alkalinity, calcium_hardness, cyanuric_acid_ppm, langelier_saturation_index";
@@ -249,7 +249,7 @@ export async function fetchChemicalLogsForExport(
   profile: UsersRow,
   filters: { poolId?: string; poolLabel?: string; from?: string; to?: string; limit?: number }
 ): Promise<{ rows: ChemicalLogExportRow[]; error: string | null }> {
-  if (!assertOrgAccess(profile, orgId)) {
+  if (!(await assertOrgAccess(profile, orgId))) {
     return { rows: [], error: null };
   }
 

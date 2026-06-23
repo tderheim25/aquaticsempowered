@@ -1,9 +1,13 @@
 import type { User } from "@supabase/supabase-js";
 
 import { getSessionUser, getUsersRowWithAdminFallback, type UsersRow } from "@/lib/auth/rbac";
+import {
+  ownerAppRoleSlugForPlan,
+  resolveAppRoleIdBySlug,
+} from "@/lib/auth/planOwnerRoles";
 import { captureException } from "@/lib/sentry";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { UserRole } from "@/types/database";
+import type { PlanCode, UserRole } from "@/types/database";
 
 function fullNameFromAuthUser(user: User): string | null {
   const meta = user.user_metadata ?? {};
@@ -91,7 +95,7 @@ async function resolveOrgLinkForEmail(email: string): Promise<OrgLink | null> {
 
   const { data: lead } = await admin
     .from("leads")
-    .select("org_id, request_type")
+    .select("org_id, request_type, requested_plan_code")
     .ilike("email", normalized)
     .not("org_id", "is", null)
     .eq("request_type", "founder_account")
@@ -100,7 +104,9 @@ async function resolveOrgLinkForEmail(email: string): Promise<OrgLink | null> {
     .maybeSingle();
 
   if (lead?.org_id) {
-    const app_role_id = await resolveAppRoleId("org_admin");
+    const planCode = (lead.requested_plan_code as PlanCode | null) ?? "essential";
+    const ownerSlug = ownerAppRoleSlugForPlan(planCode);
+    const app_role_id = await resolveAppRoleIdBySlug(ownerSlug);
     return { org_id: lead.org_id, role: "org_admin", app_role_id };
   }
 
@@ -132,8 +138,15 @@ export async function provisionUserProfileFromSession(): Promise<UsersRow | null
   const techLink = await resolveTechnicianLinkForEmail(email);
   const orgLink = techLink ? null : await resolveOrgLinkForEmail(email);
   const role: UserRole = techLink ? "support_technician" : orgLink?.role ?? "staff";
-  const app_role_id =
-    techLink?.app_role_id ?? orgLink?.app_role_id ?? (await resolveAppRoleId(role));
+
+  let app_role_id = techLink?.app_role_id ?? orgLink?.app_role_id ?? null;
+  if (!app_role_id) {
+    if (role === "staff" && !orgLink?.org_id && !techLink) {
+      app_role_id = await resolveAppRoleIdBySlug("default_user");
+    } else {
+      app_role_id = await resolveAppRoleId(role);
+    }
+  }
 
   const row = {
     id: user.id,

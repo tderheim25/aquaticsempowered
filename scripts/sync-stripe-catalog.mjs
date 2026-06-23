@@ -27,6 +27,8 @@ const stripe = new Stripe(secret, { typescript: false });
 
 /** @type {Record<string, string>} */
 const envUpdates = {};
+/** @type {string[]} */
+const basePlanProductIds = [];
 
 function log(msg) {
   console.log(apply ? msg : `[dry-run] ${msg}`);
@@ -130,6 +132,10 @@ async function ensureProduct(spec) {
   for (const priceSpec of spec.prices) {
     await ensurePrice(product, priceSpec);
   }
+
+  if (spec.slug === "essential" || spec.slug === "pro") {
+    basePlanProductIds.push(product.id);
+  }
 }
 
 async function ensureFounderAliasProduct() {
@@ -168,7 +174,7 @@ async function ensureFounderAliasProduct() {
   }
 }
 
-async function ensurePromoCoupon() {
+async function ensurePromoCoupon(baseProductIds = []) {
   let coupon;
   try {
     coupon = await stripe.coupons.retrieve(PROMO_COUPON.id);
@@ -176,20 +182,56 @@ async function ensurePromoCoupon() {
     if (err?.code !== "resource_missing") throw err;
   }
 
+  const appliesTo =
+    baseProductIds.length > 0 ? { products: baseProductIds } : undefined;
+
+  const expectedDurationMonths =
+    PROMO_COUPON.duration === "repeating" ? PROMO_COUPON.durationInMonths : null;
+  const durationMonthsMatch =
+    PROMO_COUPON.duration !== "repeating" ||
+    coupon?.duration_in_months === expectedDurationMonths;
+
   if (
     coupon &&
     coupon.percent_off === PROMO_COUPON.percentOff &&
     coupon.duration === PROMO_COUPON.duration &&
+    durationMonthsMatch &&
     coupon.valid
   ) {
-    log(`coupon OK ${PROMO_COUPON.id} → ${coupon.id} (${coupon.percent_off}% off)`);
+    const existingProducts = coupon.applies_to?.products ?? [];
+    const sameScope =
+      !appliesTo ||
+      (existingProducts.length === baseProductIds.length &&
+        baseProductIds.every((id) => existingProducts.includes(id)));
+    if (sameScope) {
+      log(`coupon OK ${PROMO_COUPON.id} → ${coupon.id} (${coupon.percent_off}% off)`);
+      envUpdates[PROMO_COUPON.envKey] = coupon.id;
+      return;
+    }
+    log(
+      `coupon ${PROMO_COUPON.id} exists but applies_to differs — update manually or change coupon id in config`,
+    );
+    envUpdates[PROMO_COUPON.envKey] = coupon.id;
+    return;
+  }
+
+  if (coupon && coupon.valid && !durationMonthsMatch) {
+    log(
+      `coupon ${PROMO_COUPON.id} exists with different duration — archive the old coupon in Stripe or use a new id in config`,
+    );
     envUpdates[PROMO_COUPON.envKey] = coupon.id;
     return;
   }
 
   if (!apply) {
+    const durationLabel =
+      PROMO_COUPON.duration === "repeating"
+        ? `repeating ${PROMO_COUPON.durationInMonths} months`
+        : PROMO_COUPON.duration;
     log(
-      `would create coupon ${PROMO_COUPON.id} — ${PROMO_COUPON.percentOff}% off, duration ${PROMO_COUPON.duration}`,
+      `would create coupon ${PROMO_COUPON.id} — ${PROMO_COUPON.percentOff}% off, duration ${durationLabel}${
+        appliesTo ? `, applies_to ${baseProductIds.length} base product(s)` : ""
+      }`,
     );
     envUpdates[PROMO_COUPON.envKey] = PROMO_COUPON.id;
     return;
@@ -204,6 +246,10 @@ async function ensurePromoCoupon() {
     name: PROMO_COUPON.name,
     percent_off: PROMO_COUPON.percentOff,
     duration: PROMO_COUPON.duration,
+    ...(PROMO_COUPON.duration === "repeating"
+      ? { duration_in_months: PROMO_COUPON.durationInMonths }
+      : {}),
+    ...(appliesTo ? { applies_to: appliesTo } : {}),
     metadata: { ae_promo: "founder_launch" },
   });
 
@@ -219,7 +265,7 @@ async function main() {
   }
 
   await ensureFounderAliasProduct();
-  await ensurePromoCoupon();
+  await ensurePromoCoupon(basePlanProductIds);
 
   console.log("\n--- Paste into .env.local (if values changed) ---\n");
   for (const [key, value] of Object.entries(envUpdates)) {
