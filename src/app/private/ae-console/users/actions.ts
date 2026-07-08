@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { consoleSectionUrl, getSuperAdminPortalPath, requireSuperAdminConsole } from "@/lib/auth/superAdminPortal";
+import { sendPilotLoginEmailForUser } from "@/lib/pilot/sendPilotLoginEmail";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function updateUserRoleAction(formData: FormData) {
@@ -145,4 +146,25 @@ export async function deleteUserAction(formData: FormData) {
   revalidatePath(getSuperAdminPortalPath());
   revalidatePath("/app");
   redirect(consoleSectionUrl("users", { status: "deleted" }));
+}
+
+/** Reset password and email pilot-style login credentials to the user. */
+export async function sendPilotLoginEmailAction(formData: FormData) {
+  await requireSuperAdminConsole();
+
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!userId) {
+    redirect(consoleSectionUrl("users", { status: "invalid" }));
+  }
+
+  const result = await sendPilotLoginEmailForUser(userId);
+  if (!result.ok) {
+    if (result.code === "email_not_configured") {
+      redirect(consoleSectionUrl("users", { status: "pilot-email-not-configured" }));
+    }
+    redirect(consoleSectionUrl("users", { status: "pilot-email-failed" }));
+  }
+
+  revalidatePath(getSuperAdminPortalPath());
+  redirect(consoleSectionUrl("users", { status: "pilot-email-sent" }));
 }

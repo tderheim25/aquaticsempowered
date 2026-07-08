@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Alert from "@mui/material/Alert";
 
 import {
   changePasswordAction,
@@ -33,16 +34,24 @@ export function AccountSettingsPanel({
   displayName,
   avatarUrl,
   communityProfileHref,
+  mustChangePassword = false,
 }: {
   user: AccountUser;
   displayName: string;
   avatarUrl: string | null;
   communityProfileHref: string | null;
+  mustChangePassword?: boolean;
 }) {
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <Stack spacing={2.5}>
+      {mustChangePassword ? (
+        <Alert severity="warning">
+          You signed in with a temporary pilot password. Please set a new password below before
+          continuing.
+        </Alert>
+      ) : null}
       <Card variant="outlined">
         <CardContent>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2 }}>

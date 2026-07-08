@@ -4,6 +4,7 @@ import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FilterAltOutlinedIcon from "@mui/icons-material/FilterAltOutlined";
+import MailOutlineRoundedIcon from "@mui/icons-material/MailOutlineRounded";
 import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
 import {
   Box,
@@ -24,7 +25,7 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 
-import { deleteUserAction, updateUserDetailsAction } from "@/app/private/ae-console/users/actions";
+import { deleteUserAction, sendPilotLoginEmailAction, updateUserDetailsAction } from "@/app/private/ae-console/users/actions";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
 import { getRoleDisplayLabel, roleDisplayTone } from "@/lib/auth/roleLabels";
 import {
@@ -99,6 +100,7 @@ export function UsersConsoleSection({
   const [founderFilter, setFounderFilter] = useState<string>(FOUNDER_ALL);
   const [editing, setEditing] = useState<AdminUserRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminUserRow | null>(null);
+  const [confirmSendLogin, setConfirmSendLogin] = useState<AdminUserRow | null>(null);
   const orgNameById = useMemo(() => new Map(orgs.map((o) => [o.id, o.name])), [orgs]);
   const idToRole = useMemo(() => new Map(appRoles.map((r) => [r.id, r])), [appRoles]);
   const slugToRole = useMemo(() => new Map(appRoles.map((r) => [r.slug, r])), [appRoles]);
@@ -338,6 +340,11 @@ export function UsersConsoleSection({
                             <EditOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Send login email (resets password)">
+                          <IconButton size="small" onClick={() => setConfirmSendLogin(user)}>
+                            <MailOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Delete user">
                           <IconButton size="small" color="error" onClick={() => setConfirmDelete(user)}>
                             <DeleteOutlineRoundedIcon fontSize="small" />
@@ -362,6 +369,7 @@ export function UsersConsoleSection({
       />
 
       <DeleteUserDialog user={confirmDelete} onClose={() => setConfirmDelete(null)} />
+      <SendLoginEmailDialog user={confirmSendLogin} onClose={() => setConfirmSendLogin(null)} />
     </>
   );
 }
@@ -610,6 +618,50 @@ function DeleteUserDialog({
             <input type="hidden" name="userId" value={user.id} />
             <Button type="submit" color="error" variant="contained" startIcon={<DeleteOutlineRoundedIcon />}>
               Delete user
+            </Button>
+          </form>
+        ) : null}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function SendLoginEmailDialog({
+  user,
+  onClose,
+}: {
+  user: AdminUserRow | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={Boolean(user)} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle>Send login email?</DialogTitle>
+      <Divider />
+      {user ? (
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              This generates a <strong>new temporary password</strong> for{" "}
+              <strong>{user.full_name?.trim() || user.email}</strong> and emails pilot-style login
+              instructions to <strong>{user.email}</strong>.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Use this when welcome email was skipped during import, or when someone needs their
+              credentials resent. They will be prompted to change the password after signing in.
+            </Typography>
+          </Stack>
+        </DialogContent>
+      ) : null}
+      <Divider />
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        {user ? (
+          <form action={sendPilotLoginEmailAction} onSubmit={() => setTimeout(onClose, 0)}>
+            <input type="hidden" name="userId" value={user.id} />
+            <Button type="submit" variant="contained" startIcon={<MailOutlineRoundedIcon />}>
+              Send login email
             </Button>
           </form>
         ) : null}

@@ -79,11 +79,11 @@ export function TableDateTimeCell({ iso }: { iso: string }) {
   }
   return (
     <Stack spacing={0.15} sx={{ fontVariantNumeric: "tabular-nums" }}>
-      <Typography variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
+      <Typography component="div" variant="body2" sx={{ fontWeight: 500, color: "text.primary" }}>
         {date}
       </Typography>
       {time ? (
-        <Typography variant="caption" color="text.secondary">
+        <Typography component="div" variant="caption" color="text.secondary">
           {time}
         </Typography>
       ) : null}

@@ -92,7 +92,10 @@ export async function changePasswordAction(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+    data: { must_change_password: false },
+  });
 
   if (error) {
     if (process.env.NODE_ENV === "development") {

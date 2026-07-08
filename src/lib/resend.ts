@@ -7,6 +7,9 @@ import FounderDemoRequestEmail, {
 import FounderWelcomeEmail, { type FounderWelcomeProps } from "@/emails/FounderWelcome";
 import MagicLinkEmail, { type MagicLinkProps } from "@/emails/MagicLink";
 import OrgInvitationEmail, { type OrgInvitationProps } from "@/emails/OrgInvitation";
+import PilotProgramWelcomeEmail, {
+  type PilotProgramWelcomeProps,
+} from "@/emails/PilotProgramWelcome";
 import SupportTechnicianInvitationEmail, {
   type SupportTechnicianInvitationProps,
 } from "@/emails/SupportTechnicianInvitation";
@@ -82,6 +85,30 @@ export async function sendSupportTechnicianInvitationEmail(
     html,
   });
   assertEmailSent(result, "Support technician invitation email");
+  return result;
+}
+
+export async function sendPilotProgramWelcome(
+  to: string,
+  props: Omit<PilotProgramWelcomeProps, "appUrl" | "loginUrl" | "accountSettingsUrl" | "supportEmail">,
+) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://aquaticsempowered.com";
+  const html = await render(
+    PilotProgramWelcomeEmail({
+      ...props,
+      appUrl,
+      loginUrl: `${appUrl}/login`,
+      accountSettingsUrl: `${appUrl}/app/account`,
+      supportEmail: process.env.SUPPORT_EMAIL ?? process.env.RESEND_FROM_EMAIL ?? null,
+    }),
+  );
+  const result = await resend().emails.send({
+    from: from(),
+    to,
+    subject: "You're invited to pilot Aquatics Empowered — your login details inside",
+    html,
+  });
+  assertEmailSent(result, "Pilot program welcome email");
   return result;
 }
 

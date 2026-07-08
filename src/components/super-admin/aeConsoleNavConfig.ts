@@ -3,6 +3,7 @@ import AdminPanelSettingsOutlinedIcon from "@mui/icons-material/AdminPanelSettin
 import BusinessOutlinedIcon from "@mui/icons-material/BusinessOutlined";
 import CampaignOutlinedIcon from "@mui/icons-material/CampaignOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import FlightTakeoffOutlinedIcon from "@mui/icons-material/FlightTakeoffOutlined";
 import ForumOutlinedIcon from "@mui/icons-material/ForumOutlined";
 import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import PoolOutlinedIcon from "@mui/icons-material/PoolOutlined";
@@ -19,6 +20,7 @@ export type AeConsoleSectionKey =
   | "organizations"
   | "permissions"
   | "billing"
+  | "pilot_import"
   | "pool_catalog"
   | "support"
   | "support_providers"
@@ -75,6 +77,12 @@ export const AE_CONSOLE_NAV_GROUPS: AeConsoleNavGroup[] = [
         label: "Billing",
         description: "Plans and subscriptions",
         icon: PaymentsOutlinedIcon,
+      },
+      {
+        key: "pilot_import",
+        label: "Pilot import",
+        description: "Bulk onboard pilot orgs and users",
+        icon: FlightTakeoffOutlinedIcon,
       },
       {
         key: "pool_catalog",

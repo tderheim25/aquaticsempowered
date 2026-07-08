@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { syncOwnerAppRoleForOrg } from "@/lib/auth/planOwnerRoles";
 import { consoleSectionUrl, getSuperAdminPortalPath, requireSuperAdminConsole } from "@/lib/auth/superAdminPortal";
+import { captureException } from "@/lib/sentry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PlanCode, TicketStatus } from "@/types/database";
 
@@ -186,6 +188,11 @@ export async function updateOrgPlanAction(formData: FormData) {
   const admin = createAdminClient();
   const { error } = await admin.from("organizations").update({ plan_code }).eq("id", orgId);
   if (error) redirect(consoleSectionUrl("billing", { status: "error" }));
+  try {
+    await syncOwnerAppRoleForOrg(orgId);
+  } catch (syncErr) {
+    captureException(syncErr, { step: "update_org_plan_sync_roles", orgId });
+  }
   revalidatePath(getSuperAdminPortalPath());
   revalidatePath("/app");
   redirect(consoleSectionUrl("billing", { status: "updated" }));

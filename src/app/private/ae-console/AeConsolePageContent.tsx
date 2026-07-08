@@ -45,6 +45,7 @@ import {
   AeConsoleStatCard,
 } from "@/components/super-admin/AeConsolePrimitives";
 import { StatusToast } from "@/components/ui/StatusToast";
+import { PilotImportConsoleSection } from "@/components/super-admin/PilotImportConsoleSection";
 import { PoolCatalogConsoleSection } from "@/components/super-admin/PoolCatalogConsoleSection";
 import { OrganizationsConsoleSection } from "@/components/super-admin/OrganizationsConsoleSection";
 import { SupportProvidersConsoleSection } from "@/components/super-admin/SupportProvidersConsoleSection";
@@ -90,6 +91,18 @@ const AE_CONSOLE_TOAST_MESSAGES = {
   "invite-failed": { text: "Could not send invitation. Please try again.", severity: "error" as const },
   org_created: { text: "Organization created.", severity: "success" as const },
   org_updated: { text: "Organization updated.", severity: "success" as const },
+  org_deleted: { text: "Organization deleted.", severity: "info" as const },
+  assigned: { text: "User assignment updated.", severity: "success" as const },
+  deleted: { text: "User deleted.", severity: "info" as const },
+  "pilot-email-sent": {
+    text: "Login email sent with a new temporary password.",
+    severity: "success" as const,
+  },
+  "pilot-email-failed": { text: "Could not send login email. Try again.", severity: "error" as const },
+  "pilot-email-not-configured": {
+    text: "Email is not configured (RESEND_API_KEY).",
+    severity: "warning" as const,
+  },
   plan_updated: { text: "Plan updated.", severity: "success" as const },
   settings_saved: { text: "Settings saved.", severity: "success" as const },
   promo_code_created: { text: "Founder promo code created.", severity: "success" as const },
@@ -102,6 +115,7 @@ type Section =
   | "organizations"
   | "permissions"
   | "billing"
+  | "pilot_import"
   | "pool_catalog"
   | "support"
   | "support_providers"
@@ -118,6 +132,7 @@ const ALL_SECTIONS: Section[] = [
   "organizations",
   "permissions",
   "billing",
+  "pilot_import",
   "pool_catalog",
   "support",
   "support_providers",
@@ -179,7 +194,7 @@ export async function AeConsolePageContent({
     admin.from("app_roles").select("id, slug, label, permissions_base, is_builtin, sort_order").order("sort_order"),
     admin
       .from("organizations")
-      .select("id, name, tier, plan_code, founder, created_at, website_url, phone, address")
+      .select("id, name, tier, plan_code, founder, billing_org_id, created_at, website_url, phone, address")
       .order("name"),
     admin.from("plans").select("code, name").order("sort_order"),
     admin.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(200),
@@ -415,6 +430,7 @@ export async function AeConsolePageContent({
             tier: org.tier,
             plan_code: org.plan_code,
             founder: org.founder,
+            billing_org_id: org.billing_org_id,
             website_url: org.website_url ?? null,
             phone: org.phone ?? null,
             address: org.address,
@@ -533,6 +549,8 @@ export async function AeConsolePageContent({
           )}
         </Stack>
       ) : null}
+
+      {section === "pilot_import" ? <PilotImportConsoleSection /> : null}
 
       {section === "support" ? (
         <SupportTicketsConsoleSection

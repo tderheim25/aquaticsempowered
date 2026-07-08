@@ -18,7 +18,11 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
-import { sidebarGroupHeaderSx, sidebarNavItemSx } from "@/components/navigation/sidebarStyles";
+import {
+  sidebarGroupHeaderSx,
+  sidebarNavItemSx,
+  sidebarNavScrollSx,
+} from "@/components/navigation/sidebarStyles";
 import { AE_CONSOLE_NAV_GROUPS } from "@/components/super-admin/aeConsoleNavConfig";
 import { getSuperAdminPortalPath } from "@/lib/auth/superAdminPortalConstants";
 
@@ -48,7 +52,9 @@ export function AeConsoleNav({
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        flex: 1,
+        minHeight: 0,
+        overflow: "hidden",
         py: 1.5,
       }}
     >
@@ -56,6 +62,7 @@ export function AeConsoleNav({
         sx={{
           px: collapsed ? 1 : 2,
           pb: 1.5,
+          flexShrink: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: collapsed ? "center" : "space-between",
@@ -91,9 +98,9 @@ export function AeConsoleNav({
         ) : null}
       </Box>
 
-      <Divider sx={{ mx: collapsed ? 1 : 2, opacity: 0.6 }} />
+      <Divider sx={{ mx: collapsed ? 1 : 2, opacity: 0.6, flexShrink: 0 }} />
 
-      <Box sx={{ flex: 1, overflowY: "auto", overflowX: "hidden", py: 1 }}>
+      <Box sx={sidebarNavScrollSx}>
         {AE_CONSOLE_NAV_GROUPS.map((group, groupIndex) => (
           <Box key={group.title} sx={{ mt: groupIndex > 0 ? 1.5 : 0.5 }}>
             {!collapsed ? (

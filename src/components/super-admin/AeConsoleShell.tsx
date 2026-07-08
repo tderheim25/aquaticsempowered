@@ -97,21 +97,35 @@ export function AeConsoleShell({
           onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
           sx={{ display: { xs: "block", md: "none" } }}
-          PaperProps={{ sx: { ...sidebarDrawerPaperSx, width: SIDEBAR_DRAWER_WIDTH } }}
+          PaperProps={{
+            sx: {
+              ...sidebarDrawerPaperSx,
+              width: SIDEBAR_DRAWER_WIDTH,
+              maxHeight: "100dvh",
+            },
+          }}
         >
-          <Toolbar />
-          {sidebar}
+          <Toolbar sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {sidebar}
+          </Box>
         </Drawer>
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
-            "& .MuiDrawer-paper": { ...sidebarDrawerPaperSx, width: drawerWidth },
+            "& .MuiDrawer-paper": {
+              ...sidebarDrawerPaperSx,
+              width: drawerWidth,
+              maxHeight: "100dvh",
+            },
           }}
           open
         >
-          <Toolbar />
-          {sidebar}
+          <Toolbar sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {sidebar}
+          </Box>
         </Drawer>
       </Box>
 

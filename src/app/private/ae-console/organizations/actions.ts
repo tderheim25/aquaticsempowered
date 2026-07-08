@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { syncOwnerAppRoleForOrg } from "@/lib/auth/planOwnerRoles";
 import { consoleSectionUrl, getSuperAdminPortalPath, requireSuperAdminConsole } from "@/lib/auth/superAdminPortal";
+import { deleteOrganizationTree } from "@/lib/org/deleteOrganization";
+import { captureException } from "@/lib/sentry";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OrgTier, PlanCode } from "@/types/database";
 
@@ -95,6 +98,12 @@ export async function updateOrganizationAction(formData: FormData) {
     redirect(consoleSectionUrl("organizations", { status: "error" }));
   }
 
+  try {
+    await syncOwnerAppRoleForOrg(id);
+  } catch (syncErr) {
+    captureException(syncErr, { step: "update_organization_sync_roles", orgId: id });
+  }
+
   revalidatePath(getSuperAdminPortalPath());
   revalidatePath("/app");
   redirect(consoleSectionUrl("organizations", { status: "updated" }));
@@ -129,4 +138,23 @@ export async function updateUserOrgAssignmentAction(formData: FormData) {
   revalidatePath(getSuperAdminPortalPath());
   revalidatePath("/app");
   redirect(consoleSectionUrl("organizations", { status: "assigned" }));
+}
+
+export async function deleteOrganizationAction(formData: FormData) {
+  await requireSuperAdminConsole();
+
+  const orgId = String(formData.get("orgId") ?? "").trim();
+  if (!orgId) {
+    redirect(consoleSectionUrl("organizations", { status: "invalid" }));
+  }
+
+  const result = await deleteOrganizationTree(orgId);
+  if (!result.ok) {
+    captureException(new Error(result.error), { step: "delete_organization", orgId });
+    redirect(consoleSectionUrl("organizations", { status: "error" }));
+  }
+
+  revalidatePath(getSuperAdminPortalPath());
+  revalidatePath("/app");
+  redirect(consoleSectionUrl("organizations", { status: "org_deleted" }));
 }

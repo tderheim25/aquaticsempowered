@@ -574,6 +574,7 @@ export type Database = {
           address: Json;
           plan_code: PlanCode;
           founder: boolean;
+          pilot_access_until: string | null;
           website_url: string | null;
           phone: string | null;
           billing_org_id: string;
@@ -587,6 +588,7 @@ export type Database = {
           address?: Json;
           plan_code?: PlanCode;
           founder?: boolean;
+          pilot_access_until?: string | null;
           website_url?: string | null;
           phone?: string | null;
           billing_org_id?: string;
@@ -600,6 +602,7 @@ export type Database = {
           address?: Json;
           plan_code?: PlanCode;
           founder?: boolean;
+          pilot_access_until?: string | null;
           website_url?: string | null;
           phone?: string | null;
           billing_org_id?: string;

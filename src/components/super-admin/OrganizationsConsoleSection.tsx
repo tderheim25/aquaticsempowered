@@ -1,6 +1,7 @@
 "use client";
 
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import {
   Box,
@@ -22,6 +23,7 @@ import { useState, type ReactNode } from "react";
 
 import {
   createOrganizationAction,
+  deleteOrganizationAction,
   updateOrganizationAction,
   updateUserOrgAssignmentAction,
 } from "@/app/private/ae-console/organizations/actions";
@@ -75,6 +77,7 @@ export type AdminOrganizationRow = {
   tier: OrgTier | null;
   plan_code: PlanCode;
   founder: boolean;
+  billing_org_id: string;
   website_url: string | null;
   phone: string | null;
   address: Json;
@@ -215,7 +218,7 @@ function ProfileField({
         {label}
       </Typography>
       {empty ? (
-        <Typography variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
+        <Typography component="div" variant="body2" color="text.disabled" sx={{ fontStyle: "italic" }}>
           —
         </Typography>
       ) : href ? (
@@ -231,6 +234,7 @@ function ProfileField({
         </Typography>
       ) : (
         <Typography
+          component="div"
           variant="body2"
           sx={mono ? { fontFamily: "monospace", fontSize: "0.8rem", wordBreak: "break-all" } : undefined}
         >
@@ -245,12 +249,71 @@ function normalizeUrl(url: string) {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
+function DeleteOrganizationDialog({
+  org,
+  childFacilityCount,
+  onClose,
+}: {
+  org: AdminOrganizationRow | null;
+  childFacilityCount: number;
+  onClose: () => void;
+}) {
+  const isBillingRoot = Boolean(org && org.id === org.billing_org_id);
+
+  return (
+    <Dialog open={Boolean(org)} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle>Delete organization?</DialogTitle>
+      <Divider />
+      {org ? (
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              You are about to delete <strong>{org.name}</strong>. This cannot be undone.
+            </Typography>
+            {isBillingRoot && childFacilityCount > 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                This billing account includes <strong>{childFacilityCount}</strong> additional
+                facilit{childFacilityCount === 1 ? "y" : "ies"} that will also be removed.
+              </Typography>
+            ) : null}
+            <Typography variant="body2" color="text.secondary">
+              Related pools, logs, memberships, and subscriptions for the deleted
+              {isBillingRoot ? " account" : " facility"} are removed. User accounts are kept but may
+              need to be reassigned.
+            </Typography>
+          </Stack>
+        </DialogContent>
+      ) : null}
+      <Divider />
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        {org ? (
+          <form action={deleteOrganizationAction} onSubmit={() => setTimeout(onClose, 0)}>
+            <input type="hidden" name="orgId" value={org.id} />
+            <Button type="submit" color="error" variant="contained" startIcon={<DeleteOutlineRoundedIcon />}>
+              Delete organization
+            </Button>
+          </form>
+        ) : null}
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function OrganizationsConsoleSection({
   organizations,
   planOptions,
   users,
 }: OrganizationsConsoleSectionProps) {
   const [viewingOrg, setViewingOrg] = useState<AdminOrganizationRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<AdminOrganizationRow | null>(null);
+
+  const childFacilityCount = (org: AdminOrganizationRow) =>
+    org.id === org.billing_org_id
+      ? organizations.filter((o) => o.billing_org_id === org.id && o.id !== org.id).length
+      : 0;
 
   return (
     <Stack spacing={2}>
@@ -377,6 +440,16 @@ export function OrganizationsConsoleSection({
                         <Button type="submit" form={fid} variant="outlined" size="small">
                           Save
                         </Button>
+                        <Tooltip title="Delete organization">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setConfirmDelete(org)}
+                            aria-label="Delete organization"
+                          >
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableRowActions>
                     </TableCell>
                   </TableRow>
@@ -388,6 +461,12 @@ export function OrganizationsConsoleSection({
       </AeConsolePanel>
 
       <OrgProfileDialog org={viewingOrg} planOptions={planOptions} onClose={() => setViewingOrg(null)} />
+
+      <DeleteOrganizationDialog
+        org={confirmDelete}
+        childFacilityCount={confirmDelete ? childFacilityCount(confirmDelete) : 0}
+        onClose={() => setConfirmDelete(null)}
+      />
 
       <AeConsolePanel noPadding sx={{ overflowX: "auto" }}>
         <Box sx={{ px: 2.5, pt: 2, pb: 1 }}>

@@ -14,6 +14,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import Alert from "@mui/material/Alert";
 import { useTheme } from "@mui/material/styles";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -63,6 +64,8 @@ export function DashboardShell({
   showOrgSwitcher,
   canCreateFacility,
   isFounder = false,
+  pilotEnded = null,
+  mustChangePassword = false,
   children,
 }: {
   displayName: string;
@@ -80,6 +83,8 @@ export function DashboardShell({
   showOrgSwitcher?: boolean;
   canCreateFacility?: boolean;
   isFounder?: boolean;
+  pilotEnded?: { orgName: string | null; endedAt: string | null } | null;
+  mustChangePassword?: boolean;
   children: React.ReactNode;
 }) {
   const theme = useTheme();
@@ -284,6 +289,25 @@ export function DashboardShell({
       >
         <BreadcrumbLabelProvider>
           <DashboardBreadcrumbs />
+          {mustChangePassword ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Please{" "}
+              <Typography component={Link} href="/app/account" sx={{ fontWeight: 600 }}>
+                change your temporary password
+              </Typography>{" "}
+              in account settings.
+            </Alert>
+          ) : null}
+          {pilotEnded ? (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Your complimentary pilot access{pilotEnded.orgName ? ` for ${pilotEnded.orgName}` : ""} has
+              ended. Upgrade on the{" "}
+              <Typography component={Link} href="/app/billing" sx={{ fontWeight: 600 }}>
+                billing page
+              </Typography>{" "}
+              to restore full features.
+            </Alert>
+          ) : null}
           {children}
         </BreadcrumbLabelProvider>
       </Box>

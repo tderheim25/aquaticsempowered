@@ -40,6 +40,10 @@ export default async function AccountSettingsPage({
   const { status } = await searchParams;
   const profile = await requireProfileForApp();
   const supabase = await createClient();
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  const mustChangePassword = authUser?.user_metadata?.must_change_password === true;
   const avatarUrl = await signAvatarPath(supabase, profile.avatar_path);
   const displayName = buildDisplayName({
     first_name: profile.first_name,
@@ -72,6 +76,7 @@ export default async function AccountSettingsPage({
         displayName={displayName}
         avatarUrl={avatarUrl}
         communityProfileHref={communityProfileHref}
+        mustChangePassword={mustChangePassword}
       />
     </Box>
   );

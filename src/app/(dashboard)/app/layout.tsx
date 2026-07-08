@@ -5,6 +5,7 @@ import { getUsersRowWithAdminFallback, requireAuth } from "@/lib/auth/rbac";
 import { getVendorForUser } from "@/lib/auth/vendorPortal";
 import { loadOrgSubscriptionSummary } from "@/lib/billing/loadOrgSubscriptionSummary";
 import { isAwaitingPayment, planLabelFromCode } from "@/lib/billing/subscriptionSummary";
+import { enforceExpiredPilotAccess } from "@/lib/pilot/pilotAccess";
 import { captureException } from "@/lib/sentry";
 import { syncOrgBillingFromStripe } from "@/lib/stripe/syncSubscription";
 import { isStripeConfigured } from "@/lib/stripe/server";
@@ -27,6 +28,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   let displayOrgName: string | null = orgCtx.activeOrgName;
   let planCode: PlanCode = orgCtx.planCode;
+  let pilotAccessStatus: Awaited<ReturnType<typeof enforceExpiredPilotAccess>> | null = null;
+
+  if (orgCtx.billingRootOrgId && profile?.role !== "vendor") {
+    pilotAccessStatus = await enforceExpiredPilotAccess(orgCtx.billingRootOrgId);
+    if (pilotAccessStatus.expired) {
+      planCode = "free";
+    }
+  }
 
   if (profile?.role === "vendor") {
     const vendor = await getVendorForUser(profile.id);
@@ -51,6 +60,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       })
     : user?.email || "Operator";
   const avatarUrl = profile ? await signAvatarPath(supabase, profile.avatar_path) : null;
+  const mustChangePassword = user?.user_metadata?.must_change_password === true;
   const allowedViews = await getAllowedViewsForProfile(
     profile ? { role: profile.role, app_role_id: profile.app_role_id } : null
   );
@@ -129,6 +139,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
       showOrgSwitcher={hasFacilitySwitcher}
       canCreateFacility={orgCtx.canCreateFacility}
       isFounder={orgCtx.isFounder}
+      pilotEnded={
+        pilotAccessStatus?.expired
+          ? {
+              orgName: pilotAccessStatus.orgName,
+              endedAt: pilotAccessStatus.pilotAccessUntil,
+            }
+          : null
+      }
+      mustChangePassword={mustChangePassword}
     >
       {children}
     </DashboardShell>
