@@ -206,3 +206,41 @@ export async function deleteVendorProductAction(formData: FormData) {
   revalidatePath("/vendors");
   redirect(consoleSectionUrl("vendors", { tab: "products", status: "product_deleted" }));
 }
+
+export async function deleteVendorAction(formData: FormData) {
+  await requireSuperAdminConsole();
+  const vendorId = String(formData.get("vendorId") ?? "").trim();
+  if (!vendorId) {
+    redirect(consoleSectionUrl("vendors", { tab: "directory", status: "invalid" }));
+  }
+
+  const admin = createAdminClient();
+  const { data: vendor } = await admin.from("vendors").select("id, name").eq("id", vendorId).maybeSingle();
+  if (!vendor) {
+    redirect(consoleSectionUrl("vendors", { tab: "directory", status: "invalid" }));
+  }
+
+  const { data: staffRole } = await admin.from("app_roles").select("id").eq("slug", "staff").maybeSingle();
+  const { error: userErr } = await admin
+    .from("users")
+    .update({
+      vendor_id: null,
+      role: "staff",
+      ...(staffRole?.id ? { app_role_id: staffRole.id } : {}),
+    })
+    .eq("vendor_id", vendorId);
+
+  if (userErr) {
+    redirect(consoleSectionUrl("vendors", { tab: "directory", status: "error" }));
+  }
+
+  const { error } = await admin.from("vendors").delete().eq("id", vendorId);
+  if (error) {
+    redirect(consoleSectionUrl("vendors", { tab: "directory", status: "error" }));
+  }
+
+  revalidatePath(getSuperAdminPortalPath());
+  revalidatePath("/vendors");
+  revalidatePath("/app/vendor");
+  redirect(consoleSectionUrl("vendors", { tab: "directory", status: "vendor_deleted" }));
+}

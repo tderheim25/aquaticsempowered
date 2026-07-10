@@ -13,6 +13,8 @@ import {
 import { insertCommunityFollow, isFollowingCommunityUser } from "@/lib/community/communityFollows";
 import { communityProfilePath, normalizeCommunityProfilePath } from "@/lib/profile/paths";
 import { optimizeUploadImage } from "@/lib/images/optimizeUploadImage";
+import { getSuperAdminPortalPath } from "@/lib/auth/superAdminPortalConstants";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_IMAGES = 5;
@@ -52,6 +54,24 @@ export async function createCommunityPostAction(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  // Guard against double-clicks / duplicate form submissions.
+  const dedupeSince = new Date(Date.now() - 60_000).toISOString();
+  const { data: recentDuplicate } = await supabase
+    .from("community_posts")
+    .select("id")
+    .eq("author_id", profile.id)
+    .eq("body", body)
+    .gte("created_at", dedupeSince)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recentDuplicate?.id) {
+    revalidatePath("/community");
+    redirect("/community?status=created");
+  }
+
   const { data: post, error: pErr } = await supabase
     .from("community_posts")
     .insert({ org_id: profile.org_id ?? null, author_id: profile.id, body })
@@ -138,9 +158,9 @@ export async function createCommunityJobAction(formData: FormData) {
     redirect("/community?tab=jobs&status=job_invalid_email");
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.from("community_job_posts").insert({
-    org_id: profile.org_id ?? null,
+  const viewer = await resolveCommunityViewer(profile);
+  const payload = {
+    org_id: viewer.org_id,
     author_id: profile.id,
     title,
     company_name: companyName,
@@ -149,7 +169,14 @@ export async function createCommunityJobAction(formData: FormData) {
     description,
     apply_url: applyUrl || null,
     contact_email: contactEmail || null,
-  });
+  };
+
+  const supabase = await createClient();
+  let { error } = await supabase.from("community_job_posts").insert(payload);
+  if (error) {
+    const admin = createAdminClient();
+    ({ error } = await admin.from("community_job_posts").insert(payload));
+  }
 
   if (error) {
     if (process.env.NODE_ENV === "development") {
@@ -159,6 +186,7 @@ export async function createCommunityJobAction(formData: FormData) {
   }
 
   revalidatePath("/community");
+  revalidatePath(getSuperAdminPortalPath());
   redirect("/community?tab=jobs&status=job_created");
 }
 

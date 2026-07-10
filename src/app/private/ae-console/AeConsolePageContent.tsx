@@ -68,6 +68,7 @@ const AE_CONSOLE_TOAST_MESSAGES = {
   logo_updated: { text: "Vendor logo updated.", severity: "success" as const },
   product_saved: { text: "Product saved.", severity: "success" as const },
   product_deleted: { text: "Product removed.", severity: "info" as const },
+  vendor_deleted: { text: "Vendor deleted from the directory.", severity: "info" as const },
   error: { text: "Something went wrong. Please try again.", severity: "error" as const },
   invalid: { text: "Some fields are missing or invalid.", severity: "error" as const },
   ad_saved: { text: "Ad placement saved.", severity: "success" as const },
@@ -286,6 +287,7 @@ export async function AeConsolePageContent({
   const supportTechnicians = (users ?? []).filter((u) => u.role === "support_technician");
   const pendingTechInvites = techInvitesRes.error ? [] : (techInvitesRes.data ?? []);
   const jobs = jobsRes.error ? [] : (jobsRes.data ?? []);
+  const jobsLoadError = Boolean(jobsRes.error);
   const posts = postsRes.error ? [] : (postsRes.data ?? []);
   const comments = commentsRes.error ? [] : (commentsRes.data ?? []);
   const courses = coursesRes.error ? [] : (coursesRes.data ?? []);
@@ -629,45 +631,59 @@ export async function AeConsolePageContent({
       ) : null}
 
       {section === "jobs" ? (
-        <AeConsolePanel noPadding>
-          <DataTable embedded>
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Company</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {jobs.map((j) => (
-                <TableRow key={j.id}>
-                  <TableCell>{j.title}</TableCell>
-                  <TableCell>{j.company_name}</TableCell>
-                  <TableCell>
-                    <StatusPill label={j.status ?? "active"} />
-                  </TableCell>
-                  <TableCell>
-                    <form action={moderateJobPostAction}>
-                      <input type="hidden" name="jobId" value={j.id} />
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <TextField select size="small" name="status" defaultValue={j.status ?? "active"}>
-                          <MenuItem value="active">active</MenuItem>
-                          <MenuItem value="blocked">blocked</MenuItem>
-                          <MenuItem value="closed">closed</MenuItem>
-                        </TextField>
-                        <FormControlLabel control={<Checkbox name="is_promoted" defaultChecked={j.is_promoted} />} label="Promoted" />
-                        <Button type="submit" size="small">
-                          Save
-                        </Button>
-                      </Stack>
-                    </form>
-                  </TableCell>
+        <Stack spacing={2}>
+          {jobsLoadError ? (
+            <Alert severity="error">Could not load job posts. Check Supabase logs and migration 0018/0019.</Alert>
+          ) : null}
+          <AeConsolePanel noPadding>
+            <DataTable embedded>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Company</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell />
                 </TableRow>
-              ))}
-            </TableBody>
-          </DataTable>
-        </AeConsolePanel>
+              </TableHead>
+              <TableBody>
+                {jobs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4}>
+                      <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                        No job posts yet. Jobs published from Community → Jobs appear here for moderation.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {jobs.map((j) => (
+                  <TableRow key={j.id}>
+                    <TableCell>{j.title}</TableCell>
+                    <TableCell>{j.company_name}</TableCell>
+                    <TableCell>
+                      <StatusPill label={j.status ?? "active"} />
+                    </TableCell>
+                    <TableCell>
+                      <form action={moderateJobPostAction}>
+                        <input type="hidden" name="jobId" value={j.id} />
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField select size="small" name="status" defaultValue={j.status ?? "active"}>
+                            <MenuItem value="active">active</MenuItem>
+                            <MenuItem value="blocked">blocked</MenuItem>
+                            <MenuItem value="closed">closed</MenuItem>
+                          </TextField>
+                          <FormControlLabel control={<Checkbox name="is_promoted" defaultChecked={j.is_promoted} />} label="Promoted" />
+                          <Button type="submit" size="small">
+                            Save
+                          </Button>
+                        </Stack>
+                      </form>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </DataTable>
+          </AeConsolePanel>
+        </Stack>
       ) : null}
 
       {section === "community" ? (

@@ -6,11 +6,9 @@ import {
   Button,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import Link from "next/link";
-import { createCommunityPostAction } from "@/app/(dashboard)/app/community/actions";
 import { serializeFeedEngagement, type SerializedCommunityFeed } from "@/lib/community/serializeFeedEngagement";
 import type { LoadedCommunityJobs } from "@/lib/community/loadCommunityJobsData";
 import { CommunityFeedTabLinks, type CommunityFeedTab } from "./CommunityFeedTabLinks";
@@ -22,11 +20,11 @@ import { CommunityProgramsSection } from "./CommunityProgramsSection";
 import type { LoadedCommunityMarketplace } from "@/lib/community/loadCommunityMarketplaceData";
 import { CommunitySearchBar } from "./CommunitySearchBar";
 import { CommunityFeedPostsLive } from "./CommunityFeedPostsLive";
+import { CommunityPostComposer } from "./CommunityPostComposer";
 import { CommunitySpotlightRail } from "./CommunitySpotlightRail";
 import type { PlanCode } from "@/types/database";
 
 import {
-  communityContainedButtonSx,
   communitySectionTitleSx,
   communitySurfacePaperSx,
 } from "./communityUi";
@@ -158,33 +156,7 @@ export function CommunityFeedPanel({
                 <Typography variant="h6" sx={{ ...communitySectionTitleSx, mb: 1.5 }}>
                   Create a post
                 </Typography>
-                <Box component="form" action={createCommunityPostAction}>
-                  <Stack spacing={1.5}>
-                    <TextField
-                      id="community-new-post-body"
-                      name="body"
-                      label="What is on your mind?"
-                      multiline
-                      minRows={3}
-                      fullWidth
-                      placeholder="Write something…"
-                    />
-                    <Button variant="outlined" component="label" sx={{ alignSelf: "flex-start" }}>
-                      Add photos
-                      <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp,image/gif" hidden />
-                    </Button>
-                    <Typography variant="caption" color="text.secondary">
-                      Up to 5 images, 5 MB each (JPEG, PNG, WebP, GIF).
-                    </Typography>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      sx={{ alignSelf: "flex-start", ...communityContainedButtonSx() }}
-                    >
-                      Post
-                    </Button>
-                  </Stack>
-                </Box>
+                <CommunityPostComposer />
               </Paper>
             ) : null}
 

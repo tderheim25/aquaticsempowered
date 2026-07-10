@@ -1,9 +1,16 @@
 "use client";
 
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import {
   Box,
+  Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   IconButton,
   Stack,
   Tooltip,
@@ -12,6 +19,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
+import { deleteVendorAction } from "@/app/private/ae-console/platform/vendorActions";
 import { AddVendorModal } from "@/components/super-admin/AddVendorModal";
 import { EditVendorDialog } from "@/components/super-admin/EditVendorDialog";
 import { AeConsolePanel } from "@/components/super-admin/AeConsolePrimitives";
@@ -49,6 +57,7 @@ export function VendorDirectorySection({
   productCountByVendor: Map<string, number>;
 }) {
   const [editing, setEditing] = useState<VendorListRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<VendorListRow | null>(null);
 
   return (
     <Stack spacing={2}>
@@ -193,6 +202,11 @@ export function VendorDirectorySection({
                             <EditOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Delete vendor">
+                          <IconButton size="small" color="error" onClick={() => setConfirmDelete(v)}>
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       </TableRowActions>
                     </TableCell>
                   </TableRow>
@@ -204,6 +218,50 @@ export function VendorDirectorySection({
       )}
 
       <EditVendorDialog vendor={editing} onClose={() => setEditing(null)} />
+      <DeleteVendorDialog vendor={confirmDelete} onClose={() => setConfirmDelete(null)} />
     </Stack>
+  );
+}
+
+function DeleteVendorDialog({
+  vendor,
+  onClose,
+}: {
+  vendor: VendorListRow | null;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={Boolean(vendor)} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
+      <DialogTitle>Delete vendor?</DialogTitle>
+      <Divider />
+      {vendor ? (
+        <DialogContent sx={{ pt: 2 }}>
+          <Stack spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              You are about to remove <strong>{vendor.name}</strong> from the vendor directory. This cannot be
+              undone.
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              All products and marketplace inquiries for this vendor are deleted. Linked vendor portal users are
+              unlinked and moved to the staff role.
+            </Typography>
+          </Stack>
+        </DialogContent>
+      ) : null}
+      <Divider />
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button onClick={onClose} color="inherit">
+          Cancel
+        </Button>
+        {vendor ? (
+          <form action={deleteVendorAction} onSubmit={() => setTimeout(onClose, 0)}>
+            <input type="hidden" name="vendorId" value={vendor.id} />
+            <Button type="submit" color="error" variant="contained" startIcon={<DeleteOutlineRoundedIcon />}>
+              Delete vendor
+            </Button>
+          </form>
+        ) : null}
+      </DialogActions>
+    </Dialog>
   );
 }

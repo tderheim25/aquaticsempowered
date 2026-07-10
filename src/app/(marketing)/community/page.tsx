@@ -61,7 +61,8 @@ function statusMessage(status?: string) {
     case "job_save_failed":
       return {
         severity: "error" as const,
-        text: "Could not save the job post. Apply Supabase migration 0018 if you have not, then try again.",
+        text:
+          "Could not save the job post. Run supabase/migrations/0018_community_job_posts.sql (and 0019 for moderation fields), then sign out and sign back in before trying again.",
       };
     default:
       return null;
